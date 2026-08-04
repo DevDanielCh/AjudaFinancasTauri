@@ -36,7 +36,7 @@ bun run build                                      # export estático do Next
 bun run tauri build
 ```
 
-Gera bundles em `src-tauri/target/release/bundle/` (AppImage, deb, rpm).
+Gera bundles em `src-tauri/target/release/bundle/`. Em Arch, o bundler de AppImage (linuxdeploy antigo) falha com o glibc mais novo (erro de `strip`/`.relr.dyn`); use `--bundles deb,rpm` localmente. O AppImage e os artefatos assinados (`latest.json`) são gerados pelo CI (`.github/workflows/release.yml`, ubuntu-22.04).
 
 ## Release / atualização automática
 
