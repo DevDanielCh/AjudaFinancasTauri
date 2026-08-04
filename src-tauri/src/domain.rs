@@ -220,3 +220,62 @@ pub fn expenses_by_pm(
     out.sort_by(|a, b| b.total.cmp(&a.total));
     Ok(out)
 }
+
+/// Gera transações das contas fixas ativas no mês. Dia clampado ao último dia.
+pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), String> {
+    let month_key = month.format("%Y-%m").to_string();
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, description, amount, day, category_id, payment_method_id
+             FROM fixed_bills
+             WHERE start_month <= ?1 AND (end_month IS NULL OR end_month >= ?1)",
+        )
+        .map_err(db_err)?;
+    let bills = stmt
+        .query_map(rusqlite::params![month_key], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, Option<i64>>(4)?,
+                r.get::<_, i64>(5)?,
+            ))
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+
+    let start = month.with_day(1).unwrap().format("%Y-%m-%d").to_string();
+    let end = month
+        .checked_add_months(Months::new(1))
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+    let last = last_day_of(month) as i64;
+
+    for (id, description, amount, day, category_id, payment_method_id) in bills {
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE fixed_bill_id = ?1 AND date >= ?2 AND date < ?3",
+                rusqlite::params![id, start, end],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        if exists > 0 {
+            continue;
+        }
+        let due = month
+            .with_day(day.min(last) as u32)
+            .unwrap()
+            .format("%Y-%m-%d")
+            .to_string();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, fixed_bill_id, loan_id)
+             VALUES (?1, ?2, 2, ?3, ?4, ?5, ?6, NULL)",
+            rusqlite::params![description, amount, due, category_id, payment_method_id, id],
+        )
+        .map_err(db_err)?;
+    }
+    Ok(())
+}
