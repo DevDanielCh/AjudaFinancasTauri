@@ -75,6 +75,8 @@ jobs:
         uses: tauri-apps/tauri-action@action-v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ startsWith(matrix.platform, 'macos-') && '-' || '' }}
         with:
           tagName: v__VERSION__
@@ -89,7 +91,7 @@ jobs:
           args: ${{ matrix.args }}
           assetNamePattern: ${{ matrix.assetPattern }}
           uploadPlainBinary: ${{ matrix.uploadPlainBinary }}
-          includeUpdaterJson: false
+          includeUpdaterJson: true
 
       - name: Upload Windows portable executable
         if: matrix.portableUpload

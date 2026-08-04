@@ -41,7 +41,7 @@
     "updater": {
       "pubkey": "TROQUE_PELA_PUBKEY_GERADA",
       "endpoints": [
-        "https://github.com/SEU_USUARIO/AjudaFinancasTauri/releases/latest/download/latest.json"
+        "https://github.com/DevDanielCh/AjudaFinancasTauri/releases/latest/download/latest.json"
       ]
     }
   }
