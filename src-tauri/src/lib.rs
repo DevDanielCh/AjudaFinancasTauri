@@ -1,15 +1,14 @@
+use crate::db::AppState;
 use tauri::webview::PageLoadEvent;
+use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_log::{Target, TargetKind};
 
+pub mod commands;
 pub mod db;
 pub mod domain;
 pub mod models;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
 
 fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::<R>::new("external-navigation")
@@ -52,7 +51,41 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(external_navigation_plugin())
-        .invoke_handler(tauri::generate_handler![greet])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            let conn = db::open(app.handle()).expect("falha ao abrir o banco de dados");
+            app.manage(AppState {
+                db: std::sync::Mutex::new(conn),
+            });
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::meta::get_earliest_month,
+            commands::meta::get_version,
+            commands::dashboard::get_dashboard,
+            commands::dashboard::sync_dashboard,
+            commands::transactions::list_transactions,
+            commands::transactions::create_transaction,
+            commands::transactions::update_transaction,
+            commands::transactions::delete_transactions,
+            commands::payment_methods::list_payment_methods,
+            commands::payment_methods::create_payment_method,
+            commands::payment_methods::update_payment_method,
+            commands::payment_methods::delete_payment_methods,
+            commands::categories::list_categories,
+            commands::categories::create_category,
+            commands::categories::update_category,
+            commands::categories::delete_categories,
+            commands::fixed_bills::list_fixed_bills,
+            commands::fixed_bills::create_fixed_bill,
+            commands::fixed_bills::update_fixed_bill,
+            commands::fixed_bills::delete_fixed_bills,
+            commands::loans::list_loans,
+            commands::loans::get_loan_detail,
+            commands::loans::create_loan,
+            commands::loans::update_loan,
+            commands::loans::delete_loans,
+        ])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
                 log::info!("main webview finished loading");
