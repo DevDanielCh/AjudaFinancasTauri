@@ -402,3 +402,65 @@ pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
     }
     Ok(())
 }
+
+use crate::models::AmortizationRow;
+
+/// Taxa mensal i que resolve PV = PMT * (1-(1+i)^-n)/i por bisseção.
+pub fn loan_monthly_rate(principal: i64, installment: i64, n: i64) -> f64 {
+    if principal <= 0 || installment <= 0 || n < 1 {
+        return 0.0;
+    }
+    let pv = principal as f64;
+    let pmt = installment as f64;
+    let n = n as f64;
+    if pmt * n <= pv {
+        return 0.0;
+    }
+    let g = |i: f64| pmt * (1.0 - (1.0 + i).powf(-n)) / i - pv;
+    let mut lo = 0.0;
+    let mut hi = 0.0001;
+    while g(hi) > 0.0 && hi < 100.0 {
+        hi *= 2.0;
+    }
+    for _ in 0..200 {
+        let mid = (lo + hi) / 2.0;
+        if g(mid) > 0.0 {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    (lo + hi) / 2.0
+}
+
+/// Tabela de amortização (parcelas iguais, juros sobre saldo devedor).
+pub fn loan_schedule(principal: i64, installment: i64, n: i64, start_month: &str) -> Vec<AmortizationRow> {
+    let rate = loan_monthly_rate(principal, installment, n);
+    let mut balance = principal;
+    let mut rows = Vec::with_capacity(n as usize);
+    for k in 1..=n {
+        let interest = (balance as f64 * rate).round() as i64;
+        let mut p = installment - interest;
+        let mut paid = installment;
+        if k == n {
+            p = balance;
+            paid = interest + p;
+        }
+        balance -= p;
+        let month = parse_month(start_month)
+            .unwrap()
+            .checked_add_months(Months::new(k as u32 - 1))
+            .unwrap()
+            .format("%Y-%m")
+            .to_string();
+        rows.push(AmortizationRow {
+            number: k,
+            month,
+            installment: paid,
+            interest,
+            principal: p,
+            balance,
+        });
+    }
+    rows
+}

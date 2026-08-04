@@ -133,3 +133,48 @@ fn sync_generated_cobre_meses_com_movimento() {
         .unwrap();
     assert_eq!(n, 1, "conta fixa gerada para 2026-01 (mês com movimento)");
 }
+
+use ajudafinancas_lib::models::LoanInput;
+
+#[test]
+fn taxa_mensal_bissecao_reconstroi_fluxo() {
+    let l = LoanInput {
+        type_: 1,
+        description: "x".into(),
+        principal: 100_000,
+        installment: 35_000,
+        total_installments: 3,
+        day: 10,
+        start_month: "2026-01".into(),
+        payment_method_id: 1,
+    };
+    let rate = domain::loan_monthly_rate(l.principal, l.installment, l.total_installments);
+    assert!(rate > 0.0 && rate < 0.5, "taxa = {rate}");
+    // PV = PMT * (1-(1+i)^-n)/i deve aproximar o principal
+    let pv = (l.installment as f64) * (1.0 - (1.0 + rate).powf(-(l.total_installments as f64))) / rate;
+    assert!((pv - l.principal as f64).abs() < 1.0, "pv={pv}");
+
+    let zero = domain::loan_monthly_rate(100, 10, 5);
+    assert_eq!(zero, 0.0, "total <= principal => taxa 0");
+}
+
+#[test]
+fn schedule_amortiza_ate_zero() {
+    let l = LoanInput {
+        type_: 1,
+        description: "x".into(),
+        principal: 300_000,
+        installment: 110_000,
+        total_installments: 3,
+        day: 15,
+        start_month: "2026-01".into(),
+        payment_method_id: 1,
+    };
+    let rows = domain::loan_schedule(l.principal, l.installment, l.total_installments, &l.start_month);
+    assert_eq!(rows.len() as i64, l.total_installments);
+    let sum_principal: i64 = rows.iter().map(|r| r.principal).sum();
+    assert_eq!(sum_principal, l.principal, "soma das amortizações = principal");
+    assert_eq!(rows.last().unwrap().balance, 0, "saldo final zero");
+    assert_eq!(rows[0].month, "2026-01");
+    assert_eq!(rows[2].month, "2026-03");
+}
