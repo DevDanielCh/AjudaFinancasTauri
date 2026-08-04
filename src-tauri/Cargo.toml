@@ -28,4 +28,5 @@ rusqlite_migration = "2.6.0"
 chrono = { version = "0.4.45", features = ["serde"] }
 tauri-plugin-updater = "2"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
+tauri-plugin-process = "2.3.1"
 
