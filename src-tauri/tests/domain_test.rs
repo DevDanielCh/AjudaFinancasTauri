@@ -78,3 +78,58 @@ fn ignora_conta_fixa_fora_do_periodo() {
         .unwrap();
     assert_eq!(n, 0);
 }
+
+#[test]
+fn gera_parcelas_de_emprestimo() {
+    let c = conn();
+    c.execute(
+        "INSERT INTO loans (type, description, principal, installment, total_installments, day, start_month, payment_method_id)
+         VALUES (1, 'Empréstimo', 300000, 110000, 3, 15, '2026-01', 1)",
+        [],
+    )
+    .unwrap();
+
+    // mês 1: entrada (receita) + 1ª parcela (despesa)
+    domain::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).unwrap();
+    let (income, expense): (i64, i64) = c
+        .query_row(
+            "SELECT SUM(CASE WHEN type=1 THEN 1 ELSE 0 END), SUM(CASE WHEN type=2 THEN 1 ELSE 0 END) FROM transactions",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!((income, expense), (1, 1));
+    let desc: String = c
+        .query_row("SELECT description FROM transactions WHERE type=1", [], |r| r.get(0))
+        .unwrap();
+    assert!(desc.contains("(entrada)"));
+
+    // mês 2: só parcela, sem duplicar a entrada
+    domain::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
+    let total: i64 = c
+        .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(total, 3);
+}
+
+#[test]
+fn sync_generated_cobre_meses_com_movimento() {
+    let c = conn();
+    c.execute(
+        "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+         VALUES ('Conta', 5000, 10, 1, '2025-01', NULL, NULL)",
+        [],
+    )
+    .unwrap();
+    // transação manual em 2026-01 (sem conta gerada ainda)
+    c.execute(
+        "INSERT INTO transactions (description, amount, type, date) VALUES ('Manual', 100, 1, '2026-01-05')",
+        [],
+    )
+    .unwrap();
+    domain::sync_generated(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
+    let n: i64 = c
+        .query_row("SELECT COUNT(*) FROM transactions WHERE fixed_bill_id IS NOT NULL", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(n, 1, "conta fixa gerada para 2026-01 (mês com movimento)");
+}

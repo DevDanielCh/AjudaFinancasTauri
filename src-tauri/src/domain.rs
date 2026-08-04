@@ -279,3 +279,126 @@ pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), S
     }
     Ok(())
 }
+
+/// Gera entrada (empréstimos) e parcelas mensais dos empréstimos ativos no mês.
+pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result<(), String> {
+    let month_key = month.format("%Y-%m").to_string();
+    let start = month.with_day(1).unwrap().format("%Y-%m-%d").to_string();
+    let end = month
+        .checked_add_months(Months::new(1))
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, type, description, principal, installment, total_installments, day, payment_method_id, start_month
+             FROM loans",
+        )
+        .map_err(db_err)?;
+    let loans = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+                r.get::<_, i64>(6)?,
+                r.get::<_, i64>(7)?,
+                r.get::<_, String>(8)?,
+            ))
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+
+    for (id, ty, description, principal, installment, total_n, day, pm_id, start_month) in loans {
+        if start_month > month_key {
+            continue;
+        }
+        let loan_start = parse_month(&start_month).map_err(db_err)?;
+        let loan_end = loan_start
+            .checked_add_months(Months::new(total_n as u32 - 1))
+            .unwrap();
+        if loan_end < month {
+            continue;
+        }
+
+        if ty == 1 {
+            let exists: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM transactions WHERE loan_id = ?1 AND type = 1",
+                    rusqlite::params![id],
+                    |r| r.get(0),
+                )
+                .map_err(db_err)?;
+            if exists == 0 {
+                conn.execute(
+                    "INSERT INTO transactions (description, amount, type, date, payment_method_id, loan_id)
+                     VALUES (?1, ?2, 1, ?3, ?4, ?5)",
+                    rusqlite::params![
+                        format!("{description} (entrada)"),
+                        principal,
+                        loan_start.format("%Y-%m-%d").to_string(),
+                        pm_id,
+                        id
+                    ],
+                )
+                .map_err(db_err)?;
+            }
+        }
+
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE loan_id = ?1 AND type = 2 AND date >= ?2 AND date < ?3",
+                rusqlite::params![id, start, end],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        if exists == 0 {
+            let due_day = day.min(last_day_of(month) as i64) as u32;
+            let due = month.with_day(due_day).unwrap().format("%Y-%m-%d").to_string();
+            conn.execute(
+                "INSERT INTO transactions (description, amount, type, date, payment_method_id, loan_id)
+                 VALUES (?1, ?2, 2, ?3, ?4, ?5)",
+                rusqlite::params![description, installment, due, pm_id, id],
+            )
+            .map_err(db_err)?;
+        }
+    }
+    Ok(())
+}
+
+/// Regera contas fixas e parcelas de todos os meses com movimento, do mais antigo ao atual.
+pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
+    let min = conn.query_row("SELECT MIN(date) FROM transactions", [], |r| {
+        r.get::<_, Option<String>>(0)
+    });
+    let Some(min) = min.ok().flatten() else {
+        return Ok(());
+    };
+    let mut m = parse_month(&min[..7]).map_err(db_err)?;
+    while m <= now {
+        let start = m.with_day(1).unwrap().format("%Y-%m-%d").to_string();
+        let end = m
+            .checked_add_months(Months::new(1))
+            .unwrap()
+            .format("%Y-%m-%d")
+            .to_string();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE date >= ?1 AND date < ?2",
+                rusqlite::params![start, end],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        if count > 0 {
+            generate_fixed_bills(conn, m)?;
+            generate_loan_installments(conn, m)?;
+        }
+        m = m.checked_add_months(Months::new(1)).unwrap();
+    }
+    Ok(())
+}
