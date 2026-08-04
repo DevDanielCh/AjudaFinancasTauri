@@ -1,0 +1,44 @@
+"use client";
+import { CrudPage } from "@/components/crud/CrudPage";
+import { PaymentMethodForm } from "@/components/forms/PaymentMethodForm";
+import { api } from "@/lib/api";
+import type { PaymentMethod, PaymentMethodInput } from "@/lib/types";
+
+export default function PaymentMethodsPage() {
+  return (
+    <CrudPage
+      config={{
+        title: "Formas de Pagamento",
+        columns: [
+          { header: "Nome", render: (r) => r.name },
+          { header: "Tipo", render: (r) => (r.type === 2 ? "Cartão" : "Padrão") },
+          {
+            header: "Fechamento/Vencimento",
+            render: (r) => {
+              if (r.type !== 2) return "—";
+              try {
+                const m = r.metadata ? JSON.parse(r.metadata) : null;
+                return m?.close_day ? `${m.close_day}/${m.validity_day ?? "?"}` : "—";
+              } catch { return "—"; }
+            },
+          },
+        ],
+        load: api.listPaymentMethods,
+        create: api.createPaymentMethod,
+        update: (id, d) => api.updatePaymentMethod(id, d),
+        remove: api.deletePaymentMethods,
+        empty: (): PaymentMethodInput => ({ name: "", type: 1, close_day: null, validity_day: null }),
+        toInput: (r): PaymentMethodInput => {
+          const m = r.metadata ? JSON.parse(r.metadata) : null;
+          return {
+            name: r.name, type: r.type,
+            close_day: r.type === 2 ? (m?.close_day ?? null) : null,
+            validity_day: r.type === 2 ? (m?.validity_day ?? null) : null,
+          };
+        },
+        loadResources: async () => ({}),
+        FormFields: PaymentMethodForm,
+      }}
+    />
+  );
+}

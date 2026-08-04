@@ -1,0 +1,54 @@
+"use client";
+import { useEffect, useState } from "react";
+import { check } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { msg } from "@/lib/api";
+
+export function UpdateDialog() {
+  const [available, setAvailable] = useState<null | { version: string }>(null);
+  const [doing, setDoing] = useState(false);
+
+  useEffect(() => {
+    check()
+      .then((u) => { if (u?.available) setAvailable({ version: u.version }); })
+      .catch(() => {});
+  }, []);
+
+  const apply = async () => {
+    setDoing(true);
+    try {
+      const update = await check();
+      if (update?.available) {
+        await update.downloadAndInstall();
+        await relaunch();
+      }
+    } catch (e) {
+      setDoing(false);
+      toast.error(msg(e));
+    }
+  };
+
+  return (
+    <Dialog open={!!available} onOpenChange={(o) => { if (!o) setAvailable(null); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Nova versão disponível</DialogTitle>
+          <DialogDescription>
+            Versão {available?.version} disponível. Atualizar agora?
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setAvailable(null)}>Agora não</Button>
+          <Button onClick={() => void apply()} disabled={doing}>
+            {doing ? "Baixando..." : "Atualizar e reiniciar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
