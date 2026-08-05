@@ -1,5 +1,5 @@
 use chrono::{Datelike, Months, NaiveDate};
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 
 pub fn parse_month(s: &str) -> Result<NaiveDate, String> {
     NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
@@ -157,6 +157,18 @@ fn list_cards(conn: &Connection) -> Result<Vec<(i64, String, u32, u32)>, String>
 
 pub fn fatura_capable_card_ids(conn: &Connection) -> Result<Vec<i64>, String> {
     Ok(list_cards(conn)?.into_iter().map(|(id, _, _, _)| id).collect())
+}
+
+/// True se a transação é uma fatura de cartão (type 3, gerada automaticamente).
+pub fn is_card_bill(conn: &Connection, id: i64) -> Result<bool, String> {
+    let n: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM transactions WHERE id = ?1 AND type = 3",
+            params![id],
+            |r| r.get(0),
+        )
+        .map_err(db_err)?;
+    Ok(n > 0)
 }
 
 /// Mês de fechamento da fatura paga em `payment_month`: mesmo mês se o vencimento

@@ -106,6 +106,9 @@ pub async fn update_transaction(
 ) -> Result<(), String> {
     input.validate()?;
     with_db(&state, |c| {
+        if domain::is_card_bill(c, id)? {
+            return Err("fatura é gerada automaticamente e não pode ser editada".into());
+        }
         let affected = c
             .execute(
                 "UPDATE transactions SET description = ?1, amount = ?2, type = ?3, date = ?4,
@@ -142,6 +145,11 @@ pub async fn delete_transactions(state: State<'_, AppState>, ids: Vec<i64>) -> R
 }
 
 pub fn delete_ids(conn: &Connection, ids: &[i64]) -> Result<(), String> {
+    for id in ids {
+        if domain::is_card_bill(conn, *id)? {
+            return Err("fatura é gerada automaticamente e não pode ser excluída".into());
+        }
+    }
     let placeholders = vec!["?"; ids.len()].join(",");
     let sql = format!("DELETE FROM transactions WHERE id IN ({placeholders})");
     conn.execute(&sql, rusqlite::params_from_iter(ids.iter()))
