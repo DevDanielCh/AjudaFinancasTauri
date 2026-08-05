@@ -12,6 +12,18 @@ pub fn month_range(month: &str) -> Result<(NaiveDate, NaiveDate), String> {
     Ok((start, end))
 }
 
+/// Meses entre dois "YYYY-MM" (from <= to).
+pub fn month_diff(from: &str, to: &str) -> i64 {
+    let f = parse_month(from).unwrap();
+    let t = parse_month(to).unwrap();
+    (t.year() as i64) * 12 + t.month0() as i64 - ((f.year() as i64) * 12 + f.month0() as i64)
+}
+
+/// Número da parcela (1-based) dado o mês inicial e o mês da parcela.
+pub fn installment_index(start_month: &str, parcel_month: &str) -> i64 {
+    month_diff(start_month, parcel_month).max(0) + 1
+}
+
 pub fn last_day_of(d: NaiveDate) -> u32 {
     d.with_day(1)
         .unwrap()
@@ -105,7 +117,144 @@ fn card_close_day(ty: i64, meta: Option<&str>) -> Option<i64> {
         .and_then(|v| v.get("close_day")?.as_i64())
 }
 
-/// Despesas do mês de referência respeitando billing period de cartões.
+/// (fechamento, vencimento) do cartão, ambos > 0, ou None.
+fn card_days(ty: i64, meta: Option<&str>) -> Option<(u32, u32)> {
+    if ty != 2 {
+        return None;
+    }
+    let v: serde_json::Value = serde_json::from_str(meta?).ok()?;
+    let close = v.get("close_day")?.as_i64()?;
+    let validity = v.get("validity_day")?.as_i64()?;
+    if close <= 0 || validity <= 0 {
+        return None;
+    }
+    Some((close as u32, validity as u32))
+}
+
+fn list_cards(conn: &Connection) -> Result<Vec<(i64, String, u32, u32)>, String> {
+    let mut stmt = conn
+        .prepare("SELECT id, name, type, metadata FROM payment_methods")
+        .map_err(db_err)?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, Option<String>>(3)?,
+            ))
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+    Ok(rows
+        .into_iter()
+        .filter_map(|(id, name, ty, meta)| {
+            card_days(ty, meta.as_deref()).map(|(c, v)| (id, name, c, v))
+        })
+        .collect())
+}
+
+pub fn fatura_capable_card_ids(conn: &Connection) -> Result<Vec<i64>, String> {
+    Ok(list_cards(conn)?.into_iter().map(|(id, _, _, _)| id).collect())
+}
+
+/// Mês de fechamento da fatura paga em `payment_month`: mesmo mês se o vencimento
+/// vem depois do fechamento, mês anterior caso contrário.
+fn fatura_close_month(close_day: u32, validity_day: u32, payment_month: NaiveDate) -> NaiveDate {
+    if validity_day > close_day {
+        payment_month
+    } else {
+        payment_month.checked_sub_months(Months::new(1)).unwrap()
+    }
+}
+
+/// Dados da fatura de um cartão paga em `payment_month`: (início, fim do período,
+/// data de vencimento, total). None se o cartão não tem gastos no período.
+fn card_bill(
+    conn: &Connection,
+    pm_id: i64,
+    close_day: u32,
+    validity_day: u32,
+    payment_month: NaiveDate,
+) -> Result<Option<(NaiveDate, NaiveDate, String, i64)>, String> {
+    let close_m = fatura_close_month(close_day, validity_day, payment_month);
+    let (start, end) = billing_period(close_day, close_m);
+    let amount: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(amount), 0) FROM transactions
+             WHERE type = 2 AND payment_method_id = ?1 AND bill_start IS NULL
+               AND date >= ?2 AND date < ?3",
+            rusqlite::params![
+                pm_id,
+                start.format("%Y-%m-%d").to_string(),
+                end.format("%Y-%m-%d").to_string()
+            ],
+            |r| r.get(0),
+        )
+        .map_err(db_err)?;
+    if amount == 0 {
+        return Ok(None);
+    }
+    let due_day = validity_day.min(last_day_of(payment_month));
+    let due = payment_month
+        .with_day(due_day)
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+    Ok(Some((start, end, due, amount)))
+}
+
+/// Gera as transações "Fatura - {nome}" dos cartões com vencimento em `payment_month`.
+/// Não sobrescreve fatura já gerada (dedup por pm_id + bill_start).
+pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<(), String> {
+    for (id, name, close, validity) in list_cards(conn)? {
+        let Some((start, end, due, amount)) = card_bill(conn, id, close, validity, payment_month)?
+        else {
+            continue;
+        };
+        let start_s = start.format("%Y-%m-%d").to_string();
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = ?2",
+                rusqlite::params![id, start_s],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        if exists == 0 {
+            conn.execute(
+                "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end)
+                 VALUES (?1, ?2, 2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![
+                    format!("Fatura - {name}"),
+                    amount,
+                    due,
+                    id,
+                    start_s,
+                    end.format("%Y-%m-%d").to_string()
+                ],
+            )
+            .map_err(db_err)?;
+        }
+    }
+    Ok(())
+}
+
+/// Recalcula todas as faturas dos meses com movimento até o mês corrente.
+pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
+    conn.execute("DELETE FROM transactions WHERE bill_start IS NOT NULL", [])
+        .map_err(db_err)?;
+    let now = chrono::Local::now().date_naive();
+    let mut m = parse_month(&earliest_month(conn)?).map_err(db_err)?;
+    while m <= now {
+        ensure_card_bills(conn, m)?;
+        m = m.checked_add_months(Months::new(1)).unwrap();
+    }
+    Ok(())
+}
+
+/// Despesas do mês de referência. Cartões com fatura configurada (fechamento +
+/// vencimento) não contam as compras; a transação Fatura conta no mês do vencimento.
 pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, String> {
     let (start, end) = (
         ref_month.with_day(1).unwrap(),
@@ -127,6 +276,9 @@ pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, St
         .collect::<Result<Vec<_>, _>>()
         .map_err(db_err)?;
     for (id, ty, meta) in pms {
+        if card_days(ty, meta.as_deref()).is_some() {
+            continue; // fatura substitui as compras
+        }
         let mut s = start;
         let mut e = end;
         if let Some(cd) = card_close_day(ty, meta.as_deref()) {
@@ -139,7 +291,15 @@ pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, St
         total += pm_expenses(conn, id, s, e)?;
     }
     total += no_pm_expenses(conn, start, end)?;
-    Ok(total)
+    let bills: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(amount), 0) FROM transactions
+             WHERE bill_start IS NOT NULL AND date >= ?1 AND date < ?2",
+            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
+            |r| r.get(0),
+        )
+        .map_err(db_err)?;
+    Ok(total + bills)
 }
 
 pub fn income_by_category(
@@ -196,16 +356,31 @@ pub fn expenses_by_pm(
         .collect::<Result<Vec<_>, _>>()
         .map_err(db_err)?;
     for (id, name, ty, meta) in pms {
-        let mut s = start;
-        let mut e = end;
-        if let Some(cd) = card_close_day(ty, meta.as_deref()) {
-            if cd > 0 {
-                let (ps, pe) = billing_period(cd as u32, ref_month);
-                s = ps;
-                e = pe;
+        let t = if card_days(ty, meta.as_deref()).is_some() {
+            conn.query_row(
+                "SELECT COALESCE(SUM(amount), 0) FROM transactions
+                 WHERE bill_start IS NOT NULL AND payment_method_id = ?1
+                   AND date >= ?2 AND date < ?3",
+                rusqlite::params![
+                    id,
+                    start.format("%Y-%m-%d").to_string(),
+                    end.format("%Y-%m-%d").to_string()
+                ],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?
+        } else {
+            let mut s = start;
+            let mut e = end;
+            if let Some(cd) = card_close_day(ty, meta.as_deref()) {
+                if cd > 0 {
+                    let (ps, pe) = billing_period(cd as u32, ref_month);
+                    s = ps;
+                    e = pe;
+                }
             }
-        }
-        let t = pm_expenses(conn, id, s, e)?;
+            pm_expenses(conn, id, s, e)?
+        };
         if t > 0 {
             out.push(crate::models::BreakdownRow { name, total: t });
         }
@@ -463,4 +638,131 @@ pub fn loan_schedule(principal: i64, installment: i64, n: i64, start_month: &str
         });
     }
     rows
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::{params, Connection};
+
+    fn test_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(include_str!("../migrations/001_init.sql"))
+            .unwrap();
+        conn.execute_batch(include_str!("../migrations/002_card_bills.sql"))
+            .unwrap();
+        conn
+    }
+
+    fn add_pm(conn: &Connection, name: &str, ty: i64, meta: Option<&str>) -> i64 {
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
+            params![name, ty, meta],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    fn add_tx(conn: &Connection, desc: &str, amount: i64, date: &str, pm_id: Option<i64>) {
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES (?1, ?2, 2, ?3, ?4)",
+            params![desc, amount, date, pm_id],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn fatura_close_month_follows_validity() {
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 15).unwrap();
+        assert_eq!(fatura_close_month(10, 20, jun), jun);
+        let prev = NaiveDate::from_ymd_opt(2026, 5, 15).unwrap();
+        assert_eq!(fatura_close_month(25, 5, jun), prev);
+    }
+
+    #[test]
+    fn installment_index_counts_from_start() {
+        assert_eq!(installment_index("2026-05", "2026-05"), 1);
+        assert_eq!(installment_index("2026-05", "2026-06"), 2);
+        assert_eq!(installment_index("2026-05", "2026-07"), 3);
+        assert_eq!(installment_index("2025-11", "2026-07"), 9);
+        assert_eq!(installment_index("2026-07", "2026-05"), 1);
+    }
+
+    #[test]
+    fn ensures_card_bill_period_and_due() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        add_tx(&conn, "compra 1", 5000, "2026-05-15", Some(card));
+        add_tx(&conn, "compra 2", 3000, "2026-06-05", Some(card));
+        add_tx(&conn, "fora do período", 2000, "2026-06-15", Some(card));
+
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        ensure_card_bills(&conn, jun).unwrap();
+        ensure_card_bills(&conn, jun).unwrap();
+
+        let (amount, date, bs, be): (i64, String, String, String) = conn
+            .query_row(
+                "SELECT amount, date, bill_start, bill_end FROM transactions
+                 WHERE description = 'Fatura - Nubank'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(amount, 8000);
+        assert_eq!(date, "2026-06-20");
+        assert_eq!(bs, "2026-05-10");
+        assert_eq!(be, "2026-06-10");
+
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE description = 'Fatura - Nubank'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn due_in_next_month_when_validity_before_close() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Cred", 2, Some(r#"{"close_day":25,"validity_day":5}"#));
+        add_tx(&conn, "compra", 4000, "2026-04-20", Some(card));
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+        let (amount, date): (i64, String) = conn
+            .query_row(
+                "SELECT amount, date FROM transactions WHERE description = 'Fatura - Cred'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(amount, 4000);
+        assert_eq!(date, "2026-05-05");
+    }
+
+    #[test]
+    fn month_expenses_counts_bill_not_card_purchases() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        let pix = add_pm(&conn, "PIX", 1, None);
+        add_tx(&conn, "compra", 5000, "2026-05-15", Some(card));
+        add_tx(&conn, "compra", 3000, "2026-06-05", Some(card));
+        add_tx(&conn, "conta", 1500, "2026-06-10", Some(pix));
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        assert_eq!(month_expenses(&conn, jun).unwrap(), 9500);
+        let mai = NaiveDate::from_ymd_opt(2026, 5, 1).unwrap();
+        assert_eq!(month_expenses(&conn, mai).unwrap(), 0);
+    }
+
+    #[test]
+    fn card_without_validity_keeps_billing_period() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Legado", 2, Some(r#"{"close_day":10}"#));
+        add_tx(&conn, "compra", 7000, "2026-05-15", Some(card));
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        assert_eq!(month_expenses(&conn, jun).unwrap(), 7000);
+    }
 }

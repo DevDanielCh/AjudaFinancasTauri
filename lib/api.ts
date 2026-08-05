@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  Category, CategoryInput, DashboardData, FixedBill, FixedBillInput, Loan,
+  CardBillDetail, Category, CategoryInput, DashboardData, FixedBill, FixedBillInput, Loan,
   LoanDetail, LoanInput, PaymentMethod, PaymentMethodInput, TransactionInput, TransactionRow,
 } from "./types";
 
@@ -17,6 +17,7 @@ export const api = {
     invoke<void>("update_transaction", { id, input }),
   deleteTransactions: (ids: number[]) =>
     invoke<void>("delete_transactions", { ids }),
+  getCardBill: (id: number) => invoke<CardBillDetail>("get_card_bill", { id }),
   listPaymentMethods: () => invoke<PaymentMethod[]>("list_payment_methods"),
   createPaymentMethod: (input: PaymentMethodInput) =>
     invoke<void>("create_payment_method", { input }),

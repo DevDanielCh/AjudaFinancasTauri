@@ -211,6 +211,21 @@ pub struct TransactionRow {
     pub payment_method_name: Option<String>,
     pub fixed_bill_id: Option<i64>,
     pub loan_id: Option<i64>,
+    pub is_card_bill: bool,
+    /// "n/total" quando a compra é parcela de conta fixa, senão None.
+    pub installment: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct CardBillDetail {
+    pub id: i64,
+    pub description: String,
+    pub payment_method_name: String,
+    pub period_start: String,
+    pub period_end: String,
+    pub due_date: String,
+    pub total: i64,
+    pub transactions: Vec<TransactionRow>,
 }
 
 #[derive(Debug, Clone, Serialize)]

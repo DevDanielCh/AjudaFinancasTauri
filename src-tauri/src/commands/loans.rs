@@ -217,6 +217,6 @@ pub async fn delete_loans(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(
             rusqlite::params_from_iter(ids.iter()),
         )
         .map_err(domain::db_err)?;
-        Ok(())
+        domain::refresh_card_bills(c)
     })
 }

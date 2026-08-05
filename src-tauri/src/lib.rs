@@ -69,6 +69,7 @@ pub fn run() {
             commands::transactions::create_transaction,
             commands::transactions::update_transaction,
             commands::transactions::delete_transactions,
+            commands::transactions::get_card_bill,
             commands::payment_methods::list_payment_methods,
             commands::payment_methods::create_payment_method,
             commands::payment_methods::update_payment_method,

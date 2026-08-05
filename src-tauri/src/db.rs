@@ -8,7 +8,10 @@ pub struct AppState {
 }
 
 pub fn migrations() -> Migrations<'static> {
-    Migrations::new(vec![M::up(include_str!("../migrations/001_init.sql"))])
+    Migrations::new(vec![
+        M::up(include_str!("../migrations/001_init.sql")),
+        M::up(include_str!("../migrations/002_card_bills.sql")),
+    ])
 }
 
 pub fn open(app: &AppHandle) -> Result<Connection, Box<dyn std::error::Error>> {

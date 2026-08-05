@@ -25,11 +25,13 @@ const NAV = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const { month, setMonth, min } = useMonth();
   const [version, setVersion] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true); // eslint-disable-line react-hooks/set-state-in-effect
     api.getVersion().then(setVersion).catch(() => {});
   }, []);
 
@@ -70,9 +72,9 @@ export function Sidebar() {
       <Button
         variant="ghost"
         className="justify-start"
-        onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       >
-        {theme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
+        {!mounted ? <Sun data-icon="inline-start" /> : resolvedTheme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
         Tema
       </Button>
       <Separator className="my-1" />

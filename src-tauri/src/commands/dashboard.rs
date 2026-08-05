@@ -10,6 +10,9 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
 
     domain::generate_fixed_bills(conn, ref_month)?;
     domain::generate_loan_installments(conn, ref_month)?;
+    domain::refresh_card_bills(conn)?;
+    domain::ensure_card_bills(conn, prev)?;
+    domain::ensure_card_bills(conn, ref_month)?;
 
     let income = domain::month_income(conn, ref_month, ref_month.checked_add_months(Months::new(1)).unwrap())?;
     let expenses = domain::month_expenses(conn, ref_month)?;

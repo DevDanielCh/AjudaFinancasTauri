@@ -87,6 +87,7 @@ pub async fn update_payment_method(
         if affected == 0 {
             return Err("forma de pagamento não encontrada".into());
         }
+        domain::refresh_card_bills(c)?;
         Ok(())
     })
 }

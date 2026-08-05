@@ -25,6 +25,19 @@ export interface TransactionRow {
   payment_method_name: string | null;
   fixed_bill_id: number | null;
   loan_id: number | null;
+  is_card_bill: boolean;
+  installment: string | null;
+}
+
+export interface CardBillDetail {
+  id: number;
+  description: string;
+  payment_method_name: string;
+  period_start: string;
+  period_end: string;
+  due_date: string;
+  total: number;
+  transactions: TransactionRow[];
 }
 
 export interface TransactionInput {

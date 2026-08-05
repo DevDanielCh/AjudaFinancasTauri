@@ -161,6 +161,6 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
             rusqlite::params_from_iter(ids.iter()),
         )
         .map_err(domain::db_err)?;
-        Ok(())
+        domain::refresh_card_bills(c)
     })
 }
