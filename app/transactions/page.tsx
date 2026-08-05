@@ -25,7 +25,7 @@ export default function TransactionsPage() {
             {
               header: "Tipo",
               render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
-                : r.type === 1 ? <Badge variant="secondary">Receita</Badge>
+                : r.type === 1 ? <Badge variant="destructive" className="bg-positive/10 text-positive dark:bg-positive/20">Receita</Badge>
                 : <Badge variant="destructive">Despesa</Badge>,
             },
             { header: "Descrição", render: (r) => r.description },
