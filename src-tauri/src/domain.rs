@@ -24,6 +24,13 @@ pub fn installment_index(start_month: &str, parcel_month: &str) -> i64 {
     month_diff(start_month, parcel_month).max(0) + 1
 }
 
+/// (mês YYYY-MM, dia) do parcelamento a partir da data da compra.
+pub fn purchase_installment(purchase: &str) -> Result<(String, i64), String> {
+    let d = NaiveDate::parse_from_str(purchase, "%Y-%m-%d")
+        .map_err(|_| "data da compra inválida".to_string())?;
+    Ok((d.format("%Y-%m").to_string(), d.day() as i64))
+}
+
 pub fn last_day_of(d: NaiveDate) -> u32 {
     d.with_day(1)
         .unwrap()
@@ -682,6 +689,47 @@ mod tests {
             params![desc, amount, date, pm_id],
         )
         .unwrap();
+    }
+
+    #[test]
+    fn purchase_installment_uses_purchase_month_and_day() {
+        assert_eq!(
+            purchase_installment("2025-11-20").unwrap(),
+            ("2025-11".to_string(), 20)
+        );
+        assert_eq!(
+            purchase_installment("2025-01-05").unwrap(),
+            ("2025-01".to_string(), 5)
+        );
+    }
+
+    #[test]
+    fn purchase_installment_rejects_invalid_date() {
+        assert!(purchase_installment("20/11/2025").is_err());
+        assert!(purchase_installment("garbage").is_err());
+    }
+
+    #[test]
+    fn card_installment_lands_in_correct_fatura() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments)
+             VALUES ('Celular', 5000, 20, NULL, ?1, '2026-05', '2026-10', 6)",
+            params![card],
+        )
+        .unwrap();
+        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+
+        let total: i64 = conn
+            .query_row(
+                "SELECT amount FROM transactions WHERE description = 'Fatura - Nubank' AND date = '2026-06-20'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(total, 5000);
     }
 
     #[test]
