@@ -4,6 +4,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MoneyInput } from "@/components/forms/MoneyInput";
+import { DatePicker } from "@/components/DatePicker";
 import type { Category, PaymentMethod, TransactionInput } from "@/lib/types";
 
 export function TransactionForm({
@@ -37,10 +38,10 @@ export function TransactionForm({
       </Field>
       <Field>
         <FieldLabel>Data</FieldLabel>
-        <Input
-          type="date"
+        <DatePicker
           value={value.date}
-          onChange={(e) => onChange({ ...value, date: e.target.value })}
+          placeholder="Data da transação"
+          onChange={(d) => { if (d) onChange({ ...value, date: d }); }}
         />
       </Field>
       {value.type === 2 && (

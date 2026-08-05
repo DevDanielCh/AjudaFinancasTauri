@@ -5,6 +5,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MonthPicker } from "@/components/MonthPicker";
+import { DatePicker } from "@/components/DatePicker";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { formatMonth } from "@/lib/format";
 import type { Category, FixedBillInput, PaymentMethod } from "@/lib/types";
@@ -81,10 +82,10 @@ export function FixedBillForm({
       {isCardInstallment ? (
         <Field>
           <FieldLabel>Data da compra</FieldLabel>
-          <Input
-            type="date"
-            value={value.purchase_date ?? ""}
-            onChange={(e) => onChange({ ...value, purchase_date: e.target.value || null })}
+          <DatePicker
+            value={value.purchase_date}
+            placeholder="Data da compra"
+            onChange={(d) => onChange({ ...value, purchase_date: d })}
           />
           {value.purchase_date && cardDay && cardValidity && (
             <p className="text-xs text-muted-foreground">
