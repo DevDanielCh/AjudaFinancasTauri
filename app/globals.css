@@ -23,6 +23,8 @@
     --destructive-foreground: oklch(0.9842 0.0034 247.8575);
     --positive: #047857;
     --negative: #DC2626;
+    --positive-foreground: #FFFFFF;
+    --negative-foreground: #FFFFFF;
     --border: oklch(0.9163 0.0162 286.0759);
     --input: oklch(0.9163 0.0162 286.0759);
     --ring: oklch(0.5565 0.2430 261.9529);
@@ -81,6 +83,8 @@
     --destructive-foreground: oklch(0.9842 0.0034 247.8575);
     --positive: #34D399;
     --negative: #F87171;
+    --positive-foreground: #052e16;
+    --negative-foreground: #450a0a;
     --border: oklch(0.2897 0.0199 285.0881);
     --input: oklch(0.2897 0.0199 285.0881);
     --ring: oklch(0.6449 0.2024 288.1131);
@@ -139,6 +143,8 @@
     --color-destructive-foreground: var(--destructive-foreground);
     --color-positive: var(--positive);
     --color-negative: var(--negative);
+    --color-positive-foreground: var(--positive-foreground);
+    --color-negative-foreground: var(--negative-foreground);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
