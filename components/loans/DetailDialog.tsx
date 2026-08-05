@@ -8,9 +8,12 @@ import {
 } from "@/components/ui/table";
 import { api, msg } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
+import { useMonth } from "@/lib/month-context";
+import { cn } from "@/lib/utils";
 import type { LoanDetail } from "@/lib/types";
 
 export function DetailDialog({ id, onClose }: { id: number | null; onClose: () => void }) {
+  const { month } = useMonth();
   const [detail, setDetail] = useState<LoanDetail | null>(null);
 
   useEffect(() => {
@@ -51,16 +54,31 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detail.schedule.map((r) => (
-                  <TableRow key={r.number}>
-                    <TableCell>{r.number}</TableCell>
-                    <TableCell>{r.month}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.installment)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.interest)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.principal)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.balance)}</TableCell>
-                  </TableRow>
-                ))}
+                {detail.schedule.map((r) => {
+                  const paid = r.month < month;
+                  return (
+                    <TableRow key={r.number} className={cn(paid && "opacity-50")}>
+                      <TableCell className={cn(paid && "text-muted-foreground line-through")}>
+                        {r.number}
+                      </TableCell>
+                      <TableCell className={cn(paid && "text-muted-foreground line-through")}>
+                        {r.month}
+                      </TableCell>
+                      <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                        {formatMoney(r.installment)}
+                      </TableCell>
+                      <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                        {formatMoney(r.interest)}
+                      </TableCell>
+                      <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                        {formatMoney(r.principal)}
+                      </TableCell>
+                      <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                        {formatMoney(r.balance)}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
