@@ -599,6 +599,19 @@ pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
 
 use crate::models::AmortizationRow;
 
+/// Regera contas fixas dos meses de `início` até `now` (inclui meses vazios) e
+/// recalcula as faturas. Chamado ao criar/editar conta fixa para o app refletir
+/// as transações imediatamente.
+pub fn reconcile_fixed_bills(conn: &Connection, start_month: &str, now: NaiveDate) -> Result<(), String> {
+    let min = earliest_month(conn)?.min(start_month.to_string());
+    let mut m = parse_month(&min)?;
+    while m <= now {
+        generate_fixed_bills(conn, m)?;
+        m = m.checked_add_months(Months::new(1)).unwrap();
+    }
+    refresh_card_bills(conn)
+}
+
 /// Taxa mensal i que resolve PV = PMT * (1-(1+i)^-n)/i por bisseção.
 pub fn loan_monthly_rate(principal: i64, installment: i64, n: i64) -> f64 {
     if principal <= 0 || installment <= 0 || n < 1 {
@@ -730,6 +743,58 @@ mod tests {
             )
             .unwrap();
         assert_eq!(total, 5000);
+    }
+
+    #[test]
+    fn reconcile_generates_bills_in_empty_months() {
+        let conn = test_db();
+        let pix = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments)
+             VALUES ('Internet', 12000, 5, NULL, ?1, '2026-05', NULL, NULL)",
+            params![pix],
+        )
+        .unwrap();
+        let bill_id = conn.last_insert_rowid();
+
+        reconcile_fixed_bills(&conn, "2026-05", NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
+
+        let dates: Vec<String> = {
+            let mut stmt = conn
+                .prepare("SELECT date FROM transactions WHERE fixed_bill_id = ?1 ORDER BY date")
+                .unwrap();
+            let rows = stmt
+                .query_map(params![bill_id], |r| r.get(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            rows
+        };
+        assert_eq!(dates, vec!["2026-05-05", "2026-06-05", "2026-07-05"]);
+    }
+
+    #[test]
+    fn reconcile_starts_at_bill_month_when_no_transactions() {
+        let conn = test_db();
+        let pix = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments)
+             VALUES ('Aluguel', 80000, 10, NULL, ?1, '2026-06', NULL, NULL)",
+            params![pix],
+        )
+        .unwrap();
+        let bill_id = conn.last_insert_rowid();
+
+        reconcile_fixed_bills(&conn, "2026-06", NaiveDate::from_ymd_opt(2026, 8, 1).unwrap()).unwrap();
+
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE fixed_bill_id = ?1",
+                params![bill_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 3);
     }
 
     #[test]

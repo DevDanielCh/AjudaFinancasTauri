@@ -119,6 +119,7 @@ pub async fn create_fixed_bill(
             ],
         )
         .map_err(domain::db_err)?;
+        domain::reconcile_fixed_bills(c, &input.start_month, chrono::Local::now().date_naive())?;
         Ok(())
     })
 }
@@ -161,6 +162,12 @@ pub async fn update_fixed_bill(
         if affected == 0 {
             return Err("conta fixa não encontrada".into());
         }
+        c.execute(
+            "DELETE FROM transactions WHERE fixed_bill_id = ?1",
+            params![id],
+        )
+        .map_err(domain::db_err)?;
+        domain::reconcile_fixed_bills(c, &input.start_month, chrono::Local::now().date_naive())?;
         Ok(())
     })
 }
