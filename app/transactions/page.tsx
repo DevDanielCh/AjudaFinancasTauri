@@ -23,14 +23,12 @@ export default function TransactionsPage() {
           columns: [
             { header: "Data", render: (r) => formatDate(r.date) },
             {
-              header: "Descrição",
-              render: (r) => (
-                <span className="flex items-center gap-2">
-                  {r.is_card_bill && <Badge>Fatura</Badge>}
-                  {r.description}
-                </span>
-              ),
+              header: "Tipo",
+              render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
+                : r.type === 1 ? <Badge variant="secondary">Receita</Badge>
+                : <Badge variant="destructive">Despesa</Badge>,
             },
+            { header: "Descrição", render: (r) => r.description },
             { header: "Categoria", render: (r) => r.category_name ?? "—" },
             { header: "Forma", render: (r) => r.payment_method_name ?? "—" },
             {
