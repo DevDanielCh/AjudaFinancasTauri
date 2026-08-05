@@ -59,8 +59,8 @@ export function DatePicker({
           </Button>
         </div>
         <div className="grid grid-cols-7 gap-1 p-2">
-          {WEEKDAYS.map((w) => (
-            <span key={w} className="text-center text-xs text-muted-foreground">{w}</span>
+          {WEEKDAYS.map((w, i) => (
+            <span key={i} className="text-center text-xs text-muted-foreground">{w}</span>
           ))}
           {Array.from({ length: firstDay }).map((_, i) => (
             <span key={`b${i}`} />
