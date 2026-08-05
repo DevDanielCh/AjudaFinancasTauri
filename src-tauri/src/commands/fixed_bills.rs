@@ -77,6 +77,16 @@ fn apply_card_day(conn: &Connection, input: &mut FixedBillInput) -> Result<(), S
     Ok(())
 }
 
+/// Deriva mês/dia do parcelamento a partir da data da compra.
+fn apply_purchase_date(input: &mut FixedBillInput) -> Result<(), String> {
+    if let Some(pd) = input.purchase_date.clone() {
+        let (start_month, day) = domain::purchase_installment(&pd)?;
+        input.start_month = start_month;
+        input.day = day;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn create_fixed_bill(
     state: State<'_, AppState>,
@@ -87,11 +97,15 @@ pub async fn create_fixed_bill(
     }
     input.validate()?;
     with_db(&state, |c| {
-        apply_card_day(c, &mut input)?;
+        if input.purchase_date.is_some() {
+            apply_purchase_date(&mut input)?;
+        } else {
+            apply_card_day(c, &mut input)?;
+        }
         let end_month = input.end_month.clone();
         c.execute(
-            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
             params![
                 input.description.trim(),
                 input.amount,
@@ -100,7 +114,8 @@ pub async fn create_fixed_bill(
                 input.payment_method_id,
                 input.start_month,
                 end_month,
-                input.installments
+                input.installments,
+                input.purchase_date
             ],
         )
         .map_err(domain::db_err)?;
@@ -119,12 +134,16 @@ pub async fn update_fixed_bill(
     }
     input.validate()?;
     with_db(&state, |c| {
-        apply_card_day(c, &mut input)?;
+        if input.purchase_date.is_some() {
+            apply_purchase_date(&mut input)?;
+        } else {
+            apply_card_day(c, &mut input)?;
+        }
         let affected = c
             .execute(
                 "UPDATE fixed_bills SET description = ?1, amount = ?2, day = ?3, category_id = ?4,
-                        payment_method_id = ?5, start_month = ?6, end_month = ?7, installments = ?8
-                 WHERE id = ?9",
+                        payment_method_id = ?5, start_month = ?6, end_month = ?7, installments = ?8, purchase_date = ?9
+                 WHERE id = ?10",
                 params![
                     input.description.trim(),
                     input.amount,
@@ -134,6 +153,7 @@ pub async fn update_fixed_bill(
                     input.start_month,
                     input.end_month,
                     input.installments,
+                    input.purchase_date,
                     id
                 ],
             )
