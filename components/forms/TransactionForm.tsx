@@ -1,7 +1,9 @@
 "use client";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/forms/Select";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { MoneyInput } from "@/components/forms/MoneyInput";
 import type { Category, PaymentMethod, TransactionInput } from "@/lib/types";
 
 export function TransactionForm({
@@ -13,65 +15,64 @@ export function TransactionForm({
   error: string | null;
 }) {
   return (
-    <div className="space-y-4">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <div>
-        <Label>Descrição</Label>
+    <FieldGroup>
+      <FieldError>{error}</FieldError>
+      <Field>
+        <FieldLabel>Valor (R$)</FieldLabel>
+        <MoneyInput value={value.amount} onChange={(c) => onChange({ ...value, amount: c })} />
+      </Field>
+      <Field>
+        <FieldLabel>Descrição</FieldLabel>
         <Input value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />
-      </div>
-      <div>
-        <Label>Valor (R$)</Label>
-        <Input
-          type="number" step="0.01" min="0"
-          value={value.amount === 0 ? "" : (value.amount / 100).toFixed(2)}
-          onChange={(e) => onChange({ ...value, amount: Math.round(Number(e.target.value) * 100) })}
-        />
-      </div>
-      <div>
-        <Label>Tipo</Label>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio" name="tx-type" checked={value.type === 1}
-              onChange={() => onChange({ ...value, type: 1 })}
-            />
-            Receita
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="radio" name="tx-type" checked={value.type === 2}
-              onChange={() => onChange({ ...value, type: 2 })}
-            />
-            Despesa
-          </label>
-        </div>
-      </div>
-      <div>
-        <Label>Data</Label>
+      </Field>
+      <Field>
+        <FieldLabel>Tipo</FieldLabel>
+        <ToggleGroup
+          value={[String(value.type)]}
+          onValueChange={(v) => onChange({ ...value, type: v[0] === "2" ? 2 : 1 })}
+        >
+          <ToggleGroupItem value="1">Receita</ToggleGroupItem>
+          <ToggleGroupItem value="2">Despesa</ToggleGroupItem>
+        </ToggleGroup>
+      </Field>
+      <Field>
+        <FieldLabel>Data</FieldLabel>
         <Input
           type="date"
           value={value.date}
           onChange={(e) => onChange({ ...value, date: e.target.value })}
         />
-      </div>
-      <div>
-        <Label>Categoria</Label>
-        <Select
+      </Field>
+      {value.type === 2 && (
+        <Field>
+          <FieldLabel>Forma de pagamento</FieldLabel>
+          <NativeSelect
+            className="w-full"
+            value={value.payment_method_id?.toString() ?? ""}
+            onChange={(e) => onChange({ ...value, payment_method_id: e.target.value ? Number(e.target.value) : null })}
+          >
+            <NativeSelectOption value="">
+              {value.type === 2 ? "Obrigatória para despesa" : "Opcional"}
+            </NativeSelectOption>
+            {resources.paymentMethods.map((p) => (
+              <NativeSelectOption key={p.id} value={p.id.toString()}>{p.name}</NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
+      )}
+      <Field>
+        <FieldLabel>Categoria</FieldLabel>
+        <NativeSelect
+          className="w-full"
           value={value.category_id?.toString() ?? ""}
-          onChange={(v) => onChange({ ...value, category_id: v ? Number(v) : null })}
-          options={resources.categories.map((c) => ({ value: c.id.toString(), label: c.name }))}
-          placeholder="Sem categoria"
-        />
-      </div>
-      <div>
-        <Label>Forma de pagamento</Label>
-        <Select
-          value={value.payment_method_id?.toString() ?? ""}
-          onChange={(v) => onChange({ ...value, payment_method_id: v ? Number(v) : null })}
-          options={resources.paymentMethods.map((p) => ({ value: p.id.toString(), label: p.name }))}
-          placeholder={value.type === 2 ? "Obrigatória para despesa" : "Opcional"}
-        />
-      </div>
-    </div>
+          onChange={(e) => onChange({ ...value, category_id: e.target.value ? Number(e.target.value) : null })}
+        >
+          <NativeSelectOption value="">Sem categoria</NativeSelectOption>
+          {resources.categories.map((c) => (
+            <NativeSelectOption key={c.id} value={c.id.toString()}>{c.name}</NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </Field>
+    </FieldGroup>
   );
 }

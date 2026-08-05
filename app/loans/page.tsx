@@ -17,8 +17,8 @@ export default function LoansPage() {
           columns: [
             { header: "Descrição", render: (r) => r.description },
             { header: "Tipo", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
-            { header: "Valor", render: (r) => formatMoney(r.principal) },
-            { header: "Parcela", render: (r) => formatMoney(r.installment) },
+            { header: "Valor", render: (r) => <span className="font-mono">{formatMoney(r.principal)}</span> },
+            { header: "Parcela", render: (r) => <span className="font-mono">{formatMoney(r.installment)}</span> },
             { header: "Parcelas", render: (r) => `${r.paid_count}/${r.total_installments}` },
             { header: "Início", render: (r) => formatMonth(r.start_month) },
             { header: "Fim", render: (r) => formatMonth(r.end_month) },
@@ -41,6 +41,7 @@ export default function LoansPage() {
           loadResources: async () => ({ paymentMethods: await api.listPaymentMethods() }),
           FormFields: LoanForm,
           onRowDoubleClick: (r) => setDetailId(r.id),
+          onView: (r) => setDetailId(r.id),
         }}
       />
       <DetailDialog id={detailId} onClose={() => setDetailId(null)} />

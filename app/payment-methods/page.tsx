@@ -2,7 +2,7 @@
 import { CrudPage } from "@/components/crud/CrudPage";
 import { PaymentMethodForm } from "@/components/forms/PaymentMethodForm";
 import { api } from "@/lib/api";
-import type { PaymentMethod, PaymentMethodInput } from "@/lib/types";
+import type { PaymentMethodInput } from "@/lib/types";
 
 export default function PaymentMethodsPage() {
   return (

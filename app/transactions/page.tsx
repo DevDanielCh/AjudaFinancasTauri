@@ -5,7 +5,8 @@ import { TransactionForm } from "@/components/forms/TransactionForm";
 import { useMonth } from "@/lib/month-context";
 import { api } from "@/lib/api";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { Category, PaymentMethod, TransactionInput, TransactionRow } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { TransactionInput } from "@/lib/types";
 
 export default function TransactionsPage() {
   const { month } = useMonth();
@@ -22,7 +23,7 @@ export default function TransactionsPage() {
           {
             header: "Valor",
             render: (r) => (
-              <span className={r.type === 1 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+              <span className={cn(r.type === 1 ? "text-positive" : "text-negative", "font-mono")}>
                 {r.type === 1 ? "+" : "−"} {formatMoney(r.amount)}
               </span>
             ),

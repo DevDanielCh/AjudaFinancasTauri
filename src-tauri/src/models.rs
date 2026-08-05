@@ -16,7 +16,6 @@ pub fn add_months(s: &str, n: u32) -> String {
 // ---- Inputs (create/update) ----
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TransactionInput {
     pub description: String,
     pub amount: i64,
@@ -49,7 +48,6 @@ impl TransactionInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PaymentMethodInput {
     pub name: String,
     #[serde(rename = "type")]
@@ -59,7 +57,6 @@ pub struct PaymentMethodInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct CategoryInput {
     pub name: String,
     #[serde(rename = "type")]
@@ -69,7 +66,6 @@ pub struct CategoryInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct FixedBillInput {
     pub description: String,
     pub amount: i64,
@@ -118,7 +114,6 @@ impl FixedBillInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct LoanInput {
     #[serde(rename = "type")]
     pub type_: i64,
@@ -170,7 +165,6 @@ impl LoanInput {
 // ---- Row DTOs (listas/detalhe) ----
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct PaymentMethod {
     pub id: i64,
     pub name: String,
@@ -194,7 +188,6 @@ impl PaymentMethod {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Category {
     pub id: i64,
     pub name: String,
@@ -205,7 +198,6 @@ pub struct Category {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct TransactionRow {
     pub id: i64,
     pub description: String,
@@ -222,7 +214,6 @@ pub struct TransactionRow {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct FixedBill {
     pub id: i64,
     pub description: String,
@@ -238,7 +229,6 @@ pub struct FixedBill {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Loan {
     pub id: i64,
     #[serde(rename = "type")]
@@ -258,7 +248,6 @@ pub struct Loan {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct AmortizationRow {
     pub number: i64,
     pub month: String,
@@ -269,21 +258,18 @@ pub struct AmortizationRow {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct LoanDetail {
     pub loan: Loan,
     pub schedule: Vec<AmortizationRow>,
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BreakdownRow {
     pub name: String,
     pub total: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
 pub struct DashboardData {
     pub month: String,
     pub income: i64,

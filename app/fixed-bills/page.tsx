@@ -3,7 +3,7 @@ import { CrudPage } from "@/components/crud/CrudPage";
 import { FixedBillForm } from "@/components/forms/FixedBillForm";
 import { api } from "@/lib/api";
 import { formatMonth, formatMoney } from "@/lib/format";
-import type { FixedBill, FixedBillInput } from "@/lib/types";
+import type { FixedBillInput } from "@/lib/types";
 
 export default function FixedBillsPage() {
   return (
@@ -12,7 +12,7 @@ export default function FixedBillsPage() {
         title: "Contas Fixas",
         columns: [
           { header: "Descrição", render: (r) => r.description },
-          { header: "Valor", render: (r) => formatMoney(r.amount) },
+          { header: "Valor", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
           { header: "Dia", render: (r) => r.day },
           { header: "Início", render: (r) => formatMonth(r.start_month) },
           { header: "Fim", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },

@@ -6,7 +6,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import { msg } from "@/lib/api";
 
 export function UpdateDialog() {
@@ -29,7 +29,7 @@ export function UpdateDialog() {
       }
     } catch (e) {
       setDoing(false);
-      toast.error(msg(e));
+      toast.add({ title: msg(e), type: "error" });
     }
   };
 

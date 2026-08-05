@@ -2,7 +2,7 @@
 import { CrudPage } from "@/components/crud/CrudPage";
 import { CategoryForm } from "@/components/forms/CategoryForm";
 import { api } from "@/lib/api";
-import type { Category, CategoryInput } from "@/lib/types";
+import type { CategoryInput } from "@/lib/types";
 
 export default function CategoriesPage() {
   return (

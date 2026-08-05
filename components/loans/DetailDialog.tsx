@@ -31,7 +31,7 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
           </DialogTitle>
         </DialogHeader>
         {detail && (
-          <div className="space-y-2 text-sm">
+          <div className="flex flex-col gap-2 text-sm">
             <div className="flex flex-wrap gap-4">
               <span>Valor: <b>{formatMoney(detail.loan.principal)}</b></span>
               <span>Parcela: <b>{formatMoney(detail.loan.installment)}</b></span>

@@ -20,18 +20,18 @@ export function MonthPicker({
         render={
           <Button variant="outline" className="w-full justify-between font-normal">
             <span>{formatMonth(value)}</span>
-            <ChevronDown className="h-4 w-4 opacity-50" />
+            <ChevronDown data-icon="inline-end" className="opacity-50" />
           </Button>
         }
       />
       <DropdownMenuContent align="start" className="w-56">
         <div className="flex items-center justify-between px-2 pt-2">
           <Button variant="ghost" size="icon" onClick={() => setYear((y) => y - 1)}>
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft />
           </Button>
           <span className="text-sm font-medium">{year}</span>
           <Button variant="ghost" size="icon" onClick={() => setYear((y) => y + 1)}>
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight />
           </Button>
         </div>
         <div className="grid grid-cols-4 gap-1 p-2">
@@ -44,7 +44,7 @@ export function MonthPicker({
                 disabled={disabled}
                 onClick={() => onChange(ym)}
                 className={cn(
-                  "rounded-md px-2 py-1.5 text-sm hover:bg-accent disabled:opacity-40",
+                  "cursor-pointer rounded-md px-2 py-1.5 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40",
                   ym === value && "bg-primary text-primary-foreground"
                 )}
               >

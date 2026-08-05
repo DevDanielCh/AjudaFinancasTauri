@@ -1,19 +1,43 @@
 "use client";
+import { Inbox } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Empty, EmptyHeader, EmptyMedia, EmptyTitle,
+} from "@/components/ui/empty";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import type { Column } from "./types";
 
 export function DataTable<T extends { id: number }>({
-  columns, rows, selected, onToggle, onRowDoubleClick,
+  columns, rows, selected, onToggle, onRowDoubleClick, loading,
 }: {
   columns: Column<T>[];
   rows: T[];
   selected: Set<number>;
   onToggle: (id: number) => void;
   onRowDoubleClick?: (row: T) => void;
+  loading?: boolean;
 }) {
+  if (rows.length === 0) {
+    if (loading) {
+      return (
+        <div className="flex justify-center py-12">
+          <Spinner className="size-6" />
+        </div>
+      );
+    }
+    return (
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon"><Inbox /></EmptyMedia>
+          <EmptyTitle>Nenhum registro</EmptyTitle>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
   return (
     <Table>
@@ -30,13 +54,6 @@ export function DataTable<T extends { id: number }>({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.length === 0 && (
-          <TableRow>
-            <TableCell colSpan={columns.length + 1} className="h-24 text-center text-muted-foreground">
-              Nenhum registro
-            </TableCell>
-          </TableRow>
-        )}
         {rows.map((row) => (
           <TableRow
             key={row.id}
@@ -48,7 +65,7 @@ export function DataTable<T extends { id: number }>({
               <Checkbox checked={selected.has(row.id)} onCheckedChange={() => onToggle(row.id)} />
             </TableCell>
             {columns.map((c) => (
-              <TableCell key={c.header} className={c.className}>{c.render(row)}</TableCell>
+              <TableCell key={c.header} className={cn("tabular-nums", c.className)}>{c.render(row)}</TableCell>
             ))}
           </TableRow>
         ))}

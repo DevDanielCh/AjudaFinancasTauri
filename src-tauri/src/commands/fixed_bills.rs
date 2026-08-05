@@ -14,9 +14,9 @@ pub async fn list_fixed_bills(
 
 fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, String> {
     let (cond, order) = if only_installments {
-        ("installments IS NOT NULL", "start_month DESC, id DESC")
+        ("b.installments IS NOT NULL", "b.start_month DESC, b.id DESC")
     } else {
-        ("installments IS NULL", "start_month ASC, id ASC")
+        ("b.installments IS NULL", "b.start_month ASC, b.id ASC")
     };
     let sql = format!(
         "SELECT b.id, b.description, b.amount, b.day, b.category_id, c.name,

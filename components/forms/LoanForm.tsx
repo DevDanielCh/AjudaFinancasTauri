@@ -1,8 +1,11 @@
 "use client";
+import { useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select } from "@/components/forms/Select";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MonthPicker } from "@/components/MonthPicker";
+import { MoneyInput } from "@/components/forms/MoneyInput";
 import type { LoanInput, PaymentMethod } from "@/lib/types";
 
 export function LoanForm({
@@ -13,67 +16,69 @@ export function LoanForm({
   resources: { paymentMethods: PaymentMethod[] };
   error: string | null;
 }) {
+  const pms = resources.paymentMethods;
+  useEffect(() => {
+    if (pms.length > 0 && !pms.some((p) => p.id === value.payment_method_id)) {
+      onChange({ ...value, payment_method_id: pms[0].id });
+    }
+  }, [pms, value, onChange]);
+
   return (
-    <div className="space-y-4">
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      <div>
-        <Label>Tipo</Label>
-        <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" checked={value.type === 1} onChange={() => onChange({ ...value, type: 1 })} />
-            Empréstimo
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="radio" checked={value.type === 2} onChange={() => onChange({ ...value, type: 2 })} />
-            Financiamento
-          </label>
-        </div>
+    <FieldGroup>
+      <FieldError>{error}</FieldError>
+      <Field>
+        <FieldLabel>Tipo</FieldLabel>
+        <ToggleGroup
+          value={[String(value.type)]}
+          onValueChange={(v) => onChange({ ...value, type: v[0] === "2" ? 2 : 1 })}
+        >
+          <ToggleGroupItem value="1">Empréstimo</ToggleGroupItem>
+          <ToggleGroupItem value="2">Financiamento</ToggleGroupItem>
+        </ToggleGroup>
+      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field>
+          <FieldLabel>Valor (R$)</FieldLabel>
+          <MoneyInput value={value.principal} onChange={(c) => onChange({ ...value, principal: c })} />
+        </Field>
+        <Field>
+          <FieldLabel>Valor da parcela (R$)</FieldLabel>
+          <MoneyInput value={value.installment} onChange={(c) => onChange({ ...value, installment: c })} />
+        </Field>
       </div>
-      <div>
-        <Label>Descrição</Label>
+      <Field>
+        <FieldLabel>Nº de parcelas</FieldLabel>
+        <Input type="number" min="2" value={value.total_installments || ""}
+          onChange={(e) => onChange({ ...value, total_installments: Number(e.target.value) })} />
+      </Field>
+      <Field>
+        <FieldLabel>Descrição</FieldLabel>
         <Input value={value.description} onChange={(e) => onChange({ ...value, description: e.target.value })} />
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Valor (R$)</Label>
-          <Input type="number" step="0.01" min="0"
-            value={value.principal === 0 ? "" : (value.principal / 100).toFixed(2)}
-            onChange={(e) => onChange({ ...value, principal: Math.round(Number(e.target.value) * 100) })} />
-        </div>
-        <div>
-          <Label>Valor da parcela (R$)</Label>
-          <Input type="number" step="0.01" min="0"
-            value={value.installment === 0 ? "" : (value.installment / 100).toFixed(2)}
-            onChange={(e) => onChange({ ...value, installment: Math.round(Number(e.target.value) * 100) })} />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Número de parcelas</Label>
-          <Input type="number" min="2" value={value.total_installments || ""}
-            onChange={(e) => onChange({ ...value, total_installments: Number(e.target.value) })} />
-        </div>
-        <div>
-          <Label>Dia</Label>
-          <Input type="number" min="1" max="31" value={value.day || ""}
-            onChange={(e) => onChange({ ...value, day: Number(e.target.value) })} />
-        </div>
-      </div>
-      <div>
-        <Label>Mês de início</Label>
+      </Field>
+      <Field>
+        <FieldLabel>Início</FieldLabel>
         <MonthPicker value={value.start_month} onChange={(m) => onChange({ ...value, start_month: m })} />
-      </div>
-      <div>
-        <Label>Forma de pagamento</Label>
-        <Select
+      </Field>
+      <Field>
+        <FieldLabel>Dia do vencimento</FieldLabel>
+        <Input type="number" min="1" max="31" value={value.day || ""}
+          onChange={(e) => onChange({ ...value, day: Number(e.target.value) })} />
+      </Field>
+      <Field>
+        <FieldLabel>Forma de pagamento</FieldLabel>
+        <NativeSelect
+          className="w-full"
           value={value.payment_method_id.toString()}
-          onChange={(v) => onChange({ ...value, payment_method_id: Number(v) })}
-          options={resources.paymentMethods.map((p) => ({ value: p.id.toString(), label: p.name }))}
-        />
-      </div>
+          onChange={(e) => onChange({ ...value, payment_method_id: Number(e.target.value) })}
+        >
+          {resources.paymentMethods.map((p) => (
+            <NativeSelectOption key={p.id} value={p.id.toString()}>{p.name}</NativeSelectOption>
+          ))}
+        </NativeSelect>
+      </Field>
       {value.total_installments >= 2 && value.installment * value.total_installments < value.principal && (
-        <p className="text-sm text-destructive">Total das parcelas menor que o valor</p>
+        <FieldError>Total das parcelas menor que o valor</FieldError>
       )}
-    </div>
+    </FieldGroup>
   );
 }

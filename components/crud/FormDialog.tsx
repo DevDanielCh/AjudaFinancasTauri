@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
+import { Spinner } from "@/components/ui/spinner";
 import type { CrudConfig } from "./CrudPage";
 import { msg } from "@/lib/api";
 
@@ -33,7 +34,7 @@ export function FormDialog<T extends { id: number }, F, E>({
     try {
       if (dialog.mode === "create") {
         await config.create(value);
-        toast.success("Salvo");
+        toast.add({ title: "Salvo", type: "success" });
         onSaved();
         if (config.keepOpen) {
           setValue(config.empty());
@@ -42,7 +43,7 @@ export function FormDialog<T extends { id: number }, F, E>({
         }
       } else {
         await config.update(dialog.row.id, value);
-        toast.success("Salvo");
+        toast.add({ title: "Salvo", type: "success" });
         onSaved();
         onClose();
       }
@@ -60,7 +61,9 @@ export function FormDialog<T extends { id: number }, F, E>({
           <DialogTitle>{dialog.mode === "create" ? "Novo" : "Editar"}</DialogTitle>
         </DialogHeader>
         {resources === null ? (
-          <p className="py-4 text-sm text-muted-foreground">Carregando...</p>
+          <div className="flex justify-center py-4">
+            <Spinner />
+          </div>
         ) : (
           <config.FormFields
             value={value}
