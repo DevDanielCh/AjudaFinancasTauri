@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -16,12 +16,28 @@ export default function DashboardPage() {
   const { month } = useMonth();
   const [data, setData] = useState<DashboardData | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const syncingRef = useRef(false);
 
   const load = useCallback(async (withSync: boolean) => {
     try {
       setData(withSync ? await api.syncDashboard(month) : await api.getDashboard(month));
     } catch (e) {
       toast.add({ title: msg(e), type: "error" });
+    }
+  }, [month]);
+
+  const sync = useCallback(async () => {
+    if (syncingRef.current) return;
+    syncingRef.current = true;
+    setSyncing(true);
+    try {
+      setData(await api.syncDashboard(month));
+      toast.add({ title: "Sincronizado com sucesso", type: "success" });
+    } catch (e) {
+      toast.add({ title: msg(e), type: "error" });
+    } finally {
+      syncingRef.current = false;
+      setSyncing(false);
     }
   }, [month]);
 
@@ -32,9 +48,9 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <Button variant="outline" size="sm" disabled={syncing} onClick={() => { setSyncing(true); void load(true).finally(() => setSyncing(false)); }}>
-          <RefreshCw data-icon="inline-start" />
-          Sincronizar
+        <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
+          <RefreshCw data-icon="inline-start" className={cn(syncing && "animate-spin")} />
+          {syncing ? "Sincronizando..." : "Sincronizar"}
         </Button>
       </div>
 

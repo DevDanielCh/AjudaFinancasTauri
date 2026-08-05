@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +44,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const [confirm, setConfirm] = useState<{ message: string; ids: number[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const loadingRef = useRef(false);
 
   const pageSize = config.pageSize ?? 25;
   const [page, setPage] = useState(1);
@@ -56,6 +57,8 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
 
   const reload = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setLoading(true);
     try {
       setRows(await config.load());
@@ -65,6 +68,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
     } catch (e) {
       toast.add({ title: msg(e), type: "error" });
     } finally {
+      loadingRef.current = false;
       setLoading(false);
     }
   }, [config]);
