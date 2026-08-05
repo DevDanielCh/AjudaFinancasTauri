@@ -224,7 +224,7 @@ pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<
         if exists == 0 {
             conn.execute(
                 "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end)
-                 VALUES (?1, ?2, 2, ?3, ?4, ?5, ?6)",
+                 VALUES (?1, ?2, 3, ?3, ?4, ?5, ?6)",
                 rusqlite::params![
                     format!("Fatura - {name}"),
                     amount,
@@ -293,8 +293,8 @@ pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, St
     total += no_pm_expenses(conn, start, end)?;
     let bills: i64 = conn
         .query_row(
-            "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE bill_start IS NOT NULL AND date >= ?1 AND date < ?2",
+             "SELECT COALESCE(SUM(amount), 0) FROM transactions
+              WHERE type = 3 AND date >= ?1 AND date < ?2",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
@@ -358,9 +358,9 @@ pub fn expenses_by_pm(
     for (id, name, ty, meta) in pms {
         let t = if card_days(ty, meta.as_deref()).is_some() {
             conn.query_row(
-                "SELECT COALESCE(SUM(amount), 0) FROM transactions
-                 WHERE bill_start IS NOT NULL AND payment_method_id = ?1
-                   AND date >= ?2 AND date < ?3",
+                 "SELECT COALESCE(SUM(amount), 0) FROM transactions
+                  WHERE type = 3 AND payment_method_id = ?1
+                    AND date >= ?2 AND date < ?3",
                 rusqlite::params![
                     id,
                     start.format("%Y-%m-%d").to_string(),
@@ -701,18 +701,19 @@ mod tests {
         ensure_card_bills(&conn, jun).unwrap();
         ensure_card_bills(&conn, jun).unwrap();
 
-        let (amount, date, bs, be): (i64, String, String, String) = conn
+        let (amount, date, bs, be, ty): (i64, String, String, String, i64) = conn
             .query_row(
-                "SELECT amount, date, bill_start, bill_end FROM transactions
+                "SELECT amount, date, bill_start, bill_end, type FROM transactions
                  WHERE description = 'Fatura - Nubank'",
                 [],
-                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
             )
             .unwrap();
         assert_eq!(amount, 8000);
         assert_eq!(date, "2026-06-20");
         assert_eq!(bs, "2026-05-10");
         assert_eq!(be, "2026-06-10");
+        assert_eq!(ty, 3);
 
         let n: i64 = conn
             .query_row(
