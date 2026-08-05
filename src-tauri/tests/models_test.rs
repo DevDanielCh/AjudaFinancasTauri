@@ -64,6 +64,7 @@ fn valida_emprestimo() {
         day: 10,
         start_month: "2026-01".into(),
         payment_method_id: 1,
+        monthly_rate: 0.0,
     };
     assert!(l.validate().is_ok());
 

@@ -105,6 +105,7 @@ export interface Loan {
   total_interest: number;
   end_month: string;
   paid_count: number;
+  monthly_rate: number;
 }
 
 export interface LoanInput {
@@ -116,6 +117,7 @@ export interface LoanInput {
   day: number;
   start_month: string;
   payment_method_id: number;
+  monthly_rate: number;
 }
 
 export interface AmortizationRow {
@@ -125,6 +127,7 @@ export interface AmortizationRow {
   interest: number;
   principal: number;
   balance: number;
+  settlement: number;
 }
 
 export interface LoanDetail {

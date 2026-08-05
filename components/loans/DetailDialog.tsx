@@ -56,6 +56,7 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
                   <TableHead className="text-right">Juros</TableHead>
                   <TableHead className="text-right">Amortização</TableHead>
                   <TableHead className="text-right">Saldo</TableHead>
+                  <TableHead className="text-right">Liq. antecipada</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -77,6 +78,9 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
                       </TableCell>
                       <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
                         {formatMoney(r.balance)}
+                      </TableCell>
+                      <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                        {r.settlement > 0 ? formatMoney(r.settlement) : "—"}
                       </TableCell>
                     </TableRow>
                   );

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
@@ -7,6 +7,19 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MonthPicker } from "@/components/MonthPicker";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import type { LoanInput, PaymentMethod } from "@/lib/types";
+
+function deriveRate(principal: number, installment: number, n: number): number {
+  if (principal <= 0 || installment <= 0 || n < 1) return 0;
+  if (installment * n <= principal) return 0;
+  const g = (i: number) => installment * (1 - Math.pow(1 + i, -n)) / i - principal;
+  let lo = 0, hi = 0.0001;
+  while (g(hi) > 0 && hi < 100) hi *= 2;
+  for (let k = 0; k < 200; k++) {
+    const mid = (lo + hi) / 2;
+    if (g(mid) > 0) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
 
 export function LoanForm({
   value, onChange, resources, error,
@@ -22,6 +35,22 @@ export function LoanForm({
       onChange({ ...value, payment_method_id: pms[0].id });
     }
   }, [pms, value, onChange]);
+
+  const auto = useMemo(
+    () => deriveRate(value.principal, value.installment, value.total_installments),
+    [value.principal, value.installment, value.total_installments]
+  );
+  const differs = value.monthly_rate > 0 && Math.abs(value.monthly_rate - auto) > 1e-9;
+
+  // Pré-calcula a taxa da parcela; usuário que digitou taxa própria é preservado.
+  useEffect(() => {
+    if (differs) return;
+    if (auto > 0) onChange({ ...value, monthly_rate: auto });
+  }, [auto]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rateDisplay = value.monthly_rate > 0
+    ? Number((value.monthly_rate * 100).toFixed(4))
+    : "";
 
   return (
     <FieldGroup>
@@ -50,6 +79,22 @@ export function LoanForm({
         <FieldLabel>Nº de parcelas</FieldLabel>
         <Input type="number" min="2" value={value.total_installments || ""}
           onChange={(e) => onChange({ ...value, total_installments: Number(e.target.value) })} />
+      </Field>
+      <Field>
+        <FieldLabel>Taxa de juros mensal (%)</FieldLabel>
+        <Input
+          type="number" step="0.0001" min="0" inputMode="decimal"
+          value={rateDisplay}
+          placeholder="0,0000"
+          onChange={(e) => {
+            onChange({ ...value, monthly_rate: e.target.value ? Number(e.target.value) / 100 : 0 });
+          }}
+        />
+        {!differs && value.monthly_rate > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Calculada automaticamente da parcela; ajuste se souber a taxa contratada
+          </p>
+        )}
       </Field>
       <Field>
         <FieldLabel>Descrição</FieldLabel>

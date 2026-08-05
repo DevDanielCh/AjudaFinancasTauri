@@ -641,8 +641,21 @@ pub fn loan_monthly_rate(principal: i64, installment: i64, n: i64) -> f64 {
 }
 
 /// Tabela de amortização (parcelas iguais, juros sobre saldo devedor).
-pub fn loan_schedule(principal: i64, installment: i64, n: i64, start_month: &str) -> Vec<AmortizationRow> {
-    let rate = loan_monthly_rate(principal, installment, n);
+/// `rate`: taxa mensal contratada (fração); 0 ou negativo deriva da parcela.
+/// `as_of_month`: mês de referência para o valor de liquidação antecipada (hoje).
+pub fn loan_schedule(
+    principal: i64,
+    installment: i64,
+    n: i64,
+    start_month: &str,
+    rate: f64,
+    as_of_month: &str,
+) -> Vec<AmortizationRow> {
+    let rate = if rate > 0.0 {
+        rate
+    } else {
+        loan_monthly_rate(principal, installment, n)
+    };
     let mut balance = principal;
     let mut rows = Vec::with_capacity(n as usize);
     for k in 1..=n {
@@ -660,6 +673,12 @@ pub fn loan_schedule(principal: i64, installment: i64, n: i64, start_month: &str
             .unwrap()
             .format("%Y-%m")
             .to_string();
+        let t = month_diff(as_of_month, &month);
+        let settlement = if t > 0 {
+            (installment as f64 / (1.0 + rate).powf(t as f64)).round() as i64
+        } else {
+            0
+        };
         rows.push(AmortizationRow {
             number: k,
             month,
@@ -667,6 +686,7 @@ pub fn loan_schedule(principal: i64, installment: i64, n: i64, start_month: &str
             interest,
             principal: p,
             balance,
+            settlement,
         });
     }
     rows

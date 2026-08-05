@@ -130,6 +130,8 @@ pub struct LoanInput {
     pub day: i64,
     pub start_month: String,
     pub payment_method_id: i64,
+    /// Taxa mensal (fração, ex.: 0.0192 = 1,92% a.m.). 0 = derivar da parcela.
+    pub monthly_rate: f64,
 }
 
 impl LoanInput {
@@ -151,6 +153,9 @@ impl LoanInput {
         }
         if !(1..=31).contains(&self.day) {
             return Err("dia deve estar entre 1 e 31".into());
+        }
+        if !(0.0..1.0).contains(&self.monthly_rate) {
+            return Err("taxa mensal inválida".into());
         }
         month_str_to_date(&self.start_month)?;
         if self.total_paid() < self.principal {
@@ -267,6 +272,8 @@ pub struct Loan {
     pub total_interest: i64,
     pub end_month: String,
     pub paid_count: i64,
+    /// Taxa mensal contratada (fração) usada na tabela de amortização.
+    pub monthly_rate: f64,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -277,6 +284,8 @@ pub struct AmortizationRow {
     pub interest: i64,
     pub principal: i64,
     pub balance: i64,
+    /// Valor de liquidação antecipada hoje (VP da parcela na taxa contratada), 0 se vencida.
+    pub settlement: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]

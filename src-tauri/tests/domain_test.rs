@@ -147,6 +147,7 @@ fn taxa_mensal_bissecao_reconstroi_fluxo() {
         day: 10,
         start_month: "2026-01".into(),
         payment_method_id: 1,
+        monthly_rate: 0.0,
     };
     let rate = domain::loan_monthly_rate(l.principal, l.installment, l.total_installments);
     assert!(rate > 0.0 && rate < 0.5, "taxa = {rate}");
@@ -169,12 +170,30 @@ fn schedule_amortiza_ate_zero() {
         day: 15,
         start_month: "2026-01".into(),
         payment_method_id: 1,
+        monthly_rate: 0.0,
     };
-    let rows = domain::loan_schedule(l.principal, l.installment, l.total_installments, &l.start_month);
+    let rows = domain::loan_schedule(l.principal, l.installment, l.total_installments, &l.start_month, l.monthly_rate, "2026-03");
     assert_eq!(rows.len() as i64, l.total_installments);
     let sum_principal: i64 = rows.iter().map(|r| r.principal).sum();
     assert_eq!(sum_principal, l.principal, "soma das amortizações = principal");
     assert_eq!(rows.last().unwrap().balance, 0, "saldo final zero");
     assert_eq!(rows[0].month, "2026-01");
     assert_eq!(rows[2].month, "2026-03");
+}
+
+#[test]
+fn liquidacao_antecipada_desconta_na_taxa_contratada() {
+    // Caso real: 48.900 em 60x de 1.382,16. Taxa contratada ≈ 1,6457% a.m.
+    // (implicada pelo valor do banco de 591,48 p/ a parcela 60 em 2026-08).
+    let rate = 0.016457;
+    let rows = domain::loan_schedule(4_890_000, 138_216, 60, "2026-01", rate, "2026-08");
+    assert!(
+        (591_46..=591_50).contains(&rows[59].settlement),
+        "liquidação da parcela 60 hoje = {}",
+        rows[59].settlement
+    );
+    assert_eq!(rows[0].settlement, 0, "parcela vencida não tem liquidação antecipada");
+    // Taxa informada rege a tabela: juros da 1ª parcela = saldo × taxa.
+    let expected_interest = (4_890_000.0 * rate).round() as i64;
+    assert_eq!(rows[0].interest, expected_interest);
 }
