@@ -31,6 +31,7 @@ fn valida_conta_fixa() {
         start_month: "2026-01".into(),
         end_month: None,
         installments: None,
+        purchase_date: None,
     };
     assert!(b.validate().is_ok());
 
@@ -44,6 +45,12 @@ fn valida_conta_fixa() {
     let mut b3 = b.clone();
     b3.end_month = Some("2025-12".into());
     assert!(b3.validate().is_err(), "fim antes do início deve falhar");
+
+    let mut b4 = b.clone();
+    b4.purchase_date = Some("20/11/2025".into());
+    assert!(b4.validate().is_err(), "data da compra inválida deve falhar");
+    b4.purchase_date = Some("2025-11-20".into());
+    assert!(b4.validate().is_ok(), "data da compra válida ignora day/start_month");
 }
 
 #[test]

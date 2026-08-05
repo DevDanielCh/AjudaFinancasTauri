@@ -75,6 +75,7 @@ pub struct FixedBillInput {
     pub start_month: String,
     pub end_month: Option<String>,
     pub installments: Option<i64>,
+    pub purchase_date: Option<String>,
 }
 
 impl FixedBillInput {
@@ -85,10 +86,15 @@ impl FixedBillInput {
         if self.amount <= 0 {
             return Err("valor deve ser maior que zero".into());
         }
-        if !(1..=31).contains(&self.day) {
-            return Err("dia deve estar entre 1 e 31".into());
+        if let Some(pd) = &self.purchase_date {
+            chrono::NaiveDate::parse_from_str(pd, "%Y-%m-%d")
+                .map_err(|_| "data da compra inválida".to_string())?;
+        } else {
+            if !(1..=31).contains(&self.day) {
+                return Err("dia deve estar entre 1 e 31".into());
+            }
+            month_str_to_date(&self.start_month)?;
         }
-        month_str_to_date(&self.start_month)?;
         if let Some(end) = &self.end_month {
             month_str_to_date(end)?;
             if end < &self.start_month {
@@ -241,6 +247,7 @@ pub struct FixedBill {
     pub start_month: String,
     pub end_month: Option<String>,
     pub installments: Option<i64>,
+    pub purchase_date: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]

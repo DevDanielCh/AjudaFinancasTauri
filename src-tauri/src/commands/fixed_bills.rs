@@ -20,7 +20,7 @@ fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, St
     };
     let sql = format!(
         "SELECT b.id, b.description, b.amount, b.day, b.category_id, c.name,
-                b.payment_method_id, pm.name, b.start_month, b.end_month, b.installments
+                b.payment_method_id, pm.name, b.start_month, b.end_month, b.installments, b.purchase_date
          FROM fixed_bills b
          LEFT JOIN categories c ON c.id = b.category_id
          JOIN payment_methods pm ON pm.id = b.payment_method_id
@@ -42,6 +42,7 @@ fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, St
                 start_month: r.get(8)?,
                 end_month: r.get(9)?,
                 installments: r.get(10)?,
+                purchase_date: r.get(11)?,
             })
         })
         .map_err(domain::db_err)?
