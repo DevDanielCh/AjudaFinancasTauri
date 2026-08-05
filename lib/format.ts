@@ -22,5 +22,5 @@ export function formatMonth(ym: string | null): string {
 
 export function formatDate(d: string): string {
   const [y, m, day] = d.split("-");
-  return `${day}/${m}/${y}`;
+  return `${day}-${m}-${y}`;
 }
