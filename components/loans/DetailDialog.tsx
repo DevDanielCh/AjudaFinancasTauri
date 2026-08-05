@@ -7,7 +7,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { api, msg } from "@/lib/api";
-import { formatMoney } from "@/lib/format";
+import { formatDate, formatMoney } from "@/lib/format";
 import { useMonth } from "@/lib/month-context";
 import { cn } from "@/lib/utils";
 import type { LoanDetail } from "@/lib/types";
@@ -22,6 +22,12 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
     setDetail(null);
     api.getLoanDetail(id).then(setDetail).catch((e) => msg(e));
   }, [id]);
+
+  const dueDate = (ym: string) => {
+    const [y, m] = ym.split("-").map(Number);
+    const day = Math.min(detail!.loan.day, new Date(y, m, 0).getDate());
+    return formatDate(`${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+  };
 
   const totalPaid = detail?.schedule.reduce((s, r) => s + r.installment, 0) ?? 0;
 
@@ -45,8 +51,7 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Mês</TableHead>
+                  <TableHead>Data</TableHead>
                   <TableHead className="text-right">Parcela</TableHead>
                   <TableHead className="text-right">Juros</TableHead>
                   <TableHead className="text-right">Amortização</TableHead>
@@ -59,10 +64,7 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
                   return (
                     <TableRow key={r.number} className={cn(paid && "opacity-50")}>
                       <TableCell className={cn(paid && "text-muted-foreground line-through")}>
-                        {r.number}
-                      </TableCell>
-                      <TableCell className={cn(paid && "text-muted-foreground line-through")}>
-                        {r.month}
+                        {dueDate(r.month)}
                       </TableCell>
                       <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
                         {formatMoney(r.installment)}
