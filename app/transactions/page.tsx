@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { TransactionForm } from "@/components/forms/TransactionForm";
 import { FaturaDetailDialog } from "@/components/transactions/FaturaDetailDialog";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
 import { api } from "@/lib/api";
@@ -21,7 +22,15 @@ export default function TransactionsPage() {
           title: "Transações",
           columns: [
             { header: "Data", render: (r) => formatDate(r.date) },
-            { header: "Descrição", render: (r) => r.description },
+            {
+              header: "Descrição",
+              render: (r) => (
+                <span className="flex items-center gap-2">
+                  {r.is_card_bill && <Badge>Fatura</Badge>}
+                  {r.description}
+                </span>
+              ),
+            },
             { header: "Categoria", render: (r) => r.category_name ?? "—" },
             { header: "Forma", render: (r) => r.payment_method_name ?? "—" },
             {
@@ -43,9 +52,11 @@ export default function TransactionsPage() {
             category_id: null, payment_method_id: null,
           }),
           toInput: (r): TransactionInput => ({
-            description: r.description, amount: r.amount, type: r.type, date: r.date,
+            description: r.description, amount: r.amount,
+            type: r.type === 3 ? 2 : r.type, date: r.date,
             category_id: r.category_id, payment_method_id: r.payment_method_id,
           }),
+          protected: (r) => r.is_card_bill,
           loadResources: async () => {
             const [categories, paymentMethods] = await Promise.all([
               api.listCategories(), api.listPaymentMethods(),

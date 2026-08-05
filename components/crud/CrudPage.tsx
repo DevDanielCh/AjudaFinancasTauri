@@ -32,6 +32,7 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   reloadKey?: unknown;
   onRowDoubleClick?: (row: T) => void;
   onView?: (row: T) => void;
+  protected?: (row: T) => boolean;
 }
 
 type DialogState<T, F> = { mode: "create" } | { mode: "edit"; row: T; input: F };
@@ -81,7 +82,17 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
     });
 
   const askDelete = () => {
-    const ids = [...selected];
+    const ids = [...selected].filter((id) => {
+      const row = rows.find((r) => r.id === id);
+      return !(row && config.protected?.(row));
+    });
+    if (ids.length === 0) {
+      toast.add({
+        title: "Faturas são geradas automaticamente e não podem ser excluídas",
+        type: "error",
+      });
+      return;
+    }
     setConfirm({
       ids,
       message: ids.length === 1 ? "Excluir este registro?" : `Excluir ${ids.length} registros?`,
@@ -131,7 +142,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
         </Button>
         <Button
           variant="outline"
-          disabled={selected.size !== 1}
+          disabled={selected.size !== 1 || (config.protected?.(rows.find((r) => r.id === [...selected][0])!) ?? false)}
           onClick={() => {
             const row = rows.find((r) => r.id === [...selected][0])!;
             setDialog({ mode: "edit", row, input: config.toInput(row) });

@@ -17,7 +17,7 @@ export interface TransactionRow {
   id: number;
   description: string;
   amount: number;
-  type: 1 | 2;
+  type: 1 | 2 | 3;
   date: string;
   category_id: number | null;
   category_name: string | null;
