@@ -11,6 +11,7 @@ pub fn migrations() -> Migrations<'static> {
     Migrations::new(vec![
         M::up(include_str!("../migrations/001_init.sql")),
         M::up(include_str!("../migrations/002_card_bills.sql")),
+        M::up(include_str!("../migrations/003_card_bill_type.sql")),
     ])
 }
 
