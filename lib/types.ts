@@ -75,6 +75,7 @@ export interface FixedBill {
   start_month: string;
   end_month: string | null;
   installments: number | null;
+  purchase_date: string | null;
 }
 
 export interface FixedBillInput {
@@ -86,6 +87,7 @@ export interface FixedBillInput {
   start_month: string;
   end_month: string | null;
   installments: number | null;
+  purchase_date: string | null;
 }
 
 export interface Loan {
