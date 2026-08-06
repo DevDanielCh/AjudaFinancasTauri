@@ -12,14 +12,12 @@ const Ctx = createContext<MonthCtx>({ month: "", setMonth: () => {}, min: "" });
 
 export function MonthProvider({ children }: { children: React.ReactNode }) {
   const today = new Date().toISOString().slice(0, 7);
-  const [month, setMonthState] = useState(() =>
-    typeof window !== "undefined"
-      ? localStorage.getItem("filterMonth") || today
-      : today
-  );
+  const [month, setMonthState] = useState(today);
   const [min, setMin] = useState(today);
 
   useEffect(() => {
+    const saved = localStorage.getItem("filterMonth");
+    if (saved) setMonthState(saved); // eslint-disable-line react-hooks/set-state-in-effect
     api.getEarliestMonth().then(setMin).catch(() => {});
   }, []);
 
