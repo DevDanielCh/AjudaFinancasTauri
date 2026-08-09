@@ -5,3 +5,10 @@ export interface Column<T> {
   render: (row: T) => ReactNode;
   className?: string;
 }
+
+export interface MobileCorners<T> {
+  topLeft: (row: T) => ReactNode;
+  bottomLeft?: (row: T) => ReactNode;
+  topRight?: (row: T) => ReactNode;
+  bottomRight?: (row: T) => ReactNode;
+}
