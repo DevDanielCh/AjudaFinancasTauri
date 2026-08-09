@@ -1,4 +1,5 @@
 "use client";
+import { useRef } from "react";
 import { Inbox } from "lucide-react";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
@@ -13,6 +14,7 @@ export function CardList<T extends { id: number }>({
   onTap?: (row: T) => void;
   onLongPress?: (row: T) => void;
 }) {
+  const suppressClick = useRef(false);
   if (rows.length === 0) {
     if (loading) {
       return (
@@ -38,12 +40,12 @@ export function CardList<T extends { id: number }>({
           <button
             type="button"
             className="w-full cursor-pointer rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent"
-            onClick={() => onTap?.(row)}
+            onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onTap?.(row); }}
             onContextMenu={(e) => { e.preventDefault(); onLongPress?.(row); }}
             onPointerDown={() => {
-              const t = setTimeout(() => onLongPress?.(row), 500);
+              const t = setTimeout(() => { suppressClick.current = true; onLongPress?.(row); }, 500);
               const cancel = () => { clearTimeout(t); };
-              const onUp = () => { cancel(); cleanup(); };
+              const onUp = () => { suppressClick.current = false; cancel(); cleanup(); };
               const onMove = () => { cancel(); cleanup(); };
               const cleanup = () => {
                 window.removeEventListener("pointerup", onUp);
