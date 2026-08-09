@@ -6,9 +6,13 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/confirm";
 import { DataTable } from "./DataTable";
+import { CardList } from "./CardList";
+import { CardOptionsSheet } from "./CardOptionsSheet";
 import { FormDialog } from "./FormDialog";
-import type { Column } from "./types";
+import type { Column, MobileCorners } from "./types";
 import { msg } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/lib/use-is-mobile";
 
 export interface CrudConfig<T extends { id: number }, F, E> {
   title: string;
@@ -33,6 +37,7 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   onRowDoubleClick?: (row: T) => void;
   onView?: (row: T) => void;
   protected?: (row: T) => boolean;
+  mobileCorners?: MobileCorners<T>;
 }
 
 type DialogState<T, F> = { mode: "create" } | { mode: "edit"; row: T; input: F };
@@ -44,7 +49,9 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const [confirm, setConfirm] = useState<{ message: string; ids: number[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
+  const [optionsRow, setOptionsRow] = useState<T | null>(null);
   const loadingRef = useRef(false);
+  const isMobile = useIsMobile();
 
   const pageSize = config.pageSize ?? 25;
   const [page, setPage] = useState(1);
@@ -144,42 +151,56 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
           <Plus data-icon="inline-start" />
           Adicionar
         </Button>
-        <Button
-          variant="outline"
-          disabled={selected.size !== 1 || (config.protected?.(rows.find((r) => r.id === [...selected][0])!) ?? false)}
-          onClick={() => {
-            const row = rows.find((r) => r.id === [...selected][0])!;
-            setDialog({ mode: "edit", row, input: config.toInput(row) });
-          }}
-        >
-          <Pencil data-icon="inline-start" />
-          Editar
-        </Button>
-        {config.onView && (
-          <Button
-            variant="outline"
-            disabled={selected.size !== 1}
-            onClick={() => config.onView!(rows.find((r) => r.id === [...selected][0])!)}
-          >
-            <Eye data-icon="inline-start" />
-            Visualizar
-          </Button>
+        {!isMobile && (
+          <>
+            <Button
+              variant="outline"
+              disabled={selected.size !== 1 || (config.protected?.(rows.find((r) => r.id === [...selected][0])!) ?? false)}
+              onClick={() => {
+                const row = rows.find((r) => r.id === [...selected][0])!;
+                setDialog({ mode: "edit", row, input: config.toInput(row) });
+              }}
+            >
+              <Pencil data-icon="inline-start" />
+              Editar
+            </Button>
+            {config.onView && (
+              <Button
+                variant="outline"
+                disabled={selected.size !== 1}
+                onClick={() => config.onView!(rows.find((r) => r.id === [...selected][0])!)}
+              >
+                <Eye data-icon="inline-start" />
+                Visualizar
+              </Button>
+            )}
+            <Button variant="destructive" disabled={selected.size === 0} onClick={askDelete}>
+              <Trash2 data-icon="inline-start" />
+              Excluir
+            </Button>
+          </>
         )}
-        <Button variant="destructive" disabled={selected.size === 0} onClick={askDelete}>
-          <Trash2 data-icon="inline-start" />
-          Excluir
-        </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto rounded-md border">
-        <DataTable
-          columns={config.columns}
-          rows={pageRows}
-          selected={selected}
-          onToggle={toggle}
-          onRowDoubleClick={config.onRowDoubleClick}
-          loading={loading}
-        />
+      <div className={cn("min-h-0 flex-1", isMobile ? "overflow-y-auto" : "overflow-auto rounded-md border")}>
+        {isMobile && config.mobileCorners ? (
+          <CardList
+            corners={config.mobileCorners}
+            rows={pageRows}
+            loading={loading}
+            onTap={(row) => config.onView?.(row)}
+            onLongPress={(row) => setOptionsRow(row)}
+          />
+        ) : (
+          <DataTable
+            columns={config.columns}
+            rows={pageRows}
+            selected={selected}
+            onToggle={toggle}
+            onRowDoubleClick={config.onRowDoubleClick}
+            loading={loading}
+          />
+        )}
       </div>
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -219,6 +240,23 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
         message={confirm?.message ?? ""}
         onOpenChange={(o) => { if (!o) setConfirm(null); }}
         onConfirm={() => void doDelete()}
+      />
+
+      <CardOptionsSheet
+        open={!!optionsRow}
+        onOpenChange={(o) => { if (!o) setOptionsRow(null); }}
+        row={optionsRow}
+        title={(row) => String(config.columns[0].render(row))}
+        canEdit={(row) => !(config.protected?.(row))}
+        onView={config.onView}
+        onEdit={(row) => setDialog({ mode: "edit", row, input: config.toInput(row) })}
+        onDelete={(row) => {
+          const ids = [row.id];
+          setConfirm({
+            ids,
+            message: ids.length === 1 ? "Excluir este registro?" : `Excluir ${ids.length} registros?`,
+          });
+        }}
       />
     </div>
   );
