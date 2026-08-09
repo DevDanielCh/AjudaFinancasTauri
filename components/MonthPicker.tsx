@@ -11,16 +11,22 @@ import { cn } from "@/lib/utils";
 const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 
 export function MonthPicker({
-  value, onChange, min,
-}: { value: string; onChange: (v: string) => void; min?: string }) {
+  value, onChange, min, compact,
+}: { value: string; onChange: (v: string) => void; min?: string; compact?: boolean }) {
   const [year, setYear] = useState(() => Number((value || new Date().toISOString().slice(0,7)).slice(0,4)));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" className="w-full justify-between font-normal">
+          <Button
+            variant="outline"
+            className={cn(
+              "font-normal",
+              compact ? "justify-center gap-2 rounded-full px-3" : "w-full justify-between"
+            )}
+          >
             <span>{formatMonth(value)}</span>
-            <ChevronDown data-icon="inline-end" className="opacity-50" />
+            {!compact && <ChevronDown data-icon="inline-end" className="opacity-50" />}
           </Button>
         }
       />
