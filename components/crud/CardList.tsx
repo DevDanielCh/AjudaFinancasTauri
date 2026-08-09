@@ -41,8 +41,8 @@ export function CardList<T extends { id: number }>({
             type="button"
             className="w-full cursor-pointer rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent"
             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onTap?.(row); }}
-            onContextMenu={(e) => { e.preventDefault(); onLongPress?.(row); }}
             onPointerDown={() => {
+              suppressClick.current = false;
               const t = setTimeout(() => { suppressClick.current = true; onLongPress?.(row); }, 500);
               const cancel = () => { clearTimeout(t); };
               const onUp = () => { cancel(); cleanup(); };
