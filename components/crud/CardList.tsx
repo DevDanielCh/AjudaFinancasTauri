@@ -45,7 +45,7 @@ export function CardList<T extends { id: number }>({
             onPointerDown={() => {
               const t = setTimeout(() => { suppressClick.current = true; onLongPress?.(row); }, 500);
               const cancel = () => { clearTimeout(t); };
-              const onUp = () => { suppressClick.current = false; cancel(); cleanup(); };
+              const onUp = () => { cancel(); cleanup(); };
               const onMove = () => { cancel(); cleanup(); };
               const cleanup = () => {
                 window.removeEventListener("pointerup", onUp);
