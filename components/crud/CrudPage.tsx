@@ -246,7 +246,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
         open={!!optionsRow}
         onOpenChange={(o) => { if (!o) setOptionsRow(null); }}
         row={optionsRow}
-        title={(row) => String(config.columns[0].render(row))}
+        title={(row) => String(config.mobileCorners?.topLeft(row) ?? "")}
         canEdit={(row) => !(config.protected?.(row))}
         onView={config.onView}
         onEdit={(row) => setDialog({ mode: "edit", row, input: config.toInput(row) })}
