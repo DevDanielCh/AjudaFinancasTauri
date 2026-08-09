@@ -36,7 +36,7 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col gap-2 border-r bg-muted/40 p-4">
+    <aside className="hidden w-64 shrink-0 flex-col gap-2 border-r bg-muted/40 p-4 sm:flex">
       <div className="px-2 pt-1 text-lg font-bold tracking-tight">Ajuda Finanças</div>
       <MonthPicker value={month} onChange={setMonth} min={min} />
       <Separator className="my-1" />

@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toast"
 import { MonthProvider } from "@/lib/month-context"
 import { Sidebar } from "@/components/Sidebar"
+import { MobileHeader } from "@/components/MobileHeader"
+import { BottomBar } from "@/components/BottomBar"
 import { UpdateDialog } from "@/components/UpdateDialog"
 import { cn } from "@/lib/utils"
 
@@ -36,9 +38,13 @@ export default function RootLayout({
           <MonthProvider>
             <div className="flex min-h-screen">
               <Sidebar />
-              <main className="flex-1 p-3">
-                {children}
-              </main>
+              <div className="flex min-w-0 flex-1 flex-col">
+                <MobileHeader />
+                <main className="flex-1 p-3 pb-24 sm:pb-3">
+                  {children}
+                </main>
+              </div>
+              <BottomBar />
             </div>
             <Toaster />
             <UpdateDialog />
