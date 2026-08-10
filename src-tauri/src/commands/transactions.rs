@@ -172,7 +172,7 @@ pub fn card_bill_purchases(
     bill_end: &str,
 ) -> Result<Vec<TransactionRow>, String> {
     let mut stmt = conn
-        .prepare(
+        .prepare(&format!(
             "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, cat.name, t.payment_method_id, pm.name,
                     t.fixed_bill_id, t.loan_id, 0, t.card_mode,
@@ -184,8 +184,10 @@ pub fn card_bill_purchases(
              WHERE t.payment_method_id = ?1 AND t.bill_start IS NULL
                AND t.card_mode = 0
                AND t.date >= ?2 AND t.date < ?3
+               AND ({})
              ORDER BY t.date ASC, t.id ASC",
-        )
+            domain::FINISHED_GUARD_SQL
+        ))
         .map_err(domain::db_err)?;
     let txs = stmt
         .query_map(params![pm_id, bill_start, bill_end], |r| {
@@ -330,5 +332,39 @@ mod tests {
         let fatura = rows.iter().find(|r| r.description == "fatura").expect("fatura deve aparecer");
         assert!(fatura.is_card_bill);
         assert!(rows.iter().any(|r| r.description == "pix"), "forma normal deve aparecer");
+    }
+
+    #[test]
+    fn fatura_detalhe_exclui_parcela_encerrada() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela', 1000, 10, ?1, '2026-01', '2026-06', 3)",
+            params![card],
+        )
+        .unwrap();
+        let fb_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, fixed_bill_id, card_mode)
+             VALUES ('fantasma', 4000, 2, '2026-06-15', ?1, ?2, 0)",
+            params![card, fb_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('avulsa', 5000, 2, '2026-06-15', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+
+        let txs = card_bill_purchases(&conn, card, "2026-06-10", "2026-07-10").unwrap();
+
+        assert!(txs.iter().any(|t| t.description == "avulsa"));
+        assert!(
+            txs.iter().all(|t| t.description != "fantasma"),
+            "parcela além do total não pode aparecer no detalhe"
+        );
+        assert_eq!(txs.iter().map(|t| t.amount).sum::<i64>(), 5000);
     }
 }
