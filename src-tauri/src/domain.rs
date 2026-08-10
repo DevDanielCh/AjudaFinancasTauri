@@ -104,6 +104,29 @@ pub fn pm_expenses(
     Ok(v)
 }
 
+/// Despesas a débito (cartão, card_mode = 1) no período.
+fn card_debit_expenses(
+    conn: &Connection,
+    pm_id: i64,
+    start: NaiveDate,
+    end: NaiveDate,
+) -> Result<i64, String> {
+    let v: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(amount), 0) FROM transactions
+             WHERE type = 2 AND payment_method_id = ?1 AND card_mode = 1
+               AND date >= ?2 AND date < ?3",
+            rusqlite::params![
+                pm_id,
+                start.format("%Y-%m-%d").to_string(),
+                end.format("%Y-%m-%d").to_string()
+            ],
+            |r| r.get(0),
+        )
+        .map_err(db_err)?;
+    Ok(v)
+}
+
 pub fn no_pm_expenses(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
     let v: i64 = conn
         .query_row(
@@ -274,7 +297,8 @@ pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
 }
 
 /// Despesas do mês de referência. Cartões com fatura configurada (fechamento +
-/// vencimento) não contam as compras; a transação Fatura conta no mês do vencimento.
+/// vencimento) não contam as compras a crédito; a transação Fatura conta no mês
+/// do vencimento e compras a débito contam no mês civil da compra.
 pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, String> {
     let (start, end) = (
         ref_month.with_day(1).unwrap(),
@@ -298,20 +322,7 @@ pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, St
     for (id, ty, meta) in pms {
         if card_days(ty, meta.as_deref()).is_some() {
             // Fatura substitui o crédito; débito é despesa normal no mês civil.
-            let v: i64 = conn
-                .query_row(
-                    "SELECT COALESCE(SUM(amount), 0) FROM transactions
-                     WHERE type = 2 AND payment_method_id = ?1 AND card_mode = 1
-                       AND date >= ?2 AND date < ?3",
-                    rusqlite::params![
-                        id,
-                        start.format("%Y-%m-%d").to_string(),
-                        end.format("%Y-%m-%d").to_string()
-                    ],
-                    |r| r.get(0),
-                )
-                .map_err(db_err)?;
-            total += v;
+            total += card_debit_expenses(conn, id, start, end)?;
             continue;
         }
         let mut s = start;
@@ -405,19 +416,7 @@ pub fn expenses_by_pm(
                     |r| r.get(0),
                 )
                 .map_err(db_err)?;
-            let debit: i64 = conn
-                .query_row(
-                    "SELECT COALESCE(SUM(amount), 0) FROM transactions
-                     WHERE type = 2 AND payment_method_id = ?1 AND card_mode = 1
-                       AND date >= ?2 AND date < ?3",
-                    rusqlite::params![
-                        id,
-                        start.format("%Y-%m-%d").to_string(),
-                        end.format("%Y-%m-%d").to_string()
-                    ],
-                    |r| r.get(0),
-                )
-                .map_err(db_err)?;
+            let debit: i64 = card_debit_expenses(conn, id, start, end)?;
             bill + debit
         } else {
             let mut s = start;
