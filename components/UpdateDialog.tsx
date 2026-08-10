@@ -5,11 +5,14 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
+import { useIsMobile } from "@/lib/use-is-mobile";
 import { msg } from "@/lib/api";
 
 export function UpdateDialog() {
+  const isMobile = useIsMobile();
   const [available, setAvailable] = useState<null | { version: string }>(null);
   const [doing, setDoing] = useState(false);
 
@@ -33,21 +36,37 @@ export function UpdateDialog() {
     }
   };
 
+  const body = (
+    <>
+      <DialogHeader>
+        <DialogTitle>Nova versão disponível</DialogTitle>
+        <DialogDescription>
+          Versão {available?.version} disponível. Atualizar agora?
+        </DialogDescription>
+      </DialogHeader>
+      <DialogFooter>
+        <Button variant="outline" onClick={() => setAvailable(null)}>Agora não</Button>
+        <Button onClick={() => void apply()} disabled={doing}>
+          {doing ? "Baixando..." : "Atualizar e reiniciar"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={!!available} onOpenChange={(o) => { if (!o) setAvailable(null); }}>
+        <SheetContent side="bottom" showCloseButton>
+          {body}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Dialog open={!!available} onOpenChange={(o) => { if (!o) setAvailable(null); }}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nova versão disponível</DialogTitle>
-          <DialogDescription>
-            Versão {available?.version} disponível. Atualizar agora?
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setAvailable(null)}>Agora não</Button>
-          <Button onClick={() => void apply()} disabled={doing}>
-            {doing ? "Baixando..." : "Atualizar e reiniciar"}
-          </Button>
-        </DialogFooter>
+        {body}
       </DialogContent>
     </Dialog>
   );
