@@ -32,7 +32,10 @@ export function TransactionForm({
         <FieldLabel>Tipo</FieldLabel>
         <ToggleGroup
           value={[String(value.type)]}
-          onValueChange={(v) => onChange({ ...value, type: v[0] === "2" ? 2 : 1 })}
+          onValueChange={(v) => {
+            const type = v[0] === "2" ? 2 : 1;
+            onChange({ ...value, type, card_mode: type === 2 ? value.card_mode : 0 });
+          }}
         >
           <ToggleGroupItem value="1">Receita</ToggleGroupItem>
           <ToggleGroupItem value="2">Despesa</ToggleGroupItem>
@@ -52,7 +55,11 @@ export function TransactionForm({
           <NativeSelect
             className="w-full"
             value={value.payment_method_id?.toString() ?? ""}
-            onChange={(e) => onChange({ ...value, payment_method_id: e.target.value ? Number(e.target.value) : null })}
+            onChange={(e) => {
+              const pmId = e.target.value ? Number(e.target.value) : null;
+              const pm = resources.paymentMethods.find((p) => p.id === pmId);
+              onChange({ ...value, payment_method_id: pmId, card_mode: pm?.type === 2 ? value.card_mode : 0 });
+            }}
           >
             <NativeSelectOption value="">
               {value.type === 2 ? "Obrigatória para despesa" : "Opcional"}
