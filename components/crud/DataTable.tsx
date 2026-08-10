@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import type { Column } from "./types";
 
 export function DataTable<T extends { id: number }>({
-  columns, rows, selected, onToggle, onRowDoubleClick, loading,
+  columns, rows, selected, onToggle, onRowDoubleClick, loading, rowClass,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -20,6 +20,7 @@ export function DataTable<T extends { id: number }>({
   onToggle: (id: number) => void;
   onRowDoubleClick?: (row: T) => void;
   loading?: boolean;
+  rowClass?: (row: T) => string;
 }) {
   if (rows.length === 0) {
     if (loading) {
@@ -57,7 +58,7 @@ export function DataTable<T extends { id: number }>({
         {rows.map((row) => (
           <TableRow
             key={row.id}
-            className="cursor-pointer"
+            className={cn("cursor-pointer", rowClass?.(row))}
             onClick={() => onToggle(row.id)}
             onDoubleClick={() => onRowDoubleClick?.(row)}
           >

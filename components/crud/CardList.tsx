@@ -3,16 +3,18 @@ import { useRef } from "react";
 import { Inbox } from "lucide-react";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import type { MobileCorners } from "./types";
 
 export function CardList<T extends { id: number }>({
-  corners, rows, loading, onTap, onLongPress,
+  corners, rows, loading, onTap, onLongPress, rowClass,
 }: {
   corners: MobileCorners<T>;
   rows: T[];
   loading?: boolean;
   onTap?: (row: T) => void;
   onLongPress?: (row: T) => void;
+  rowClass?: (row: T) => string;
 }) {
   const suppressClick = useRef(false);
   if (rows.length === 0) {
@@ -39,7 +41,7 @@ export function CardList<T extends { id: number }>({
         <li key={row.id}>
           <button
             type="button"
-            className="w-full cursor-pointer select-none rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent"
+            className={cn("w-full cursor-pointer select-none rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent", rowClass?.(row))}
             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onTap?.(row); }}
             onPointerDown={(e) => {
               suppressClick.current = false;

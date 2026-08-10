@@ -39,6 +39,8 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   onView?: (row: T) => void;
   protected?: (row: T) => boolean;
   mobileCorners?: MobileCorners<T>;
+  /** Classe extra aplicada a cada linha/card (ex.: opacity para inativo). */
+  rowClass?: (row: T) => string;
 }
 
 type DialogState<T, F> = { mode: "create" } | { mode: "edit"; row: T; input: F };
@@ -206,6 +208,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
             loading={loading}
             onTap={(row) => config.onView?.(row)}
             onLongPress={(row) => setOptionsRow(row)}
+            rowClass={config.rowClass}
           />
         ) : (
           <DataTable
@@ -215,6 +218,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
             onToggle={toggle}
             onRowDoubleClick={config.onRowDoubleClick}
             loading={loading}
+            rowClass={config.rowClass}
           />
         )}
         {hasMore && <div ref={sentinelRef} className="h-2" />}
