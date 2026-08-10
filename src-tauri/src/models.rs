@@ -262,6 +262,8 @@ pub struct FixedBill {
     pub end_month: Option<String>,
     pub installments: Option<i64>,
     pub purchase_date: Option<String>,
+    /// Verdadeiro quando todas as parcelas já venceram (parcelamento encerrado).
+    pub finished: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

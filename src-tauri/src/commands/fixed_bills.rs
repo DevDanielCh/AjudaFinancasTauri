@@ -28,7 +28,7 @@ fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, St
          ORDER BY {order}"
     );
     let mut stmt = conn.prepare(&sql).map_err(domain::db_err)?;
-    let rows = stmt
+    let mut rows = stmt
         .query_map([], |r| {
             Ok(FixedBill {
                 id: r.get(0)?,
@@ -43,11 +43,18 @@ fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, St
                 end_month: r.get(9)?,
                 installments: r.get(10)?,
                 purchase_date: r.get(11)?,
+                finished: false,
             })
         })
         .map_err(domain::db_err)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(domain::db_err)?;
+    let now = domain::current_month();
+    for b in &mut rows {
+        if let Some(n) = b.installments {
+            b.finished = domain::installment_finished(&b.start_month, n, &now);
+        }
+    }
     Ok(rows)
 }
 
@@ -263,6 +270,34 @@ mod tests {
             Some("2026-10"),
             "end deriva do start do formulário"
         );
+    }
+
+    #[test]
+    fn list_marca_finished_quando_plano_encerrou() {
+        let conn = test_db();
+        conn.execute("INSERT INTO payment_methods (name, type) VALUES ('PIX', 1)", [])
+            .unwrap();
+        let pm_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('antigo', 1000, 10, ?1, '2020-01', '2020-03', 3)",
+            params![pm_id],
+        )
+        .unwrap();
+        let now = chrono::Local::now().date_naive().format("%Y-%m").to_string();
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('novo', 1000, 10, ?1, ?2, ?2, 3)",
+            params![pm_id, now],
+        )
+        .unwrap();
+
+        let rows = list(&conn, true).unwrap();
+
+        let antigo = rows.iter().find(|b| b.description == "antigo").expect("antigo presente");
+        assert!(antigo.finished, "plano encerrado deve marcar finished");
+        let novo = rows.iter().find(|b| b.description == "novo").expect("novo presente");
+        assert!(!novo.finished, "plano corrente não está finished");
     }
 
     #[test]
