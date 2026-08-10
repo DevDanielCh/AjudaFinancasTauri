@@ -30,6 +30,7 @@ export default function InstallmentsPage() {
         create: api.createFixedBill,
         update: (id, d) => api.updateFixedBill(id, d),
         remove: api.deleteFixedBills,
+        rowClass: (r) => (r.finished ? "opacity-50" : ""),
         empty: (): FixedBillInput => ({
           description: "", amount: 0, day: 1, category_id: null,
           payment_method_id: 0, start_month: new Date().toISOString().slice(0, 7),
