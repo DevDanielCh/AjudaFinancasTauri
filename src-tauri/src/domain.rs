@@ -24,6 +24,18 @@ pub fn installment_index(start_month: &str, parcel_month: &str) -> i64 {
     month_diff(start_month, parcel_month).max(0) + 1
 }
 
+/// Verdadeiro quando a parcela de `row_month` ultrapassa o total (parcelamento encerrado).
+pub fn installment_finished(start_month: &str, installments: i64, row_month: &str) -> bool {
+    installments >= 1 && installment_index(start_month, row_month) > installments
+}
+
+/// Fragmento SQL que exclui parcelas além do total em consultas de fatura.
+/// Espera aliases `t` (transactions) e `fb` (fixed_bills LEFT JOIN).
+pub const FINISHED_GUARD_SQL: &str = "fb.installments IS NULL OR \
+((CAST(strftime('%Y', t.date) AS INTEGER) * 12 + CAST(strftime('%m', t.date) AS INTEGER)) \
+- (CAST(substr(fb.start_month, 1, 4) AS INTEGER) * 12 + CAST(substr(fb.start_month, 6, 2) AS INTEGER))) \
+< fb.installments";
+
 /// (mês YYYY-MM, dia) do parcelamento a partir da data da compra.
 pub fn purchase_installment(purchase: &str) -> Result<(String, i64), String> {
     let d = NaiveDate::parse_from_str(purchase, "%Y-%m-%d")
@@ -766,6 +778,15 @@ mod tests {
             purchase_installment("2025-01-05").unwrap(),
             ("2025-01".to_string(), 5)
         );
+    }
+
+    #[test]
+    fn installment_finished_edges() {
+        assert!(!installment_finished("2026-01", 3, "2026-01")); // 1/3
+        assert!(!installment_finished("2026-01", 3, "2026-03")); // 3/3, último
+        assert!(installment_finished("2026-01", 3, "2026-04")); // 4/3, passou
+        assert!(!installment_finished("2026-01", 3, "2025-12")); // antes do início → index 1
+        assert!(!installment_finished("2026-01", 0, "2026-04")); // total inválido
     }
 
     #[test]
