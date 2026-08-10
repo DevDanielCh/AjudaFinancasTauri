@@ -462,7 +462,7 @@ pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), S
     let month_key = month.format("%Y-%m").to_string();
     let mut stmt = conn
         .prepare(
-            "SELECT id, description, amount, day, category_id, payment_method_id
+            "SELECT id, description, amount, day, category_id, payment_method_id, installments, start_month
              FROM fixed_bills
              WHERE start_month <= ?1 AND (end_month IS NULL OR end_month >= ?1)",
         )
@@ -476,6 +476,8 @@ pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), S
                 r.get::<_, i64>(3)?,
                 r.get::<_, Option<i64>>(4)?,
                 r.get::<_, i64>(5)?,
+                r.get::<_, Option<i64>>(6)?,
+                r.get::<_, String>(7)?,
             ))
         })
         .map_err(db_err)?
@@ -490,7 +492,22 @@ pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), S
         .to_string();
     let last = last_day_of(month) as i64;
 
-    for (id, description, amount, day, category_id, payment_method_id) in bills {
+    for (
+        id,
+        description,
+        amount,
+        day,
+        category_id,
+        payment_method_id,
+        installments,
+        start_month,
+    ) in bills
+    {
+        if let Some(n) = installments {
+            if month_diff(&start_month, &month_key) >= n {
+                continue; // parcela além do total: plano encerrado
+            }
+        }
         let exists: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM transactions WHERE fixed_bill_id = ?1 AND date >= ?2 AND date < ?3",
@@ -816,6 +833,27 @@ mod tests {
             )
             .unwrap();
         assert_eq!(total, 5000);
+    }
+
+    #[test]
+    fn generate_stops_at_installments_count() {
+        let conn = test_db();
+        let pm = add_pm(&conn, "PIX", 1, None);
+        // plano com end_month largo (drift de dados antigo): start 2026-01, 3 parcelas, end 2026-06
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela', 1000, 10, ?1, '2026-01', '2026-06', 3)",
+            params![pm],
+        )
+        .unwrap();
+
+        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 3, 1).unwrap()).unwrap();
+        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()).unwrap();
+
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 1, "março (3/3) gera; abril (4/3) para");
     }
 
     #[test]
