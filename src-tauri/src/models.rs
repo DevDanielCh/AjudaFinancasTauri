@@ -24,6 +24,10 @@ pub struct TransactionInput {
     pub date: String,
     pub category_id: Option<i64>,
     pub payment_method_id: Option<i64>,
+    /// 0 = crédito, 1 = débito. Só tem efeito quando o tipo é despesa (2)
+    /// e a forma de pagamento é cartão.
+    #[serde(default)]
+    pub card_mode: i64,
 }
 
 impl TransactionInput {
@@ -42,6 +46,9 @@ impl TransactionInput {
         }
         if self.type_ == 2 && self.payment_method_id.is_none() {
             return Err("forma de pagamento é obrigatória para despesas".into());
+        }
+        if self.card_mode != 0 && self.card_mode != 1 {
+            return Err("modo de cartão inválido".into());
         }
         Ok(())
     }

@@ -9,6 +9,7 @@ fn valida_transacao() {
         date: "2026-01-10".into(),
         category_id: None,
         payment_method_id: None,
+        card_mode: 0,
     };
     assert!(t.validate().is_err(), "descrição vazia deve falhar");
 
