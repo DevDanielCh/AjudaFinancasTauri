@@ -36,13 +36,15 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
     }
     sql.push_str(" ORDER BY t.date DESC, t.id DESC");
     let mut stmt = conn.prepare(&sql).map_err(domain::db_err)?;
+    let start_s = start.map(|d| d.format("%Y-%m-%d").to_string());
+    let end_s = end.map(|d| d.format("%Y-%m-%d").to_string());
+    let params: &[&dyn rusqlite::ToSql] = if start_s.is_some() {
+        &[&start_s, &end_s]
+    } else {
+        &[]
+    };
     let rows = stmt
-        .query_map(
-            params![
-                start.map(|d| d.format("%Y-%m-%d").to_string()),
-                end.map(|d| d.format("%Y-%m-%d").to_string())
-            ],
-            |r| {
+        .query_map(params, |r| {
                 Ok(TransactionRow {
                     id: r.get(0)?,
                     description: r.get(1)?,
@@ -67,6 +69,7 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
     let card_ids = domain::fatura_capable_card_ids(conn)?;
     Ok(rows
         .into_iter()
+        // Fatura substitui o crédito; débito aparece como despesa normal.
         .filter(|r| {
             r.is_card_bill
                 || r.payment_method_id.is_none_or(|id| !card_ids.contains(&id))
@@ -260,4 +263,72 @@ pub async fn get_card_bill(state: State<'_, AppState>, id: i64) -> Result<CardBi
             transactions: txs,
         })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations;
+    use rusqlite::Connection;
+
+    fn test_db() -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrations().to_latest(&mut conn).unwrap();
+        conn
+    }
+
+    fn add_pm(conn: &Connection, name: &str, ty: i64, meta: Option<&str>) -> i64 {
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
+            params![name, ty, meta],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn list_mostra_debito_e_esconde_credito_do_cartao() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        let pix = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('debito', 3000, 2, '2026-06-15', ?1, 1)",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES ('credito', 5000, 2, '2026-06-05', ?1)",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES ('fatura', 5000, 3, '2026-06-20', ?1)",
+            params![card],
+        )
+        .unwrap();
+        // precisa de bill_start/bill_end para ser identificada como fatura
+        conn.execute(
+            "UPDATE transactions SET bill_start = '2026-05-10', bill_end = '2026-06-10' WHERE description = 'fatura'",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES ('pix', 100, 2, '2026-06-05', ?1)",
+            params![pix],
+        )
+        .unwrap();
+
+        let rows = list(&conn, None).unwrap();
+
+        let debit = rows.iter().find(|r| r.description == "debito").expect("débito deve aparecer");
+        assert_eq!(debit.card_mode, 1);
+        assert!(rows.iter().all(|r| r.description != "credito"), "crédito deve sumir da listagem");
+        let fatura = rows.iter().find(|r| r.description == "fatura").expect("fatura deve aparecer");
+        assert!(fatura.is_card_bill);
+        assert!(rows.iter().any(|r| r.description == "pix"), "forma normal deve aparecer");
+    }
 }
