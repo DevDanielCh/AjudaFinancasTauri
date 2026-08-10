@@ -47,6 +47,7 @@ export interface TransactionInput {
   date: string;
   category_id: number | null;
   payment_method_id: number | null;
+  card_mode: 0 | 1;
 }
 
 export interface PaymentMethodInput {
