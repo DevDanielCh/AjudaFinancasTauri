@@ -47,7 +47,7 @@ export default function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <h1 className="hidden text-2xl font-semibold tracking-tight sm:block">Dashboard</h1>
         <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
           <RefreshCw data-icon="inline-start" className={cn(syncing && "animate-spin")} />
           {syncing ? "Sincronizando..." : "Sincronizar"}
