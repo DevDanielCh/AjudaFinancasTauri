@@ -234,20 +234,27 @@ fn card_bill(
 ) -> Result<Option<(NaiveDate, NaiveDate, String, i64)>, String> {
     let close_m = fatura_close_month(close_day, validity_day, payment_month);
     let (start, end) = billing_period(close_day, close_m);
-    let amount: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type = 2 AND payment_method_id = ?1 AND bill_start IS NULL
-               AND card_mode = 0
-               AND date >= ?2 AND date < ?3",
+    let amount = {
+        let mut stmt = conn
+            .prepare(&format!(
+                "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t
+                 LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
+                 WHERE t.type = 2 AND t.payment_method_id = ?1 AND t.bill_start IS NULL
+                   AND t.card_mode = 0
+                   AND t.date >= ?2 AND t.date < ?3
+                   AND ({FINISHED_GUARD_SQL})"
+            ))
+            .map_err(db_err)?;
+        stmt.query_row(
             rusqlite::params![
                 pm_id,
                 start.format("%Y-%m-%d").to_string(),
                 end.format("%Y-%m-%d").to_string()
             ],
-            |r| r.get(0),
+            |r| r.get::<_, i64>(0),
         )
-        .map_err(db_err)?;
+        .map_err(db_err)?
+    };
     if amount == 0 {
         return Ok(None);
     }
@@ -854,6 +861,44 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
             .unwrap();
         assert_eq!(rows, 1, "março (3/3) gera; abril (4/3) para");
+    }
+
+    #[test]
+    fn card_bill_exclui_parcela_encerrada() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela', 1000, 10, ?1, '2026-01', '2026-06', 3)",
+            params![card],
+        )
+        .unwrap();
+        let fb_id = conn.last_insert_rowid();
+        // linha fantasma de plano com drift: índice 6 > total 3, data dentro do período
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, fixed_bill_id, card_mode)
+             VALUES ('parcela fantasma', 4000, 2, '2026-06-15', ?1, ?2, 0)",
+            params![card, fb_id],
+        )
+        .unwrap();
+        // compra crédito avulsa (sem fixed_bill) deve permanecer
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('compra avulsa', 5000, 2, '2026-06-15', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
+
+        let amount: i64 = conn
+            .query_row(
+                "SELECT amount FROM transactions WHERE description = 'Fatura - Nubank'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(amount, 5000, "fantasma excluído, avulsa mantida");
     }
 
     #[test]
