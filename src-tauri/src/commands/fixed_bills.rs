@@ -240,4 +240,45 @@ mod tests {
         // antes do fix: end_month ficava 2026-10 (do start_month do formulário)
         assert_eq!(input.end_month.as_deref(), Some("2026-07"));
     }
+
+    #[test]
+    fn finalize_cartao_sem_compra_usa_dia_de_fechamento() {
+        let conn = test_db();
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES ('Nubank', 2, '{\"close_day\": 10}')",
+            [],
+        )
+        .unwrap();
+        let card_id = conn.last_insert_rowid();
+        let mut input = base_input();
+        input.payment_method_id = card_id;
+        input.day = 1;
+
+        finalize_installments(&conn, &mut input).unwrap();
+
+        assert_eq!(input.day, 10, "dia vira o de fechamento do cartão");
+        assert_eq!(input.start_month, "2026-08");
+        assert_eq!(
+            input.end_month.as_deref(),
+            Some("2026-10"),
+            "end deriva do start do formulário"
+        );
+    }
+
+    #[test]
+    fn finalize_sem_parcelas_preserva_end_month() {
+        let conn = test_db();
+        let mut input = base_input();
+        input.installments = None;
+        input.end_month = Some("2027-01".into());
+
+        finalize_installments(&conn, &mut input).unwrap();
+
+        assert_eq!(
+            input.end_month.as_deref(),
+            Some("2027-01"),
+            "end_month manual preservado"
+        );
+        assert_eq!(input.day, 1, "sem compra nem cartão, dia inalterado");
+    }
 }
