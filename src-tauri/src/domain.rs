@@ -203,6 +203,7 @@ fn card_bill(
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
              WHERE type = 2 AND payment_method_id = ?1 AND bill_start IS NULL
+               AND card_mode = 0
                AND date >= ?2 AND date < ?3",
             rusqlite::params![
                 pm_id,
@@ -703,6 +704,8 @@ mod tests {
             .unwrap();
         conn.execute_batch(include_str!("../migrations/002_card_bills.sql"))
             .unwrap();
+        conn.execute_batch(include_str!("../migrations/006_card_debit.sql"))
+            .unwrap();
         conn
     }
 
@@ -868,6 +871,39 @@ mod tests {
             )
             .unwrap();
         assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn fatura_ignora_compra_debito() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        add_tx(&conn, "credito", 5000, "2026-05-15", Some(card));
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('debito', 3000, 2, '2026-05-20', ?1, 1)",
+            params![card],
+        )
+        .unwrap();
+
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+
+        let amount: i64 = conn
+            .query_row(
+                "SELECT amount FROM transactions WHERE description = 'Fatura - Nubank'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(amount, 5000);
+
+        let debit_exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE description = 'debito' AND card_mode = 1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(debit_exists, 1);
     }
 
     #[test]
