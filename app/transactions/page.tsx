@@ -40,6 +40,16 @@ export default function TransactionsPage() {
               ),
             },
           ],
+          mobileCorners: {
+            topLeft: (r) => r.description,
+            bottomLeft: (r) => r.category_name ?? "—",
+            topRight: (r) => (
+              <span className={cn(r.type === 1 ? "text-positive" : "text-negative", "font-mono")}>
+                {r.type === 1 ? "+" : "−"} {formatMoney(r.amount)}
+              </span>
+            ),
+            bottomRight: (r) => formatDate(r.date),
+          },
           keepOpen: true,
           load,
           create: api.createTransaction,

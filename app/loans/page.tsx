@@ -23,6 +23,14 @@ export default function LoansPage() {
             { header: "Início", render: (r) => formatMonth(r.start_month) },
             { header: "Fim", render: (r) => formatMonth(r.end_month) },
           ],
+          mobileCorners: {
+            topLeft: (r) => r.description,
+            bottomLeft: (r) => `${r.type === 1 ? "Empréstimo" : "Financiamento"} · ${r.paid_count}/${r.total_installments}`,
+            topRight: (r) => (
+              <span className="font-mono">{formatMoney(r.installment)}</span>
+            ),
+            bottomRight: (r) => `${formatMonth(r.start_month)} → ${formatMonth(r.end_month)}`,
+          },
           load: api.listLoans,
           create: api.createLoan,
           update: (id, d) => api.updateLoan(id, d),

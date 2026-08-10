@@ -17,6 +17,15 @@ export default function CategoriesPage() {
           { header: "Nome", render: (r) => r.name },
           { header: "Tipo", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
         ],
+        mobileCorners: {
+          topLeft: (r) => (
+            <span className="flex items-center gap-2">
+              <span className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border" style={{ backgroundColor: r.color }} />
+              {r.name}
+            </span>
+          ),
+          topRight: (r) => (r.type === 1 ? "Receita" : "Despesa"),
+        },
         load: api.listCategories,
         create: api.createCategory,
         update: (id, d) => api.updateCategory(id, d),

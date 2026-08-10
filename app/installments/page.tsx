@@ -18,6 +18,14 @@ export default function InstallmentsPage() {
           { header: "Fim", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
           { header: "Parcelas", render: (r) => r.installments ?? "—" },
         ],
+        mobileCorners: {
+          topLeft: (r) => r.description,
+          bottomLeft: (r) => r.category_name ? `${r.category_name} · dia ${r.day}` : `dia ${r.day}`,
+          topRight: (r) => (
+            <span className="font-mono">{formatMoney(r.amount)}</span>
+          ),
+          bottomRight: (r) => `${formatMonth(r.start_month)} → ${r.end_month ? formatMonth(r.end_month) : "—"}`,
+        },
         load: () => api.listFixedBills(true),
         create: api.createFixedBill,
         update: (id, d) => api.updateFixedBill(id, d),

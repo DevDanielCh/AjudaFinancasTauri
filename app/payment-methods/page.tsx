@@ -23,6 +23,17 @@ export default function PaymentMethodsPage() {
             },
           },
         ],
+        mobileCorners: {
+          topLeft: (r) => r.name,
+          bottomLeft: (r) => (r.type === 2 ? "Cartão" : "Padrão"),
+          bottomRight: (r) => {
+            if (r.type !== 2) return "—";
+            try {
+              const m = r.metadata ? JSON.parse(r.metadata) : null;
+              return m?.close_day ? `${m.close_day}/${m.validity_day ?? "?"}` : "—";
+            } catch { return "—"; }
+          },
+        },
         load: api.listPaymentMethods,
         create: api.createPaymentMethod,
         update: (id, d) => api.updatePaymentMethod(id, d),
