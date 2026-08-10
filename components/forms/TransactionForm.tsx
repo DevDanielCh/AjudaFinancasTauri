@@ -15,6 +15,8 @@ export function TransactionForm({
   resources: { categories: Category[]; paymentMethods: PaymentMethod[] };
   error: string | null;
 }) {
+  const selectedPm = resources.paymentMethods.find((p) => p.id === value.payment_method_id);
+  const isCard = value.type === 2 && selectedPm?.type === 2;
   return (
     <FieldGroup>
       <FieldError>{error}</FieldError>
@@ -59,6 +61,18 @@ export function TransactionForm({
               <NativeSelectOption key={p.id} value={p.id.toString()}>{p.name}</NativeSelectOption>
             ))}
           </NativeSelect>
+        </Field>
+      )}
+      {isCard && (
+        <Field>
+          <FieldLabel>Modo</FieldLabel>
+          <ToggleGroup
+            value={[String(value.card_mode)]}
+            onValueChange={(v) => onChange({ ...value, card_mode: v[0] === "1" ? 1 : 0 })}
+          >
+            <ToggleGroupItem value="0">Crédito</ToggleGroupItem>
+            <ToggleGroupItem value="1">Débito</ToggleGroupItem>
+          </ToggleGroup>
         </Field>
       )}
       <Field>
