@@ -11,6 +11,7 @@ import { api, msg } from "@/lib/api";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { DashboardData } from "@/lib/types";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 export default function DashboardPage() {
   const { month } = useMonth();
@@ -45,14 +46,16 @@ export default function DashboardPage() {
   useEffect(() => { void load(false); }, [load]);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="hidden text-2xl font-semibold tracking-tight sm:block">Dashboard</h1>
-        <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}>
-          <RefreshCw data-icon="inline-start" className={cn(syncing && "animate-spin")} />
-          {syncing ? "Sincronizando..." : "Sincronizar"}
-        </Button>
-      </div>
+    <PullToRefresh onRefresh={() => sync()}>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h1 className="hidden text-2xl font-semibold tracking-tight sm:block">Dashboard</h1>
+          <Button variant="outline" size="sm" disabled={syncing} onClick={() => void sync()}
+            className="hidden sm:inline-flex">
+            <RefreshCw data-icon="inline-start" className={cn(syncing && "animate-spin")} />
+            {syncing ? "Sincronizando..." : "Sincronizar"}
+          </Button>
+        </div>
 
       {!data ? (
         <div className="flex justify-center py-12">
@@ -98,7 +101,8 @@ export default function DashboardPage() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }
 

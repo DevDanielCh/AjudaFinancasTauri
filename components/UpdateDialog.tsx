@@ -57,7 +57,7 @@ export function UpdateDialog() {
     return (
       <Sheet open={!!available} onOpenChange={(o) => { if (!o) setAvailable(null); }}>
         <SheetContent side="bottom" showCloseButton>
-          {body}
+          <div className="px-4">{body}</div>
         </SheetContent>
       </Sheet>
     );

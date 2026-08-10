@@ -92,7 +92,7 @@ export function FormDialog<T extends { id: number }, F, E>({
           <SheetHeader>
             <SheetTitle>{dialog.mode === "create" ? "Novo" : "Editar"}</SheetTitle>
           </SheetHeader>
-          {body}
+          <div className="px-4">{body}</div>
           <SheetFooter>
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={() => void submit()} disabled={saving}>

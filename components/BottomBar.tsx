@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeftRight, CalendarClock, Ellipsis, LayoutDashboard,
+  ArrowLeftRight, Banknote, CalendarClock, CreditCard, Ellipsis,
+  LayoutDashboard, Receipt, Tags,
 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -15,10 +16,10 @@ const TABS = [
 ] as const;
 
 const MORE = [
-  { href: "/payment-methods", label: "Formas de Pagamento" },
-  { href: "/categories", label: "Categorias" },
-  { href: "/fixed-bills", label: "Contas Fixas" },
-  { href: "/loans", label: "Financiamentos" },
+  { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
+  { href: "/categories", label: "Categorias", icon: Tags },
+  { href: "/fixed-bills", label: "Contas Fixas", icon: Receipt },
+  { href: "/loans", label: "Financiamentos", icon: Banknote },
 ] as const;
 
 export function BottomBar() {
@@ -61,18 +62,19 @@ export function BottomBar() {
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="bottom" showCloseButton={false} className="gap-1 pb-6">
-          <SheetTitle className="px-4 pt-2 text-lg font-bold">Mais</SheetTitle>
-          <div className="flex flex-col px-2">
-            {MORE.map(({ href, label }) => (
+          <SheetTitle className="sr-only">Mais</SheetTitle>
+          <div className="flex flex-col px-2 pt-2">
+            {MORE.map(({ href, label, icon: Icon }) => (
               <Link
                 key={href}
                 href={href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent",
+                  "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent",
                   pathname.startsWith(href) && "bg-accent"
                 )}
               >
+                <Icon className="size-4 text-muted-foreground" />
                 {label}
               </Link>
             ))}

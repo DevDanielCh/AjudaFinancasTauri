@@ -71,7 +71,7 @@ export function FaturaDetailDialog({ id, onClose }: { id: number | null; onClose
     return (
       <Sheet open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent side="bottom" showCloseButton className="max-h-[90dvh] overflow-y-auto">
-          {body}
+          <div className="px-4">{body}</div>
         </SheetContent>
       </Sheet>
     );

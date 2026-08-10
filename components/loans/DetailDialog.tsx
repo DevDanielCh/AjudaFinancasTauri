@@ -55,10 +55,10 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
               <TableRow>
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Parcela</TableHead>
-                <TableHead className="text-right">Juros</TableHead>
-                <TableHead className="text-right">Amortização</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Juros</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Amortização</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
-                <TableHead className="text-right">Liq. antecipada</TableHead>
+                <TableHead className="hidden text-right sm:table-cell">Liq. antecipada</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -72,16 +72,16 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
                     <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
                       {formatMoney(r.installment)}
                     </TableCell>
-                    <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                    <TableCell className={cn("hidden text-right sm:table-cell", paid && "text-muted-foreground line-through")}>
                       {formatMoney(r.interest)}
                     </TableCell>
-                    <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                    <TableCell className={cn("hidden text-right sm:table-cell", paid && "text-muted-foreground line-through")}>
                       {formatMoney(r.principal)}
                     </TableCell>
                     <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
                       {formatMoney(r.balance)}
                     </TableCell>
-                    <TableCell className={cn("text-right", paid && "text-muted-foreground line-through")}>
+                    <TableCell className={cn("hidden text-right sm:table-cell", paid && "text-muted-foreground line-through")}>
                       {r.settlement > 0 ? formatMoney(r.settlement) : "—"}
                     </TableCell>
                   </TableRow>
@@ -98,7 +98,7 @@ export function DetailDialog({ id, onClose }: { id: number | null; onClose: () =
     return (
       <Sheet open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent side="bottom" showCloseButton className="max-h-[90dvh] overflow-y-auto">
-          {body}
+          <div className="px-4">{body}</div>
         </SheetContent>
       </Sheet>
     );

@@ -13,6 +13,7 @@ import type { Column, MobileCorners } from "./types";
 import { msg } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { PullToRefresh } from "@/components/PullToRefresh";
 
 export interface CrudConfig<T extends { id: number }, F, E> {
   title: string;
@@ -54,14 +55,28 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const isMobile = useIsMobile();
 
   const pageSize = config.pageSize ?? 25;
-  const [page, setPage] = useState(1);
+  const [visibleCount, setVisibleCount] = useState(pageSize);
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
     () => (q ? rows.filter((r) => config.columns.some((c) => String(c.render(r)).toLowerCase().includes(q))) : rows),
     [rows, q, config.columns]
   );
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageRows = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const hasMore = visibleCount < filtered.length;
+  const pageRows = filtered.slice(0, visibleCount);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) setVisibleCount((c) => c + pageSize);
+      },
+      { rootMargin: "200px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasMore, pageSize]);
 
   const reload = useCallback(async () => {
     if (loadingRef.current) return;
@@ -71,14 +86,14 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
       setRows(await config.load());
       setSelected(new Set());
       setQuery("");
-      setPage(1);
+      setVisibleCount(pageSize);
     } catch (e) {
       toast.add({ title: msg(e), type: "error" });
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
-  }, [config]);
+  }, [config, pageSize]);
 
   useEffect(() => {
     void reload(); // eslint-disable-line react-hooks/set-state-in-effect
@@ -122,26 +137,27 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   };
 
   return (
-    <div className="flex h-[calc(100vh-1.5rem)] flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{config.title}</h1>
-          {config.description && (
-            <p className="text-sm text-muted-foreground">{config.description}</p>
-          )}
+    <PullToRefresh onRefresh={() => reload()}>
+      <div className="flex flex-col gap-4 sm:h-[calc(100vh-1.5rem)]">
+        <div className="hidden items-center justify-between sm:flex">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{config.title}</h1>
+            {config.description && (
+              <p className="text-sm text-muted-foreground">{config.description}</p>
+            )}
+          </div>
+          <Button variant="outline" onClick={() => void reload()} disabled={loading}>
+            <RefreshCw data-icon="inline-start" />
+            Atualizar
+          </Button>
         </div>
-        <Button variant="outline" onClick={() => void reload()} disabled={loading}>
-          <RefreshCw data-icon="inline-start" />
-          Atualizar
-        </Button>
-      </div>
 
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+            onChange={(e) => { setQuery(e.target.value); setVisibleCount(pageSize); }}
             placeholder="Buscar..."
             aria-label={`Buscar em ${config.title}`}
             className="pl-8"
@@ -182,7 +198,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
         )}
       </div>
 
-      <div className={cn("min-h-0 flex-1", isMobile ? "overflow-y-auto" : "overflow-auto rounded-md border")}>
+      <div className={cn("min-h-0 flex-1", isMobile ? "" : "overflow-auto rounded-md border")}>
         {isMobile && config.mobileCorners ? (
           <CardList
             corners={config.mobileCorners}
@@ -201,29 +217,12 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
             loading={loading}
           />
         )}
+        {hasMore && <div ref={sentinelRef} className="h-2" />}
       </div>
 
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>
-          {filtered.length} registro{filtered.length === 1 ? "" : "s"}
-          {q && ` (filtrado de ${rows.length})`}
-        </span>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Anterior
-          </Button>
-          <span>
-            Página {page} de {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Próxima
-          </Button>
-        </div>
+      <div className="text-sm text-muted-foreground">
+        {filtered.length} registro{filtered.length === 1 ? "" : "s"}
+        {q && ` (filtrado de ${rows.length})`}
       </div>
 
       {dialog && (
@@ -258,6 +257,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
           });
         }}
       />
-    </div>
+      </div>
+    </PullToRefresh>
   );
 }

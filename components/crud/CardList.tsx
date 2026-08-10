@@ -39,14 +39,20 @@ export function CardList<T extends { id: number }>({
         <li key={row.id}>
           <button
             type="button"
-            className="w-full cursor-pointer rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent"
+            className="w-full cursor-pointer select-none rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent"
             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onTap?.(row); }}
-            onPointerDown={() => {
+            onPointerDown={(e) => {
               suppressClick.current = false;
+              const sx = e.clientX;
+              const sy = e.clientY;
               const t = setTimeout(() => { suppressClick.current = true; onLongPress?.(row); }, 500);
               const cancel = () => { clearTimeout(t); };
               const onUp = () => { cancel(); cleanup(); };
-              const onMove = () => { cancel(); cleanup(); };
+              const onMove = (ev: PointerEvent) => {
+                if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 10) return;
+                cancel();
+                cleanup();
+              };
               const cleanup = () => {
                 window.removeEventListener("pointerup", onUp);
                 window.removeEventListener("pointercancel", onMove);
