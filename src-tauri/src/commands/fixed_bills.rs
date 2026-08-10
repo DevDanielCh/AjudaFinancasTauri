@@ -87,21 +87,29 @@ fn apply_purchase_date(input: &mut FixedBillInput) -> Result<(), String> {
     Ok(())
 }
 
+/// Aplica data da compra (ou dia de fechamento do cartão) e recalcula o
+/// end_month das parcelas a partir do start_month final. Deve rodar antes de
+/// validate() e do INSERT.
+fn finalize_installments(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
+    if input.purchase_date.is_some() {
+        apply_purchase_date(input)?;
+    } else {
+        apply_card_day(conn, input)?;
+    }
+    if input.installments.is_some() {
+        *input = input.normalized()?;
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn create_fixed_bill(
     state: State<'_, AppState>,
     mut input: FixedBillInput,
 ) -> Result<(), String> {
-    if input.installments.is_some() {
-        input = input.normalized()?;
-    }
-    input.validate()?;
     with_db(&state, |c| {
-        if input.purchase_date.is_some() {
-            apply_purchase_date(&mut input)?;
-        } else {
-            apply_card_day(c, &mut input)?;
-        }
+        finalize_installments(c, &mut input)?;
+        input.validate()?;
         let end_month = input.end_month.clone();
         c.execute(
             "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
@@ -130,16 +138,9 @@ pub async fn update_fixed_bill(
     id: i64,
     mut input: FixedBillInput,
 ) -> Result<(), String> {
-    if input.installments.is_some() {
-        input = input.normalized()?;
-    }
-    input.validate()?;
     with_db(&state, |c| {
-        if input.purchase_date.is_some() {
-            apply_purchase_date(&mut input)?;
-        } else {
-            apply_card_day(c, &mut input)?;
-        }
+        finalize_installments(c, &mut input)?;
+        input.validate()?;
         let affected = c
             .execute(
                 "UPDATE fixed_bills SET description = ?1, amount = ?2, day = ?3, category_id = ?4,
@@ -191,4 +192,52 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
         .map_err(domain::db_err)?;
         domain::refresh_card_bills(c)
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::migrations;
+    use rusqlite::Connection;
+
+    fn test_db() -> Connection {
+        let mut conn = Connection::open_in_memory().unwrap();
+        migrations().to_latest(&mut conn).unwrap();
+        conn
+    }
+
+    fn base_input() -> FixedBillInput {
+        FixedBillInput {
+            description: "compra".into(),
+            amount: 1000,
+            day: 1,
+            category_id: None,
+            payment_method_id: 0,
+            start_month: "2026-08".into(),
+            end_month: None,
+            installments: Some(3),
+            purchase_date: None,
+        }
+    }
+
+    #[test]
+    fn finalize_deriva_end_month_do_mes_da_compra() {
+        let conn = test_db();
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES ('Nubank', 2, NULL)",
+            [],
+        )
+        .unwrap();
+        let card_id = conn.last_insert_rowid();
+        let mut input = base_input();
+        input.payment_method_id = card_id;
+        input.purchase_date = Some("2026-05-20".into());
+
+        finalize_installments(&conn, &mut input).unwrap();
+
+        assert_eq!(input.start_month, "2026-05");
+        assert_eq!(input.day, 20);
+        // antes do fix: end_month ficava 2026-10 (do start_month do formulário)
+        assert_eq!(input.end_month.as_deref(), Some("2026-07"));
+    }
 }
