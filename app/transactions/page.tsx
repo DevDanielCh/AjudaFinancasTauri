@@ -57,12 +57,13 @@ export default function TransactionsPage() {
           remove: api.deleteTransactions,
           empty: (): TransactionInput => ({
             description: "", amount: 0, type: 2, date: new Date().toISOString().slice(0, 10),
-            category_id: null, payment_method_id: null,
+            category_id: null, payment_method_id: null, card_mode: 0,
           }),
           toInput: (r): TransactionInput => ({
             description: r.description, amount: r.amount,
             type: r.type === 3 ? 2 : r.type, date: r.date,
             category_id: r.category_id, payment_method_id: r.payment_method_id,
+            card_mode: r.card_mode,
           }),
           protected: (r) => r.is_card_bill,
           loadResources: async () => {

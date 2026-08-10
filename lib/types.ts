@@ -26,6 +26,7 @@ export interface TransactionRow {
   fixed_bill_id: number | null;
   loan_id: number | null;
   is_card_bill: boolean;
+  card_mode: 0 | 1;
   installment: string | null;
 }
 
