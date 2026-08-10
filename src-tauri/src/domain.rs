@@ -297,7 +297,22 @@ pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, St
         .map_err(db_err)?;
     for (id, ty, meta) in pms {
         if card_days(ty, meta.as_deref()).is_some() {
-            continue; // fatura substitui as compras
+            // Fatura substitui o crédito; débito é despesa normal no mês civil.
+            let v: i64 = conn
+                .query_row(
+                    "SELECT COALESCE(SUM(amount), 0) FROM transactions
+                     WHERE type = 2 AND payment_method_id = ?1 AND card_mode = 1
+                       AND date >= ?2 AND date < ?3",
+                    rusqlite::params![
+                        id,
+                        start.format("%Y-%m-%d").to_string(),
+                        end.format("%Y-%m-%d").to_string()
+                    ],
+                    |r| r.get(0),
+                )
+                .map_err(db_err)?;
+            total += v;
+            continue;
         }
         let mut s = start;
         let mut e = end;
@@ -377,18 +392,33 @@ pub fn expenses_by_pm(
         .map_err(db_err)?;
     for (id, name, ty, meta) in pms {
         let t = if card_days(ty, meta.as_deref()).is_some() {
-            conn.query_row(
-                 "SELECT COALESCE(SUM(amount), 0) FROM transactions
-                  WHERE type = 3 AND payment_method_id = ?1
-                    AND date >= ?2 AND date < ?3",
-                rusqlite::params![
-                    id,
-                    start.format("%Y-%m-%d").to_string(),
-                    end.format("%Y-%m-%d").to_string()
-                ],
-                |r| r.get(0),
-            )
-            .map_err(db_err)?
+            let bill: i64 = conn
+                .query_row(
+                     "SELECT COALESCE(SUM(amount), 0) FROM transactions
+                      WHERE type = 3 AND payment_method_id = ?1
+                        AND date >= ?2 AND date < ?3",
+                    rusqlite::params![
+                        id,
+                        start.format("%Y-%m-%d").to_string(),
+                        end.format("%Y-%m-%d").to_string()
+                    ],
+                    |r| r.get(0),
+                )
+                .map_err(db_err)?;
+            let debit: i64 = conn
+                .query_row(
+                    "SELECT COALESCE(SUM(amount), 0) FROM transactions
+                     WHERE type = 2 AND payment_method_id = ?1 AND card_mode = 1
+                       AND date >= ?2 AND date < ?3",
+                    rusqlite::params![
+                        id,
+                        start.format("%Y-%m-%d").to_string(),
+                        end.format("%Y-%m-%d").to_string()
+                    ],
+                    |r| r.get(0),
+                )
+                .map_err(db_err)?;
+            bill + debit
         } else {
             let mut s = start;
             let mut e = end;
@@ -937,6 +967,43 @@ mod tests {
         assert_eq!(month_expenses(&conn, jun).unwrap(), 9500);
         let mai = NaiveDate::from_ymd_opt(2026, 5, 1).unwrap();
         assert_eq!(month_expenses(&conn, mai).unwrap(), 0);
+    }
+
+    #[test]
+    fn month_expenses_conta_debito_do_cartao() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        add_tx(&conn, "credito", 5000, "2026-06-05", Some(card));
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('debito', 3000, 2, '2026-06-15', ?1, 1)",
+            params![card],
+        )
+        .unwrap();
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        assert_eq!(month_expenses(&conn, jun).unwrap(), 8000);
+    }
+
+    #[test]
+    fn expenses_by_pm_conta_debito_do_cartao() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        add_tx(&conn, "credito", 5000, "2026-05-15", Some(card));
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('debito', 3000, 2, '2026-06-15', ?1, 1)",
+            params![card],
+        )
+        .unwrap();
+        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        let rows = expenses_by_pm(&conn, jun).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "Nubank");
+        assert_eq!(rows[0].total, 8000);
     }
 
     #[test]
