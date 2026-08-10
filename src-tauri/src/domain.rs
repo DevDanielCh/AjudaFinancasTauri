@@ -888,6 +888,35 @@ mod tests {
             params![card],
         )
         .unwrap();
+        // última parcela legítima (3/3, start 2026-04 → diff 2 < 3) cai no período e DEVE entrar
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela fim', 1000, 10, ?1, '2026-04', '2026-06', 3)",
+            params![card],
+        )
+        .unwrap();
+        let fb2 = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, fixed_bill_id, card_mode)
+             VALUES ('parcela ultima', 2000, 2, '2026-06-12', ?1, ?2, 0)",
+            params![card, fb2],
+        )
+        .unwrap();
+        // primeira linha além do total (start 2026-03 → diff 3 == installments, índice 4 de 3)
+        // é o ponto exato da fronteira < vs <=: DEVE ser excluída
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela borda', 1000, 10, ?1, '2026-03', '2026-06', 3)",
+            params![card],
+        )
+        .unwrap();
+        let fb3 = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, fixed_bill_id, card_mode)
+             VALUES ('parcela borda fantasma', 3000, 2, '2026-06-15', ?1, ?2, 0)",
+            params![card, fb3],
+        )
+        .unwrap();
 
         ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
 
@@ -898,7 +927,7 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(amount, 5000, "fantasma excluído, avulsa mantida");
+        assert_eq!(amount, 7000, "fantasma excluído; última parcela e avulsa mantidas");
     }
 
     #[test]
