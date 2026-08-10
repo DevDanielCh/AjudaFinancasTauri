@@ -1,0 +1,1 @@
+ALTER TABLE transactions ADD COLUMN card_mode INTEGER NOT NULL DEFAULT 0;
