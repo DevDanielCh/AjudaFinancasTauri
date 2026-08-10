@@ -26,7 +26,7 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
     let mut sql = String::from(
         "SELECT t.id, t.description, t.amount, t.type, t.date,
                 t.category_id, c.name, t.payment_method_id, pm.name,
-                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL)
+                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
          FROM transactions t
          LEFT JOIN categories c ON c.id = t.category_id
          LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id",
@@ -56,6 +56,7 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
                     fixed_bill_id: r.get(9)?,
                     loan_id: r.get(10)?,
                     is_card_bill: r.get(11)?,
+                    card_mode: r.get(12)?,
                     installment: None,
                 })
             },
@@ -69,6 +70,7 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
         .filter(|r| {
             r.is_card_bill
                 || r.payment_method_id.is_none_or(|id| !card_ids.contains(&id))
+                || r.card_mode == 1
         })
         .collect())
 }
@@ -81,15 +83,16 @@ pub async fn create_transaction(
     input.validate()?;
     with_db(&state, |c| {
         c.execute(
-            "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, card_mode)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 input.description.trim(),
                 input.amount,
                 input.type_,
                 input.date,
                 input.category_id,
-                input.payment_method_id
+                input.payment_method_id,
+                input.card_mode
             ],
         )
         .map_err(domain::db_err)?;
@@ -112,8 +115,8 @@ pub async fn update_transaction(
         let affected = c
             .execute(
                 "UPDATE transactions SET description = ?1, amount = ?2, type = ?3, date = ?4,
-                        category_id = ?5, payment_method_id = ?6
-                 WHERE id = ?7",
+                        category_id = ?5, payment_method_id = ?6, card_mode = ?7
+                 WHERE id = ?8",
                 params![
                     input.description.trim(),
                     input.amount,
@@ -121,6 +124,7 @@ pub async fn update_transaction(
                     input.date,
                     input.category_id,
                     input.payment_method_id,
+                    input.card_mode,
                     id
                 ],
             )
@@ -157,6 +161,63 @@ pub fn delete_ids(conn: &Connection, ids: &[i64]) -> Result<(), String> {
     Ok(())
 }
 
+/// Compras de crédito que compõem a fatura (card_mode = 0) no período.
+pub fn card_bill_purchases(
+    conn: &Connection,
+    pm_id: i64,
+    bill_start: &str,
+    bill_end: &str,
+) -> Result<Vec<TransactionRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT t.id, t.description, t.amount, t.type, t.date,
+                    t.category_id, cat.name, t.payment_method_id, pm.name,
+                    t.fixed_bill_id, t.loan_id, 0, t.card_mode,
+                    fb.installments, fb.start_month
+             FROM transactions t
+             LEFT JOIN categories cat ON cat.id = t.category_id
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
+             LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
+             WHERE t.payment_method_id = ?1 AND t.bill_start IS NULL
+               AND t.card_mode = 0
+               AND t.date >= ?2 AND t.date < ?3
+             ORDER BY t.date ASC, t.id ASC",
+        )
+        .map_err(domain::db_err)?;
+    let txs = stmt
+        .query_map(params![pm_id, bill_start, bill_end], |r| {
+            let date: String = r.get(4)?;
+            let installments: Option<i64> = r.get(13)?;
+            let start_month: Option<String> = r.get(14)?;
+            let installment = match (installments, start_month) {
+                (Some(total), Some(sm)) if total >= 1 => {
+                    Some(format!("{}/{}", domain::installment_index(&sm, &date[..7]), total))
+                }
+                _ => None,
+            };
+            Ok(TransactionRow {
+                id: r.get(0)?,
+                description: r.get(1)?,
+                amount: r.get(2)?,
+                type_: r.get(3)?,
+                date,
+                category_id: r.get(5)?,
+                category_name: r.get(6)?,
+                payment_method_id: r.get(7)?,
+                payment_method_name: r.get(8)?,
+                fixed_bill_id: r.get(9)?,
+                loan_id: r.get(10)?,
+                is_card_bill: false,
+                card_mode: r.get(12)?,
+                installment,
+            })
+        })
+        .map_err(domain::db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(domain::db_err)?;
+    Ok(txs)
+}
+
 #[tauri::command]
 pub async fn get_card_bill(state: State<'_, AppState>, id: i64) -> Result<CardBillDetail, String> {
     with_db(&state, |c| {
@@ -186,51 +247,7 @@ pub async fn get_card_bill(state: State<'_, AppState>, id: i64) -> Result<CardBi
         let (Some(bs), Some(be)) = (bill_start, bill_end) else {
             return Err("transação não é uma fatura".into());
         };
-        let mut stmt = c
-            .prepare(
-                "SELECT t.id, t.description, t.amount, t.type, t.date,
-                        t.category_id, cat.name, t.payment_method_id, pm.name,
-                        t.fixed_bill_id, t.loan_id, 0,
-                        fb.installments, fb.start_month
-                 FROM transactions t
-                 LEFT JOIN categories cat ON cat.id = t.category_id
-                 LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
-                 LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
-                 WHERE t.payment_method_id = ?1 AND t.bill_start IS NULL
-                   AND t.date >= ?2 AND t.date < ?3
-                 ORDER BY t.date ASC, t.id ASC",
-            )
-            .map_err(domain::db_err)?;
-        let txs = stmt
-            .query_map(params![pm_id, bs, be], |r| {
-                let date: String = r.get(4)?;
-                let installments: Option<i64> = r.get(12)?;
-                let start_month: Option<String> = r.get(13)?;
-                let installment = match (installments, start_month) {
-                    (Some(total), Some(sm)) if total >= 1 => {
-                        Some(format!("{}/{}", domain::installment_index(&sm, &date[..7]), total))
-                    }
-                    _ => None,
-                };
-                Ok(TransactionRow {
-                    id: r.get(0)?,
-                    description: r.get(1)?,
-                    amount: r.get(2)?,
-                    type_: r.get(3)?,
-                    date,
-                    category_id: r.get(5)?,
-                    category_name: r.get(6)?,
-                    payment_method_id: r.get(7)?,
-                    payment_method_name: r.get(8)?,
-                    fixed_bill_id: r.get(9)?,
-                    loan_id: r.get(10)?,
-                    is_card_bill: false,
-                    installment,
-                })
-            })
-            .map_err(domain::db_err)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(domain::db_err)?;
+        let txs = card_bill_purchases(c, pm_id, &bs, &be)?;
         let total: i64 = txs.iter().map(|t| t.amount).sum();
         Ok(CardBillDetail {
             id,

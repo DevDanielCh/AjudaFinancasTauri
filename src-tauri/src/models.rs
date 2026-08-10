@@ -230,6 +230,8 @@ pub struct TransactionRow {
     pub fixed_bill_id: Option<i64>,
     pub loan_id: Option<i64>,
     pub is_card_bill: bool,
+    /// 0 = crédito, 1 = débito.
+    pub card_mode: i64,
     /// "n/total" quando a compra é parcela de conta fixa, senão None.
     pub installment: Option<String>,
 }
