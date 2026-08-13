@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
-  CardBillDetail, Category, CategoryInput, DashboardData, FixedBill, FixedBillInput, Loan,
-  LoanDetail, LoanInput, PaymentMethod, PaymentMethodInput, TransactionInput, TransactionRow,
+  CardBillDetail, Category, CategoryInput, ChartData, DashboardData, FixedBill, FixedBillInput,
+  Loan, LoanDetail, LoanInput, PaymentMethod, PaymentMethodInput, TransactionInput,
+  TransactionRow,
 } from "./types";
 
 export const api = {
@@ -9,6 +10,7 @@ export const api = {
   getVersion: () => invoke<string>("get_version"),
   getDashboard: (month: string) => invoke<DashboardData>("get_dashboard", { month }),
   syncDashboard: (month: string) => invoke<DashboardData>("sync_dashboard", { month }),
+  getChartData: (month: string | null) => invoke<ChartData>("get_chart_data", { month }),
   listTransactions: (month: string | null) =>
     invoke<TransactionRow[]>("list_transactions", { month }),
   createTransaction: (input: TransactionInput) =>

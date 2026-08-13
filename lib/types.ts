@@ -152,3 +152,15 @@ export interface DashboardData {
   income_by_cat: BreakdownRow[];
   expenses_by_pm: BreakdownRow[];
 }
+
+export interface MonthlyPoint {
+  month: string;
+  income: number;
+  expenses: number;
+  balance: number;
+}
+
+export interface ChartData {
+  monthly: MonthlyPoint[];
+  expenses_by_cat: BreakdownRow[];
+}
