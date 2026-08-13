@@ -2,6 +2,8 @@
 import { CrudPage } from "@/components/crud/CrudPage";
 import { PaymentMethodForm } from "@/components/forms/PaymentMethodForm";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
+import { paymentMethodSchema } from "@/lib/schemas";
 import type { PaymentMethodInput } from "@/lib/types";
 
 export default function PaymentMethodsPage() {
@@ -47,8 +49,10 @@ export default function PaymentMethodsPage() {
             validity_day: r.type === 2 ? (m?.validity_day ?? null) : null,
           };
         },
-        loadResources: async () => ({}),
         FormFields: PaymentMethodForm,
+        queryKey: queryKeys.paymentMethods,
+        invalidate: [["transactions"], ["fixed-bills"], ["dashboard"]],
+        schema: paymentMethodSchema,
       }}
     />
   );

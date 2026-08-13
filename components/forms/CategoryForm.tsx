@@ -2,45 +2,82 @@
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { FieldErrors } from "@/components/forms/FieldErrors";
 import type { CategoryInput } from "@/lib/types";
+import type { CrudFormApi } from "@/lib/forms";
 
 export function CategoryForm({
-  value, onChange, error,
+  form,
+  serverError,
 }: {
-  value: CategoryInput;
-  onChange: (v: CategoryInput) => void;
-  resources: Record<string, never>;
-  error: string | null;
+  form: CrudFormApi<CategoryInput>;
+  serverError: string | null;
 }) {
   return (
     <FieldGroup>
-      <FieldError>{error}</FieldError>
-      <Field>
-        <FieldLabel>Nome</FieldLabel>
-        <Input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
-      </Field>
-      <Field>
-        <FieldLabel>Tipo</FieldLabel>
-        <ToggleGroup
-          value={[String(value.type)]}
-          onValueChange={(v) => onChange({ ...value, type: v[0] === "2" ? 2 : 1 })}
-        >
-          <ToggleGroupItem value="1">Receita</ToggleGroupItem>
-          <ToggleGroupItem value="2">Despesa</ToggleGroupItem>
-        </ToggleGroup>
-      </Field>
-      <Field>
-        <FieldLabel>Cor</FieldLabel>
-        <div className="flex items-center gap-2">
-          <input type="color" value={value.color} onChange={(e) => onChange({ ...value, color: e.target.value })} className="h-10 w-14 rounded border border-input bg-background" />
-          <Input value={value.color} onChange={(e) => onChange({ ...value, color: e.target.value })} />
-        </div>
-      </Field>
-      <Field>
-        <FieldLabel>Ícone</FieldLabel>
-        <Input value={value.icon ?? ""} placeholder="ex.: lucide shopping-cart"
-          onChange={(e) => onChange({ ...value, icon: e.target.value || null })} />
-      </Field>
+      {serverError && <FieldError>{serverError}</FieldError>}
+      <form.Field name="name">
+        {(field) => (
+          <Field>
+            <FieldLabel>Nome</FieldLabel>
+            <Input
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+            <FieldErrors errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
+      <form.Field name="type">
+        {(field) => (
+          <Field>
+            <FieldLabel>Tipo</FieldLabel>
+            <ToggleGroup
+              value={[String(field.state.value)]}
+              onValueChange={(v) => field.handleChange(v[0] === "2" ? 2 : 1)}
+            >
+              <ToggleGroupItem value="1">Receita</ToggleGroupItem>
+              <ToggleGroupItem value="2">Despesa</ToggleGroupItem>
+            </ToggleGroup>
+            <FieldErrors errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
+      <form.Field name="color">
+        {(field) => (
+          <Field>
+            <FieldLabel>Cor</FieldLabel>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                className="h-10 w-14 rounded border border-input bg-background"
+              />
+              <Input
+                value={field.state.value}
+                onChange={(e) => field.handleChange(e.target.value)}
+                onBlur={field.handleBlur}
+              />
+            </div>
+            <FieldErrors errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
+      <form.Field name="icon">
+        {(field) => (
+          <Field>
+            <FieldLabel>Ícone</FieldLabel>
+            <Input
+              value={field.state.value ?? ""}
+              placeholder="ex.: lucide shopping-cart"
+              onChange={(e) => field.handleChange(e.target.value || null)}
+            />
+            <FieldErrors errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
     </FieldGroup>
   );
 }

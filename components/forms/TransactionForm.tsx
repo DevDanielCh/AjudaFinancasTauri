@@ -7,6 +7,7 @@ import { MoneyInput } from "@/components/forms/MoneyInput";
 import { DatePicker } from "@/components/DatePicker";
 import { FieldErrors } from "@/components/forms/FieldErrors";
 import { Spinner } from "@/components/ui/spinner";
+import { useStore } from "@/lib/forms";
 import type { Category, PaymentMethod, TransactionInput } from "@/lib/types";
 import type { CrudFormApi } from "@/lib/forms";
 
@@ -19,8 +20,9 @@ export function TransactionForm({
   resources: { categories: Category[]; paymentMethods: PaymentMethod[] } | undefined;
   serverError: string | null;
 }) {
-  const selectedPm = resources?.paymentMethods.find((p) => p.id === form.state.values.payment_method_id);
-  const isCard = form.state.values.type === 2 && selectedPm?.type === 2;
+  const values = useStore(form.store, (s) => s.values);
+  const selectedPm = resources?.paymentMethods.find((p) => p.id === values.payment_method_id);
+  const isCard = values.type === 2 && selectedPm?.type === 2;
 
   if (!resources) {
     return (
@@ -87,7 +89,7 @@ export function TransactionForm({
           </Field>
         )}
       </form.Field>
-      {form.state.values.type === 2 && (
+      {values.type === 2 && (
         <form.Field name="payment_method_id">
           {(field) => (
             <Field>
@@ -103,7 +105,7 @@ export function TransactionForm({
                 }}
               >
                 <NativeSelectOption value="">
-                  {form.state.values.type === 2 ? "Obrigatória para despesa" : "Opcional"}
+                  {values.type === 2 ? "Obrigatória para despesa" : "Opcional"}
                 </NativeSelectOption>
                 {resources.paymentMethods.map((p) => (
                   <NativeSelectOption key={p.id} value={p.id.toString()}>{p.name}</NativeSelectOption>

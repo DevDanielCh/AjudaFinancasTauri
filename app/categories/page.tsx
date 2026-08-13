@@ -2,6 +2,8 @@
 import { CrudPage } from "@/components/crud/CrudPage";
 import { CategoryForm } from "@/components/forms/CategoryForm";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
+import { categorySchema } from "@/lib/schemas";
 import type { CategoryInput } from "@/lib/types";
 
 export default function CategoriesPage() {
@@ -32,8 +34,10 @@ export default function CategoriesPage() {
         remove: api.deleteCategories,
         empty: (): CategoryInput => ({ name: "", type: 2, color: "#6b7280", icon: null }),
         toInput: (r): CategoryInput => ({ name: r.name, type: r.type, color: r.color, icon: r.icon }),
-        loadResources: async () => ({}),
         FormFields: CategoryForm,
+        queryKey: queryKeys.categories,
+        invalidate: [["transactions"], ["dashboard"], ["chart-data"]],
+        schema: categorySchema,
       }}
     />
   );

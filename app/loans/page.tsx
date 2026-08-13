@@ -4,6 +4,8 @@ import { CrudPage } from "@/components/crud/CrudPage";
 import { LoanForm } from "@/components/forms/LoanForm";
 import { DetailDialog } from "@/components/loans/DetailDialog";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
+import { loanSchema } from "@/lib/schemas";
 import { formatMonth, formatMoney } from "@/lib/format";
 import type { Loan, LoanInput } from "@/lib/types";
 
@@ -51,6 +53,9 @@ export default function LoansPage() {
           FormFields: LoanForm,
           onRowDoubleClick: (r) => setDetailId(r.id),
           onView: (r) => setDetailId(r.id),
+          queryKey: queryKeys.loans,
+          invalidate: [["transactions"], ["dashboard"]],
+          schema: loanSchema,
         }}
       />
       <DetailDialog id={detailId} onClose={() => setDetailId(null)} />

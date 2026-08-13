@@ -2,6 +2,8 @@
 import { CrudPage } from "@/components/crud/CrudPage";
 import { FixedBillForm } from "@/components/forms/FixedBillForm";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
+import { fixedBillSchema } from "@/lib/schemas";
 import { formatMonth, formatMoney } from "@/lib/format";
 import type { FixedBillInput } from "@/lib/types";
 
@@ -60,6 +62,9 @@ export default function InstallmentsPage() {
           return { categories, paymentMethods, cardCloseDays, cardValidityDays };
         },
         FormFields: (props) => <FixedBillForm {...props} mode="installments" />,
+        queryKey: queryKeys.fixedBills(true),
+        invalidate: [["transactions"], ["dashboard"]],
+        schema: fixedBillSchema,
       }}
     />
   );

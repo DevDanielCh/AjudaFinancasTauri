@@ -2,49 +2,88 @@
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { FieldErrors } from "@/components/forms/FieldErrors";
+import { useStore } from "@/lib/forms";
 import type { PaymentMethodInput } from "@/lib/types";
+import type { CrudFormApi } from "@/lib/forms";
 
 export function PaymentMethodForm({
-  value, onChange, error,
+  form,
+  serverError,
 }: {
-  value: PaymentMethodInput;
-  onChange: (v: PaymentMethodInput) => void;
-  resources: Record<string, never>;
-  error: string | null;
+  form: CrudFormApi<PaymentMethodInput>;
+  serverError: string | null;
 }) {
-  const isCard = value.type === 2;
+  const values = useStore(form.store, (s) => s.values);
+  const isCard = values.type === 2;
   return (
     <FieldGroup>
-      <FieldError>{error}</FieldError>
-      <Field>
-        <FieldLabel>Nome</FieldLabel>
-        <Input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
-      </Field>
-      <Field>
-        <FieldLabel>Tipo</FieldLabel>
-        <ToggleGroup
-          value={[String(value.type)]}
-          onValueChange={(v) => {
-            const t = v[0] === "2" ? 2 : 1;
-            onChange({ ...value, type: t, ...(t === 1 ? { close_day: null, validity_day: null } : {}) });
-          }}
-        >
-          <ToggleGroupItem value="1">Padrão</ToggleGroupItem>
-          <ToggleGroupItem value="2">Cartão</ToggleGroupItem>
-        </ToggleGroup>
-      </Field>
+      {serverError && <FieldError>{serverError}</FieldError>}
+      <form.Field name="name">
+        {(field) => (
+          <Field>
+            <FieldLabel>Nome</FieldLabel>
+            <Input
+              value={field.state.value}
+              onChange={(e) => field.handleChange(e.target.value)}
+              onBlur={field.handleBlur}
+            />
+            <FieldErrors errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
+      <form.Field name="type">
+        {(field) => (
+          <Field>
+            <FieldLabel>Tipo</FieldLabel>
+            <ToggleGroup
+              value={[String(field.state.value)]}
+              onValueChange={(v) => {
+                const t = v[0] === "2" ? 2 : 1;
+                field.handleChange(t);
+                if (t === 1) {
+                  form.setFieldValue("close_day", null);
+                  form.setFieldValue("validity_day", null);
+                }
+              }}
+            >
+              <ToggleGroupItem value="1">Padrão</ToggleGroupItem>
+              <ToggleGroupItem value="2">Cartão</ToggleGroupItem>
+            </ToggleGroup>
+            <FieldErrors errors={field.state.meta.errors} />
+          </Field>
+        )}
+      </form.Field>
       {isCard && (
         <>
-          <Field>
-            <FieldLabel>Dia de fechamento</FieldLabel>
-            <Input type="number" min="1" max="31" value={value.close_day ?? ""}
-              onChange={(e) => onChange({ ...value, close_day: e.target.value ? Number(e.target.value) : null })} />
-          </Field>
-          <Field>
-            <FieldLabel>Dia de vencimento</FieldLabel>
-            <Input type="number" min="1" max="31" value={value.validity_day ?? ""}
-              onChange={(e) => onChange({ ...value, validity_day: e.target.value ? Number(e.target.value) : null })} />
-          </Field>
+          <form.Field name="close_day">
+            {(field) => (
+              <Field>
+                <FieldLabel>Dia de fechamento</FieldLabel>
+                <Input
+                  type="number" min="1" max="31"
+                  value={field.state.value ?? ""}
+                  onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : null)}
+                  onBlur={field.handleBlur}
+                />
+                <FieldErrors errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </form.Field>
+          <form.Field name="validity_day">
+            {(field) => (
+              <Field>
+                <FieldLabel>Dia de vencimento</FieldLabel>
+                <Input
+                  type="number" min="1" max="31"
+                  value={field.state.value ?? ""}
+                  onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : null)}
+                  onBlur={field.handleBlur}
+                />
+                <FieldErrors errors={field.state.meta.errors} />
+              </Field>
+            )}
+          </form.Field>
         </>
       )}
     </FieldGroup>
