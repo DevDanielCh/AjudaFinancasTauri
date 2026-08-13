@@ -60,7 +60,7 @@ export function ChartSection({ data }: { data: ChartData }) {
         color: {
           domain: Object.values(TREND_LABEL),
           range: Object.values(TREND_COLORS),
-          legend: colorLegend({ label: "Série" }),
+          legend: colorLegend({ placement: "bottom" }),
         },
       }),
     [folded]
