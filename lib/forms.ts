@@ -2,17 +2,17 @@ import type { FormApi } from "@tanstack/react-form";
 
 export type CrudFormApi<F> = FormApi<
   F,
-  any,
-  any,
-  any,
-  any,
-  any,
-  any,
-  any,
-  any,
-  any,
-  any,
-  any
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  undefined,
+  unknown
 >;
 
 export { useStore } from "@tanstack/react-form";

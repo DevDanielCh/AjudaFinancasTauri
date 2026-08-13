@@ -4,6 +4,7 @@ export interface Column<T> {
   header: string;
   render: (row: T) => ReactNode;
   className?: string;
+  sortValue?: (row: T) => string | number;
 }
 
 export interface MobileCorners<T> {
