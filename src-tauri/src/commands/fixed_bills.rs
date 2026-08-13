@@ -228,8 +228,7 @@ mod tests {
     }
 
     #[test]
-    fn finalize_deriva_end_month_do_mes_da_compra() {
-        let conn = test_db();
+    fn finalize_deriva_end_month_do_mes_da_compra() {        let conn = test_db();
         conn.execute(
             "INSERT INTO payment_methods (name, type, metadata) VALUES ('Nubank', 2, NULL)",
             [],
@@ -315,5 +314,29 @@ mod tests {
             "end_month manual preservado"
         );
         assert_eq!(input.day, 1, "sem compra nem cartão, dia inalterado");
+    }
+
+    #[test]
+    fn migration_007_corrige_end_month_legado() {
+        use rusqlite_migration::{M, Migrations};
+
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(vec![M::up(include_str!("../../migrations/001_init.sql"))])
+            .to_latest(&mut conn)
+            .unwrap();
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('legado', 1000, 20, 1, '2026-03', '2026-12', 5)",
+            [],
+        )
+        .unwrap();
+
+        conn.execute_batch(include_str!("../../migrations/007_fixed_bill_end_month.sql"))
+            .unwrap();
+
+        let end: String = conn
+            .query_row("SELECT end_month FROM fixed_bills", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(end, "2026-07", "end_month recalculado a partir do start_month");
     }
 }
