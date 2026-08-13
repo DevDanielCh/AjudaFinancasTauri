@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { defineChart, lineY } from "@tanstack/charts";
+import { defineChart, lineY, colorLegend } from "@tanstack/charts";
 import { fold } from "@tanstack/charts/transform/fold";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { scalePoint } from "@tanstack/charts/scales/point";
@@ -21,14 +21,13 @@ const DONUT_COLORS = [
 ];
 
 export function ChartSection({ data }: { data: ChartData }) {
-  const folded = React.useMemo(
-    () =>
-      fold(data.monthly, {
-        fields: ["income", "expenses", "balance"] as const,
-        as: { key: "series", value: "amount" },
-      }),
-    [data.monthly]
-  );
+  const folded = React.useMemo(() => {
+    const f = fold(data.monthly, {
+      fields: ["income", "expenses", "balance"] as const,
+      as: { key: "series", value: "amount" },
+    });
+    return f.map((r) => ({ ...r, series: TREND_LABEL[r.series as keyof typeof TREND_LABEL] }));
+  }, [data.monthly]);
 
   const trend = React.useMemo(
     () =>
@@ -53,12 +52,16 @@ export function ChartSection({ data }: { data: ChartData }) {
               heading,
               ...points.map(
                 (p) =>
-                  `${TREND_LABEL[p.datum.series as keyof typeof TREND_LABEL] ?? p.groupLabel}: ${formatMoney(Number(p.datum.amount))}`
+                  `${String(p.datum.series)}: ${formatMoney(Number(p.datum.amount))}`
               ),
             ].join("\n");
           },
         },
-        color: { domain: Object.keys(TREND_COLORS), range: Object.values(TREND_COLORS) },
+        color: {
+          domain: Object.values(TREND_LABEL),
+          range: Object.values(TREND_COLORS),
+          legend: colorLegend({ label: "Série" }),
+        },
       }),
     [folded]
   );
