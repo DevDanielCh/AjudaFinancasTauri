@@ -1,104 +1,122 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "@tanstack/react-form";
+import type { FormValidateFn } from "@tanstack/react-form";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle,
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
 } from "@/components/ui/sheet";
-import { toast } from "@/components/ui/toast";
 import { Spinner } from "@/components/ui/spinner";
+import { FieldError } from "@/components/ui/field";
+import { toast } from "@/components/ui/toast";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import type { CrudConfig } from "./CrudPage";
 import { msg } from "@/lib/api";
+import type { CrudConfig, DialogState } from "./CrudPage";
+import type { CrudFormApi } from "@/lib/forms";
 
 export function FormDialog<T extends { id: number }, F, E>({
-  config, dialog, onClose, onSaved,
+  config,
+  dialog,
+  onClose,
 }: {
   config: CrudConfig<T, F, E>;
-  dialog: { mode: "create" } | { mode: "edit"; row: T; input: F };
+  dialog: DialogState<T, F>;
   onClose: () => void;
-  onSaved: () => void;
 }) {
-  const [value, setValue] = useState<F>(() =>
-    dialog.mode === "create" ? config.empty() : dialog.input
-  );
-  const [resources, setResources] = useState<E | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const client = useQueryClient();
   const isMobile = useIsMobile();
 
-  useEffect(() => {
-    config.loadResources().then(setResources).catch((e) => setError(msg(e)));
-  }, [config]);
+  const form = useForm({
+    defaultValues: dialog.mode === "create" ? config.empty() : dialog.input,
+    validators: { onChange: config.schema as unknown as FormValidateFn<F> },
+    onSubmit: ({ value }) => mutation.mutate(value),
+  });
 
-  const submit = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      if (dialog.mode === "create") {
-        await config.create(value);
-        toast.add({ title: "Salvo", type: "success" });
-        onSaved();
-        if (config.keepOpen) {
-          setValue(config.empty());
-        } else {
-          onClose();
-        }
+  const mutation = useMutation({
+    mutationFn: (value: F) =>
+      dialog.mode === "edit" ? config.update(dialog.row.id, value) : config.create(value),
+    onSuccess: () => {
+      toast.add({ title: "Salvo", type: "success" });
+      void client.invalidateQueries({ queryKey: config.queryKey });
+      for (const key of config.invalidate ?? []) {
+        void client.invalidateQueries({ queryKey: key });
+      }
+      if (dialog.mode === "create" && config.keepOpen) {
+        form.reset(config.empty());
       } else {
-        await config.update(dialog.row.id, value);
-        toast.add({ title: "Salvo", type: "success" });
-        onSaved();
         onClose();
       }
-    } catch (e) {
-      setError(msg(e));
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const header = (
-    <DialogHeader>
-      <DialogTitle>{dialog.mode === "create" ? "Novo" : "Editar"}</DialogTitle>
-    </DialogHeader>
-  );
-  const footer = (
-    <DialogFooter>
-      <Button variant="outline" onClick={onClose}>Cancelar</Button>
-      <Button onClick={() => void submit()} disabled={saving}>
-        {saving ? "Salvando..." : "Salvar"}
-      </Button>
-    </DialogFooter>
-  );
-  const body = resources === null ? (
+  const serverError = mutation.isError ? msg(mutation.error) : null;
+
+  const resourcesQuery = useQuery({
+    queryKey: [...config.queryKey, "resources"],
+    queryFn: config.loadResources!,
+    enabled: config.loadResources != null,
+  });
+  const resources = resourcesQuery.data as E | undefined;
+  const resourcesLoading = config.loadResources != null && resourcesQuery.isLoading;
+  const resourcesError =
+    config.loadResources != null && resourcesQuery.isError ? msg(resourcesQuery.error) : null;
+
+  const body = resourcesLoading ? (
     <div className="flex justify-center py-4">
       <Spinner />
     </div>
+  ) : resourcesError ? (
+    <FieldError>{resourcesError}</FieldError>
   ) : (
     <config.FormFields
-      value={value}
-      onChange={setValue}
+      form={form as unknown as CrudFormApi<F>}
       resources={resources}
-      error={error}
+      serverError={serverError}
     />
+  );
+
+  const actions = (
+    <>
+      <Button type="button" variant="outline" onClick={onClose}>
+        Cancelar
+      </Button>
+      <form.Subscribe selector={(s) => [s.isSubmitting, s.canSubmit, s.isPristine] as const}>
+        {([isSubmitting, canSubmit, isPristine]) => (
+          <Button type="submit" disabled={!canSubmit || isPristine}>
+            {isSubmitting ? "Salvando..." : "Salvar"}
+          </Button>
+        )}
+      </form.Subscribe>
+    </>
   );
 
   if (isMobile) {
     return (
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="bottom" showCloseButton className="max-h-[90dvh] overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>{dialog.mode === "create" ? "Novo" : "Editar"}</SheetTitle>
-          </SheetHeader>
-          <div className="px-4">{body}</div>
-          <SheetFooter>
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={() => void submit()} disabled={saving}>
-              {saving ? "Salvando..." : "Salvar"}
-            </Button>
-          </SheetFooter>
+        <SheetContent>
+          <form onSubmit={form.handleSubmit}>
+            <SheetHeader className="mb-4">
+              <SheetTitle>
+                {dialog.mode === "edit" ? "Editar" : "Novo"} {config.title.slice(0, -1)}
+              </SheetTitle>
+              <SheetDescription />
+            </SheetHeader>
+            {body}
+            <SheetFooter className="mt-6">{actions}</SheetFooter>
+          </form>
         </SheetContent>
       </Sheet>
     );
@@ -106,10 +124,17 @@ export function FormDialog<T extends { id: number }, F, E>({
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        {header}
-        {body}
-        {footer}
+      <DialogContent>
+        <form onSubmit={form.handleSubmit}>
+          <DialogHeader>
+            <DialogTitle>
+              {dialog.mode === "edit" ? "Editar" : "Novo"} {config.title.slice(0, -1)}
+            </DialogTitle>
+            <DialogDescription />
+          </DialogHeader>
+          {body}
+          <DialogFooter className="mt-6">{actions}</DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

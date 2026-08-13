@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queries";
+import { transactionSchema } from "@/lib/schemas";
 import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { TransactionInput } from "@/lib/types";
@@ -73,7 +75,9 @@ export default function TransactionsPage() {
             return { categories, paymentMethods };
           },
           FormFields: TransactionForm,
-          reloadKey: month,
+          queryKey: queryKeys.transactions(month),
+          invalidate: [queryKeys.dashboard(month), ["card-bill"]],
+          schema: transactionSchema,
           onView: (r) => {
             if (r.is_card_bill) setFaturaId(r.id);
             else toast.add({ title: "Visualizar disponível apenas para faturas", type: "error" });

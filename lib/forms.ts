@@ -1,6 +1,6 @@
-import type { FormApi } from "@tanstack/react-form";
+import type { ReactFormExtendedApi } from "@tanstack/react-form";
 
-export type CrudFormApi<F> = FormApi<
+export type CrudFormApi<F> = ReactFormExtendedApi<
   F,
   undefined,
   undefined,
