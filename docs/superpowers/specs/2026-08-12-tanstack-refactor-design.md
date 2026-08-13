@@ -31,8 +31,9 @@ nenhum gráfico (recharts/shadcn wrapper sem uso).
 - TanStack Query + Form + Table + Charts.
 - Abordagem A: `CrudPage` continua o motor genérico, refactor interno.
 - Table desktop ganha **sorting** por clique no header.
-- Charts: **bar** (receita/despesa/saldo dos últimos 12 meses) + **donut**
-  (despesa por categoria **do mês selecionado**) no dashboard.
+- Charts: **linhas** (receita/despesa/saldo dos últimos 12 meses; desvio do
+  "bar" do rascunho porque barra agrupada não é documentada na API v0.12) +
+  **donut** (despesa por categoria **do mês selecionado**) no dashboard.
 - Aceito o risco de `@tanstack/charts` v0.x (pré-1.0).
 
 ## 1. Dependências
@@ -41,8 +42,8 @@ nenhum gráfico (recharts/shadcn wrapper sem uso).
 |---|---|---|
 | add | `@tanstack/react-query@^5` | fetch/cache/mutação |
 | add | `@tanstack/react-form@^1` | formulários |
-| add | `@tanstack/zod-form-adapter` | validação zod no form |
 | add | `@tanstack/charts` | gráficos (adapter React via `@tanstack/charts/react`) |
+| skip | `@tanstack/zod-form-adapter` | não necessário: zod v4 é Standard Schema e funciona direto em `validators` |
 | keep | `@tanstack/react-table@^9` | passa a ser usado de fato |
 | keep | `zod` | já instalado, vira validador dos forms |
 | remove | `recharts` + `components/ui/chart.tsx` | nunca usado |
@@ -135,18 +136,21 @@ nenhum gráfico (recharts/shadcn wrapper sem uso).
   - **Donut**: despesa por categoria do mês selecionado.
   - Dados via `useQuery({ queryKey: ["chart-data", month] })`.
 - Datas na UI no formato DD-MM-YYYY (`formatDate`), inclusive tooltip dos
-  gráficos (mês vira `MM-YYYY` via novo helper `formatMonth` em `lib/format.ts`).
+  gráficos (mês vira `MM-YYYY` via `formatMonth`, helper que **já existe** em
+  `lib/format.ts`).
 
 ### Backend (Rust)
 - `models.rs`: `MonthlyPoint { month: String, income: i64, expenses: i64,
   balance: i64 }` e `ChartData { monthly: Vec<MonthlyPoint>,
   expenses_by_cat: Vec<BreakdownRow> }`.
-- `domain.rs`: `expenses_by_category(conn, ref_month)` — espelho de
-  `income_by_category` com `type IN (2,3)`.
+- `domain.rs`: `expenses_by_category(conn, start, end)` — espelho de
+  `income_by_category` com `type = 2` (só pagamentos diretos; `type = 3`
+  faturas já é contado via `refresh_card_bills` nas despesas do mês da fatura).
 - `commands/chart.rs`: comando `get_chart_data(state, month)`:
   - gera/atualiza contas (reusa `dashboard::build` — ou extrai a rotina de
     geração para um helper compartilhado);
-  - loop de 12 meses para trás usando `month_income`/`month_expenses`;
+  - `monthly_series(conn, ref_month, 12)`: loop de 12 meses para trás, saldo
+    acumulado partindo de zero;
   - `balance` = saldo acumulado mês a mês;
   - `expenses_by_cat` do mês selecionado.
 - Registrar em `commands/mod.rs` e `lib.rs`.
