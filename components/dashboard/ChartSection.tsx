@@ -71,13 +71,13 @@ export function ChartSection({ data }: { data: ChartData }) {
           <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas e saldo" />
         </CardContent>
       </Card>
-      <DonutCard title="Despesas por categoria" rows={data.expenses_by_cat} />
-      <DonutCard title="Despesas por forma de pagamento" rows={data.expenses_by_pm} />
+      <DonutCard title="Despesas por categoria" rows={data.expenses_by_cat} income={data.monthly[data.monthly.length - 1]?.income ?? 0} />
+      <DonutCard title="Despesas por forma de pagamento" rows={data.expenses_by_pm} income={data.monthly[data.monthly.length - 1]?.income ?? 0} />
     </div>
   );
 }
 
-function DonutCard({ title, rows }: { title: string; rows: BreakdownRow[] }) {
+function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[]; income: number }) {
   const definition = React.useMemo(() => {
     const slices = pie(rows, { value: "total" });
     return defineChart({
@@ -101,10 +101,14 @@ function DonutCard({ title, rows }: { title: string; rows: BreakdownRow[] }) {
       },
       tooltip: {
         use: tooltip,
-        format: (point) => `${point.datum.name}: ${formatMoney(Number(point.datum.total))}`,
+        format: (point) => {
+          const total = Number(point.datum.total);
+          const pct = income > 0 ? `${((total / income) * 100).toFixed(1).replace(".", ",")}%` : null;
+          return `${point.datum.name}: ${formatMoney(total)}${pct ? ` (${pct} da renda)` : ""}`;
+        },
       },
     });
-  }, [rows]);
+  }, [rows, income]);
 
   return (
     <Card>
