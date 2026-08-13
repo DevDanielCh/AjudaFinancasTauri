@@ -2,6 +2,7 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Providers } from "@/components/providers"
 import { Toaster } from "@/components/ui/toast"
 import { MonthProvider } from "@/lib/month-context"
 import { Sidebar } from "@/components/Sidebar"
@@ -35,20 +36,22 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <MonthProvider>
-            <div className="flex min-h-screen">
-              <Sidebar />
-              <div className="flex min-w-0 flex-1 flex-col">
-                <MobileHeader />
-                <main className="flex-1 p-3 pb-24 sm:pb-3">
-                  {children}
-                </main>
+          <Providers>
+            <MonthProvider>
+              <div className="flex min-h-screen">
+                <Sidebar />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <MobileHeader />
+                  <main className="flex-1 p-3 pb-24 sm:pb-3">
+                    {children}
+                  </main>
+                </div>
+                <BottomBar />
               </div>
-              <BottomBar />
-            </div>
-            <Toaster />
-            <UpdateDialog />
-          </MonthProvider>
+              <Toaster />
+              <UpdateDialog />
+            </MonthProvider>
+          </Providers>
         </ThemeProvider>
       </body>
     </html>
