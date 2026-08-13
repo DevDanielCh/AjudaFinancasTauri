@@ -39,7 +39,7 @@ export function ChartSection({ data }: { data: ChartData }) {
           axis: { ticks: { format: (v) => formatMonth(String(v)) } },
         },
         y: {
-          scale: scaleLinear(),
+          scale: scaleLinear,
           nice: true,
           grid: true,
           axis: { ticks: { format: (v) => formatMoney(Number(v)) } },
