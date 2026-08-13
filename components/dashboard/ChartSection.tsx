@@ -8,7 +8,7 @@ import { scalePoint } from "@tanstack/charts/scales/point";
 import { Chart } from "@tanstack/charts/react";
 import { tooltip } from "@tanstack/charts/tooltip";
 import { pie, polar, radialArc } from "@tanstack/charts/polar";
-import type { ChartData } from "@/lib/types";
+import type { BreakdownRow, ChartData } from "@/lib/types";
 import { formatMoney, formatMonth } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -63,8 +63,22 @@ export function ChartSection({ data }: { data: ChartData }) {
     [folded]
   );
 
-  const donut = React.useMemo(() => {
-    const rows = data.expenses_by_cat.map((r) => ({ name: r.name, total: r.total }));
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="lg:col-span-2">
+        <CardHeader><CardTitle>Evolução</CardTitle></CardHeader>
+        <CardContent>
+          <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas e saldo" />
+        </CardContent>
+      </Card>
+      <DonutCard title="Despesas por categoria" rows={data.expenses_by_cat} />
+      <DonutCard title="Despesas por forma de pagamento" rows={data.expenses_by_pm} />
+    </div>
+  );
+}
+
+function DonutCard({ title, rows }: { title: string; rows: BreakdownRow[] }) {
+  const definition = React.useMemo(() => {
     const slices = pie(rows, { value: "total" });
     return defineChart({
       marks: [
@@ -90,42 +104,34 @@ export function ChartSection({ data }: { data: ChartData }) {
         format: (point) => `${point.datum.name}: ${formatMoney(Number(point.datum.total))}`,
       },
     });
-  }, [data.expenses_by_cat]);
+  }, [rows]);
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card>
-        <CardHeader><CardTitle>Evolução</CardTitle></CardHeader>
-        <CardContent>
-          <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas e saldo" />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Despesas por categoria</CardTitle></CardHeader>
-        <CardContent>
-          {data.expenses_by_cat.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted-foreground">Sem despesas no mês.</p>
-          ) : (
-            <>
-              <Chart definition={donut} height={220} ariaLabel="Despesas por categoria" />
-              <ul className="mt-3 space-y-1 text-sm">
-                {data.expenses_by_cat.map((r, i) => (
-                  <li key={r.name} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
-                      />
-                      {r.name}
-                    </span>
-                    <span className="text-muted-foreground">{formatMoney(r.total)}</span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+    <Card>
+      <CardHeader><CardTitle>{title}</CardTitle></CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="py-10 text-center text-sm text-muted-foreground">Sem despesas no mês.</p>
+        ) : (
+          <>
+            <Chart definition={definition} height={220} ariaLabel={title} />
+            <ul className="mt-3 space-y-1 text-sm">
+              {rows.map((r, i) => (
+                <li key={r.name} className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                    />
+                    {r.name}
+                  </span>
+                  <span className="text-muted-foreground">{formatMoney(r.total)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

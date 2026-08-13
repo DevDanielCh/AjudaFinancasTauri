@@ -334,4 +334,5 @@ pub struct MonthlyPoint {
 pub struct ChartData {
     pub monthly: Vec<MonthlyPoint>,
     pub expenses_by_cat: Vec<BreakdownRow>,
+    pub expenses_by_pm: Vec<BreakdownRow>,
 }

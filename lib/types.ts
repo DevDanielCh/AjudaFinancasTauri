@@ -163,4 +163,5 @@ export interface MonthlyPoint {
 export interface ChartData {
   monthly: MonthlyPoint[];
   expenses_by_cat: BreakdownRow[];
+  expenses_by_pm: BreakdownRow[];
 }

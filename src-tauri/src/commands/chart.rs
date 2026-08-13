@@ -13,6 +13,7 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<ChartData, String> 
     Ok(ChartData {
         monthly: domain::monthly_series(conn, ref_month, 12)?,
         expenses_by_cat: domain::expenses_by_category(conn, ref_month, next)?,
+        expenses_by_pm: domain::expenses_by_pm(conn, ref_month)?,
     })
 }
 
