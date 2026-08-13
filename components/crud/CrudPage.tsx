@@ -74,7 +74,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const loading = rowsQuery.isFetching;
 
   const invalidate = useCallback(() => {
-    void client.invalidateQueries({ queryKey: config.queryKey });
+    void client.invalidateQueries({ queryKey: config.queryKey, exact: true });
     for (const key of config.invalidate ?? []) {
       void client.invalidateQueries({ queryKey: key });
     }

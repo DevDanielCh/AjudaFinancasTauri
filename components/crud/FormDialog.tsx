@@ -50,7 +50,7 @@ export function FormDialog<T extends { id: number }, F, E>({
       dialog.mode === "edit" ? config.update(dialog.row.id, value) : config.create(value),
     onSuccess: () => {
       toast.add({ title: "Salvo", type: "success" });
-      void client.invalidateQueries({ queryKey: config.queryKey });
+      void client.invalidateQueries({ queryKey: config.queryKey, exact: true });
       for (const key of config.invalidate ?? []) {
         void client.invalidateQueries({ queryKey: key });
       }
