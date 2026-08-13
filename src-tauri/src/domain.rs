@@ -396,6 +396,63 @@ pub fn income_by_category(
     Ok(rows)
 }
 
+/// Despesas por categoria no período (type = 2; faturas type = 3 ficam de fora).
+pub fn expenses_by_category(
+    conn: &Connection,
+    start: NaiveDate,
+    end: NaiveDate,
+) -> Result<Vec<crate::models::BreakdownRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
+             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
+             WHERE t.type = 2 AND t.date >= ?1 AND t.date < ?2
+             GROUP BY c.name ORDER BY total DESC",
+        )
+        .map_err(db_err)?;
+    let rows = stmt
+        .query_map(
+            rusqlite::params![
+                start.format("%Y-%m-%d").to_string(),
+                end.format("%Y-%m-%d").to_string()
+            ],
+            |r| {
+                Ok(crate::models::BreakdownRow {
+                    name: r.get(0)?,
+                    total: r.get(1)?,
+                })
+            },
+        )
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+    Ok(rows)
+}
+
+/// Série de `months` meses terminando em `ref_month`; saldo acumula desde zero.
+pub fn monthly_series(
+    conn: &Connection,
+    ref_month: NaiveDate,
+    months: u32,
+) -> Result<Vec<crate::models::MonthlyPoint>, String> {
+    let mut out = Vec::with_capacity(months as usize);
+    let mut balance = 0;
+    for k in (0..months).rev() {
+        let m = ref_month.checked_sub_months(Months::new(k)).unwrap();
+        let next = m.checked_add_months(Months::new(1)).unwrap();
+        let income = month_income(conn, m, next)?;
+        let expenses = month_expenses(conn, m)?;
+        balance += income - expenses;
+        out.push(crate::models::MonthlyPoint {
+            month: m.format("%Y-%m").to_string(),
+            income,
+            expenses,
+            balance,
+        });
+    }
+    Ok(out)
+}
+
 pub fn expenses_by_pm(
     conn: &Connection,
     ref_month: NaiveDate,

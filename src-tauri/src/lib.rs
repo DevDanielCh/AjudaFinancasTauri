@@ -65,6 +65,7 @@ pub fn run() {
             commands::meta::get_version,
             commands::dashboard::get_dashboard,
             commands::dashboard::sync_dashboard,
+            commands::chart::get_chart_data,
             commands::transactions::list_transactions,
             commands::transactions::create_transaction,
             commands::transactions::update_transaction,

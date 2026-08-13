@@ -321,3 +321,17 @@ pub struct DashboardData {
     pub income_by_cat: Vec<BreakdownRow>,
     pub expenses_by_pm: Vec<BreakdownRow>,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MonthlyPoint {
+    pub month: String,
+    pub income: i64,
+    pub expenses: i64,
+    pub balance: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ChartData {
+    pub monthly: Vec<MonthlyPoint>,
+    pub expenses_by_cat: Vec<BreakdownRow>,
+}
