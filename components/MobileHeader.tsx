@@ -10,6 +10,7 @@ import { useMonth } from "@/lib/month-context";
 const TITLES: Record<string, string> = {
   "/": "Dashboard",
   "/transactions": "Transações",
+  "/reserva": "Reserva",
   "/installments": "Parcelamentos",
   "/fixed-bills": "Contas Fixas",
   "/loans": "Financiamentos",

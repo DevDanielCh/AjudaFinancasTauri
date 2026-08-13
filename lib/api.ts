@@ -13,6 +13,7 @@ export const api = {
   getChartData: (month: string | null) => invoke<ChartData>("get_chart_data", { month }),
   listTransactions: (month: string | null) =>
     invoke<TransactionRow[]>("list_transactions", { month }),
+  listReservaMovements: () => invoke<TransactionRow[]>("list_reserva_movements"),
   createTransaction: (input: TransactionInput) =>
     invoke<void>("create_transaction", { input }),
   updateTransaction: (id: number, input: TransactionInput) =>

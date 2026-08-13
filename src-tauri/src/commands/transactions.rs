@@ -79,6 +79,47 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
 }
 
 #[tauri::command]
+pub async fn list_reserva_movements(state: State<'_, AppState>) -> Result<Vec<TransactionRow>, String> {
+    with_db(&state, |c| {
+        let mut stmt = c
+            .prepare(
+                "SELECT t.id, t.description, t.amount, t.type, t.date,
+                        t.category_id, c.name, t.payment_method_id, pm.name,
+                        t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
+                 FROM transactions t
+                 LEFT JOIN categories c ON c.id = t.category_id
+                 LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
+                 WHERE t.type IN (4, 5)
+                 ORDER BY t.date DESC, t.id DESC",
+            )
+            .map_err(domain::db_err)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok(TransactionRow {
+                    id: r.get(0)?,
+                    description: r.get(1)?,
+                    amount: r.get(2)?,
+                    type_: r.get(3)?,
+                    date: r.get(4)?,
+                    category_id: r.get(5)?,
+                    category_name: r.get(6)?,
+                    payment_method_id: r.get(7)?,
+                    payment_method_name: r.get(8)?,
+                    fixed_bill_id: r.get(9)?,
+                    loan_id: r.get(10)?,
+                    is_card_bill: r.get(11)?,
+                    card_mode: r.get(12)?,
+                    installment: None,
+                })
+            })
+            .map_err(domain::db_err)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(domain::db_err)?;
+        Ok(rows)
+    })
+}
+
+#[tauri::command]
 pub async fn create_transaction(
     state: State<'_, AppState>,
     input: TransactionInput,

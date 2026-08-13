@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, Banknote, CalendarClock, CreditCard, Ellipsis,
-  LayoutDashboard, Receipt, Tags,
+  LayoutDashboard, PiggyBank, Receipt, Tags,
 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -16,6 +16,7 @@ const TABS = [
 ] as const;
 
 const MORE = [
+  { href: "/reserva", label: "Reserva", icon: PiggyBank },
   { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
   { href: "/categories", label: "Categorias", icon: Tags },
   { href: "/fixed-bills", label: "Contas Fixas", icon: Receipt },

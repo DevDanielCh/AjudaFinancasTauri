@@ -67,6 +67,7 @@ pub fn run() {
             commands::dashboard::sync_dashboard,
             commands::chart::get_chart_data,
             commands::transactions::list_transactions,
+            commands::transactions::list_reserva_movements,
             commands::transactions::create_transaction,
             commands::transactions::update_transaction,
             commands::transactions::delete_transactions,

@@ -13,11 +13,13 @@ export interface Category {
   icon: string | null;
 }
 
+export type TransactionType = 1 | 2 | 3 | 4 | 5;
+
 export interface TransactionRow {
   id: number;
   description: string;
   amount: number;
-  type: 1 | 2 | 3;
+  type: TransactionType;
   date: string;
   category_id: number | null;
   category_name: string | null;
@@ -44,12 +46,14 @@ export interface CardBillDetail {
 export interface TransactionInput {
   description: string;
   amount: number;
-  type: 1 | 2;
+  type: TransactionType;
   date: string;
   category_id: number | null;
   payment_method_id: number | null;
   card_mode: 0 | 1;
 }
+
+export type ReservaInput = Pick<TransactionInput, "description" | "amount" | "type" | "date">;
 
 export interface PaymentMethodInput {
   name: string;
@@ -158,6 +162,7 @@ export interface MonthlyPoint {
   income: number;
   expenses: number;
   balance: number;
+  reserva: number;
 }
 
 export interface ChartData {

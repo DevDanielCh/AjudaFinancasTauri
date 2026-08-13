@@ -27,7 +27,7 @@ export default function TransactionsPage() {
             {
               header: "Tipo",
               render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
-                : r.type === 1 ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
+                : r.type === 1 || r.type === 5 ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
                 : <Badge className="bg-negative text-negative-foreground">Despesa</Badge>,
             },
             { header: "Descrição", render: (r) => r.description },
@@ -35,21 +35,27 @@ export default function TransactionsPage() {
             { header: "Forma", render: (r) => r.payment_method_name ?? "—" },
             {
               header: "Valor",
-              render: (r) => (
-                <span className={cn(r.type === 1 ? "text-positive" : "text-negative", "font-mono")}>
-                  {r.type === 1 ? "+" : "−"} {formatMoney(r.amount)}
-                </span>
-              ),
+              render: (r) => {
+                const positive = r.type === 1 || r.type === 5;
+                return (
+                  <span className={cn(positive ? "text-positive" : "text-negative", "font-mono")}>
+                    {positive ? "+" : "−"} {formatMoney(r.amount)}
+                  </span>
+                );
+              },
             },
           ],
           mobileCorners: {
             topLeft: (r) => r.description,
             bottomLeft: (r) => r.category_name ?? "—",
-            topRight: (r) => (
-              <span className={cn(r.type === 1 ? "text-positive" : "text-negative", "font-mono")}>
-                {r.type === 1 ? "+" : "−"} {formatMoney(r.amount)}
-              </span>
-            ),
+            topRight: (r) => {
+              const positive = r.type === 1 || r.type === 5;
+              return (
+                <span className={cn(positive ? "text-positive" : "text-negative", "font-mono")}>
+                  {positive ? "+" : "−"} {formatMoney(r.amount)}
+                </span>
+              );
+            },
             bottomRight: (r) => formatDate(r.date),
           },
           keepOpen: true,
@@ -67,7 +73,7 @@ export default function TransactionsPage() {
             category_id: r.category_id, payment_method_id: r.payment_method_id,
             card_mode: r.card_mode,
           }),
-          protected: (r) => r.is_card_bill,
+          protected: (r) => r.is_card_bill || r.type === 4 || r.type === 5,
           loadResources: async () => {
             const [categories, paymentMethods] = await Promise.all([
               api.listCategories(), api.listPaymentMethods(),

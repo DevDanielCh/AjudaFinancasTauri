@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, CalendarClock, CreditCard, Landmark,
-  LayoutDashboard, Moon, RefreshCw, Sun, Tags,
+  LayoutDashboard, Moon, PiggyBank, RefreshCw, Sun, Tags,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
+  { href: "/reserva", label: "Reserva", icon: PiggyBank },
   { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
   { href: "/categories", label: "Categorias", icon: Tags },
   { href: "/fixed-bills", label: "Contas Fixas", icon: RefreshCw },

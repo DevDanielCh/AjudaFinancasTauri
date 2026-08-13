@@ -15,6 +15,13 @@ export const transactionSchema = z
     path: ["payment_method_id"],
   });
 
+export const reservaSchema = z.object({
+  description: z.string().min(1, "Informe a descrição"),
+  amount: z.number().positive("Informe o valor"),
+  type: z.union([z.literal(4), z.literal(5)], { error: "Selecione o tipo" }),
+  date: z.string().min(1, "Informe a data"),
+});
+
 export const fixedBillSchema = z
   .object({
     description: z.string().min(1, "Informe a descrição"),

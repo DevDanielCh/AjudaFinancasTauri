@@ -87,7 +87,7 @@ pub fn month_income(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Resu
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type = 1 AND date >= ?1 AND date < ?2",
+             WHERE type IN (1, 5) AND date >= ?1 AND date < ?2",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
@@ -104,7 +104,7 @@ pub fn pm_expenses(
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type = 2 AND payment_method_id = ?1 AND date >= ?2 AND date < ?3",
+             WHERE type IN (2, 4) AND payment_method_id = ?1 AND date >= ?2 AND date < ?3",
             rusqlite::params![
                 pm_id,
                 start.format("%Y-%m-%d").to_string(),
@@ -143,7 +143,7 @@ pub fn no_pm_expenses(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Re
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type = 2 AND payment_method_id IS NULL AND date >= ?1 AND date < ?2",
+             WHERE type IN (2, 4) AND payment_method_id IS NULL AND date >= ?1 AND date < ?2",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
@@ -386,7 +386,7 @@ pub fn income_by_category(
         .prepare(
             "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
              FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.type = 1 AND t.date >= ?1 AND t.date < ?2
+             WHERE t.type IN (1, 5) AND t.date >= ?1 AND t.date < ?2
              GROUP BY c.name ORDER BY total DESC",
         )
         .map_err(db_err)?;
@@ -416,7 +416,7 @@ pub fn expenses_by_category(
         .prepare(
             "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
              FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.type = 2 AND t.date >= ?1 AND t.date < ?2
+             WHERE t.type IN (2, 4) AND t.date >= ?1 AND t.date < ?2
              GROUP BY c.name ORDER BY total DESC",
         )
         .map_err(db_err)?;
@@ -439,6 +439,20 @@ pub fn expenses_by_category(
     Ok(rows)
 }
 
+/// Saldo da reserva/investimentos acumulado até `before` (data exclusiva).
+/// Adição (type=4) soma; remoção (type=5) subtrai; histórico completo.
+pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
+    let v: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(CASE WHEN type = 4 THEN amount WHEN type = 5 THEN -amount ELSE 0 END), 0)
+             FROM transactions WHERE date < ?1",
+            rusqlite::params![before.format("%Y-%m-%d").to_string()],
+            |r| r.get(0),
+        )
+        .map_err(db_err)?;
+    Ok(v)
+}
+
 /// Série de `months` meses terminando em `ref_month`; saldo acumula desde zero.
 pub fn monthly_series(
     conn: &Connection,
@@ -453,11 +467,13 @@ pub fn monthly_series(
         let income = month_income(conn, m, next)?;
         let expenses = month_expenses(conn, m)?;
         balance += income - expenses;
+        let reserva = reserva_balance_at(conn, next)?;
         out.push(crate::models::MonthlyPoint {
             month: m.format("%Y-%m").to_string(),
             income,
             expenses,
             balance,
+            reserva,
         });
     }
     Ok(out)
@@ -1235,5 +1251,54 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].name, "Nubank");
         assert_eq!(rows[0].total, 5000);
+    }
+
+    #[test]
+    fn reserva_balance_acumula_por_tipo() {
+        let conn = test_db();
+        conn.execute_batch(
+            "INSERT INTO transactions (description, amount, type, date) VALUES
+             ('aporte', 100000, 4, '2026-05-10'),
+             ('resgate', 30000, 5, '2026-06-15'),
+             ('normal', 50000, 2, '2026-06-20'),
+             ('aporte', 20000, 4, '2026-07-01')",
+        )
+        .unwrap();
+
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        assert_eq!(reserva_balance_at(&conn, jun).unwrap(), 100000, "antes do resgate");
+        let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
+        assert_eq!(reserva_balance_at(&conn, jul).unwrap(), 70000, "após resgate e sem o 2º aporte");
+        let set = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap();
+        assert_eq!(reserva_balance_at(&conn, set).unwrap(), 90000, "transação normal ignorada");
+    }
+
+    #[test]
+    fn reserva_conta_no_caixa_como_despesa_e_receita() {
+        let conn = test_db();
+        conn.execute_batch(
+            "INSERT INTO transactions (description, amount, type, date) VALUES
+             ('aporte', 100000, 4, '2026-06-10'),
+             ('resgate', 30000, 5, '2026-06-15')",
+        )
+        .unwrap();
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        let nxt = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
+        assert_eq!(month_income(&conn, jun, nxt).unwrap(), 30000, "remoção conta como receita");
+        assert_eq!(month_expenses(&conn, jun).unwrap(), 100000, "adição conta como despesa");
+    }
+
+    #[test]
+    fn monthly_series_inclui_saldo_da_reserva() {
+        let conn = test_db();
+        conn.execute_batch(
+            "INSERT INTO transactions (description, amount, type, date) VALUES
+             ('aporte', 50000, 4, '2026-06-10')",
+        )
+        .unwrap();
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        let points = monthly_series(&conn, jun, 1).unwrap();
+        assert_eq!(points[0].month, "2026-06");
+        assert_eq!(points[0].reserva, 50000);
     }
 }

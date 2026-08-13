@@ -12,8 +12,8 @@ import type { BreakdownRow, ChartData } from "@/lib/types";
 import { formatMoney, formatMonth } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const TREND_COLORS = { income: "#22c55e", expenses: "#ef4444", balance: "#6366f1" };
-const TREND_LABEL = { income: "Receitas", expenses: "Despesas", balance: "Saldo" } as const;
+const TREND_COLORS = { income: "#22c55e", expenses: "#ef4444", balance: "#6366f1", reserva: "#f59e0b" };
+const TREND_LABEL = { income: "Receitas", expenses: "Despesas", balance: "Saldo", reserva: "Reserva" } as const;
 // ponytail: backend não expõe cor por categoria; paleta fixa cicla por índice.
 const DONUT_COLORS = [
   "#0ea5e9", "#6366f1", "#a855f7", "#ec4899", "#f97316", "#14b8a6",
@@ -23,7 +23,7 @@ const DONUT_COLORS = [
 export function ChartSection({ data }: { data: ChartData }) {
   const folded = React.useMemo(() => {
     const f = fold(data.monthly, {
-      fields: ["income", "expenses", "balance"] as const,
+      fields: ["income", "expenses", "balance", "reserva"] as const,
       as: { key: "series", value: "amount" },
     });
     return f.map((r) => ({ ...r, series: TREND_LABEL[r.series as keyof typeof TREND_LABEL] }));
@@ -71,7 +71,7 @@ export function ChartSection({ data }: { data: ChartData }) {
       <Card className="lg:col-span-2">
         <CardHeader><CardTitle>Evolução</CardTitle></CardHeader>
         <CardContent>
-          <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas e saldo" />
+          <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas, saldo e reserva" />
         </CardContent>
       </Card>
       <DonutCard title="Despesas por categoria" rows={data.expenses_by_cat} income={data.monthly[data.monthly.length - 1]?.income ?? 0} />

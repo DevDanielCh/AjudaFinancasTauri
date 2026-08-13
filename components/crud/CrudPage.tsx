@@ -40,6 +40,10 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   onRowDoubleClick?: (row: T) => void;
   onView?: (row: T) => void;
   protected?: (row: T) => boolean;
+  /** Mensagem quando a seleção contém só linhas protegidas. */
+  protectedDeleteMessage?: string;
+  /** Conteúdo exibido entre o título e a busca (ex.: card de saldo). */
+  summary?: (rows: T[]) => React.ReactNode;
   mobileCorners?: MobileCorners<T>;
   /** Classe extra aplicada a cada linha/card (ex.: opacity para inativo). */
   rowClass?: (row: T) => string;
@@ -130,7 +134,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
     });
     if (ids.length === 0) {
       toast.add({
-        title: "Faturas são geradas automaticamente e não podem ser excluídas",
+        title: config.protectedDeleteMessage ?? "Faturas são geradas automaticamente e não podem ser excluídas",
         type: "error",
       });
       return;
@@ -176,6 +180,8 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
             Atualizar
           </Button>
         </div>
+
+        {config.summary?.(rows)}
 
         <div className="flex items-center gap-2">
           <div className="relative flex-1">

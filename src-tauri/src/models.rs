@@ -38,8 +38,8 @@ impl TransactionInput {
         if self.amount <= 0 {
             return Err("valor deve ser maior que zero".into());
         }
-        if self.type_ != 1 && self.type_ != 2 {
-            return Err("tipo deve ser receita (1) ou despesa (2)".into());
+        if !matches!(self.type_, 1 | 2 | 4 | 5) {
+            return Err("tipo deve ser receita (1), despesa (2), adição à reserva (4) ou remoção (5)".into());
         }
         if chrono::NaiveDate::parse_from_str(&self.date, "%Y-%m-%d").is_err() {
             return Err("data inválida".into());
@@ -328,6 +328,8 @@ pub struct MonthlyPoint {
     pub income: i64,
     pub expenses: i64,
     pub balance: i64,
+    /// Saldo da reserva/investimentos no fim do mês (histórico completo).
+    pub reserva: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]

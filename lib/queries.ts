@@ -10,6 +10,7 @@ export const queryKeys = {
   paymentMethods: ["payment-methods"] as const,
   fixedBills: (finished: boolean) => ["fixed-bills", finished] as const,
   loans: ["loans"] as const,
+  reserva: ["reserva"] as const,
 };
 
 export function useDashboard(month: string | null) {
