@@ -1,7 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::{PaymentMethod, PaymentMethodInput};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
 #[tauri::command]
@@ -60,14 +60,28 @@ pub async fn create_payment_method(
     input: PaymentMethodInput,
 ) -> Result<(), String> {
     validate(&input)?;
-    with_db(&state, |c| {
-        c.execute(
-            "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
-            params![input.name.trim(), input.type_, metadata_for(&input)],
+    with_db(&state, |c| create(c, &input))
+}
+
+pub fn create(conn: &Connection, input: &PaymentMethodInput) -> Result<(), String> {
+    let name = input.name.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM payment_methods WHERE name = ?1 LIMIT 1",
+            params![name],
+            |_| Ok(()),
         )
+        .optional()
         .map_err(domain::db_err)?;
-        Ok(())
-    })
+    if dup.is_some() {
+        return Err("já existe forma de pagamento com esse nome".into());
+    }
+    conn.execute(
+        "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
+        params![name, input.type_, metadata_for(input)],
+    )
+    .map_err(domain::db_err)?;
+    Ok(())
 }
 
 #[tauri::command]

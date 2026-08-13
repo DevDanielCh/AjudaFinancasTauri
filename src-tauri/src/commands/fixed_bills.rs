@@ -114,29 +114,53 @@ pub async fn create_fixed_bill(
     state: State<'_, AppState>,
     mut input: FixedBillInput,
 ) -> Result<(), String> {
-    with_db(&state, |c| {
-        finalize_installments(c, &mut input)?;
-        input.validate()?;
-        let end_month = input.end_month.clone();
-        c.execute(
-            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+    with_db(&state, |c| create(c, &mut input))
+}
+
+pub fn create(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
+    finalize_installments(conn, input)?;
+    input.validate()?;
+    let description = input.description.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM fixed_bills
+             WHERE description = ?1 AND amount = ?2 AND day = ?3 AND start_month = ?4
+               AND payment_method_id = ?5 AND installments IS ?6
+             LIMIT 1",
             params![
-                input.description.trim(),
+                description,
                 input.amount,
                 input.day,
-                input.category_id,
-                input.payment_method_id,
                 input.start_month,
-                end_month,
-                input.installments,
-                input.purchase_date
+                input.payment_method_id,
+                input.installments
             ],
+            |_| Ok(()),
         )
+        .optional()
         .map_err(domain::db_err)?;
-        domain::reconcile_fixed_bills(c, &input.start_month, chrono::Local::now().date_naive())?;
-        Ok(())
-    })
+    if dup.is_some() {
+        return Err("já existe conta fixa idêntica nesse mês".into());
+    }
+    let end_month = input.end_month.clone();
+    conn.execute(
+        "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            description,
+            input.amount,
+            input.day,
+            input.category_id,
+            input.payment_method_id,
+            input.start_month,
+            end_month,
+            input.installments,
+            input.purchase_date
+        ],
+    )
+    .map_err(domain::db_err)?;
+    domain::reconcile_fixed_bills(conn, &input.start_month, chrono::Local::now().date_naive())?;
+    Ok(())
 }
 
 #[tauri::command]

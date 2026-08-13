@@ -1,7 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::{Category, CategoryInput};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
 #[tauri::command]
@@ -42,14 +42,28 @@ fn validate(input: &CategoryInput) -> Result<(), String> {
 #[tauri::command]
 pub async fn create_category(state: State<'_, AppState>, input: CategoryInput) -> Result<(), String> {
     validate(&input)?;
-    with_db(&state, |c| {
-        c.execute(
-            "INSERT INTO categories (name, type, color, icon) VALUES (?1, ?2, ?3, ?4)",
-            params![input.name.trim(), input.type_, input.color, input.icon],
+    with_db(&state, |c| create(c, &input))
+}
+
+pub fn create(conn: &Connection, input: &CategoryInput) -> Result<(), String> {
+    let name = input.name.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM categories WHERE name = ?1 LIMIT 1",
+            params![name],
+            |_| Ok(()),
         )
+        .optional()
         .map_err(domain::db_err)?;
-        Ok(())
-    })
+    if dup.is_some() {
+        return Err("já existe categoria com esse nome".into());
+    }
+    conn.execute(
+        "INSERT INTO categories (name, type, color, icon) VALUES (?1, ?2, ?3, ?4)",
+        params![name, input.type_, input.color, input.icon],
+    )
+    .map_err(domain::db_err)?;
+    Ok(())
 }
 
 #[tauri::command]

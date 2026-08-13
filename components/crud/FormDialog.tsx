@@ -1,5 +1,6 @@
 "use client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import type { FormValidateFn } from "@tanstack/react-form";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,7 @@ export function FormDialog<T extends { id: number }, F, E>({
 
   const resourcesQuery = useQuery({
     queryKey: [...config.queryKey, "resources"],
-    queryFn: config.loadResources!,
+    queryFn: config.loadResources ?? skipToken,
     enabled: config.loadResources != null,
   });
   const resources = resourcesQuery.data as E | undefined;
@@ -95,7 +96,7 @@ export function FormDialog<T extends { id: number }, F, E>({
       </Button>
       <form.Subscribe selector={(s) => [s.isSubmitting, s.canSubmit, s.isPristine] as const}>
         {([isSubmitting, canSubmit, isPristine]) => (
-          <Button type="submit" disabled={!canSubmit || isPristine}>
+          <Button type="submit" disabled={!canSubmit || isPristine || isSubmitting}>
             {isSubmitting ? "Salvando..." : "Salvar"}
           </Button>
         )}

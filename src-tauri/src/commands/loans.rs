@@ -165,30 +165,46 @@ pub async fn get_loan_detail(state: State<'_, AppState>, id: i64) -> Result<Loan
 #[tauri::command]
 pub async fn create_loan(state: State<'_, AppState>, input: LoanInput) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| {
-        let rate = if input.monthly_rate > 0.0 {
-            input.monthly_rate
-        } else {
-            domain::loan_monthly_rate(input.principal, input.installment, input.total_installments)
-        };
-        c.execute(
-            "INSERT INTO loans (type, description, principal, installment, total_installments, day, start_month, payment_method_id, monthly_rate)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-            params![
-                input.type_,
-                input.description.trim(),
-                input.principal,
-                input.installment,
-                input.total_installments,
-                input.day,
-                input.start_month,
-                input.payment_method_id,
-                rate
-            ],
+    with_db(&state, |c| create(c, &input))
+}
+
+pub fn create(conn: &Connection, input: &LoanInput) -> Result<(), String> {
+    let rate = if input.monthly_rate > 0.0 {
+        input.monthly_rate
+    } else {
+        domain::loan_monthly_rate(input.principal, input.installment, input.total_installments)
+    };
+    let description = input.description.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM loans
+             WHERE description = ?1 AND principal = ?2 AND start_month = ?3
+             LIMIT 1",
+            params![description, input.principal, input.start_month],
+            |_| Ok(()),
         )
+        .optional()
         .map_err(domain::db_err)?;
-        Ok(())
-    })
+    if dup.is_some() {
+        return Err("já existe empréstimo idêntico nesse mês".into());
+    }
+    conn.execute(
+        "INSERT INTO loans (type, description, principal, installment, total_installments, day, start_month, payment_method_id, monthly_rate)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            input.type_,
+            description,
+            input.principal,
+            input.installment,
+            input.total_installments,
+            input.day,
+            input.start_month,
+            input.payment_method_id,
+            rate
+        ],
+    )
+    .map_err(domain::db_err)?;
+    Ok(())
 }
 
 #[tauri::command]

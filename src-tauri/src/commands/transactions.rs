@@ -125,12 +125,20 @@ pub async fn create_transaction(
     input: TransactionInput,
 ) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| {
-        c.execute(
-            "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, card_mode)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+    with_db(&state, |c| create(c, &input))
+}
+
+pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String> {
+    let description = input.description.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM transactions
+             WHERE description = ?1 AND amount = ?2 AND type = ?3 AND date = ?4
+               AND category_id IS ?5 AND payment_method_id IS ?6 AND card_mode = ?7
+               AND fixed_bill_id IS NULL AND bill_start IS NULL
+             LIMIT 1",
             params![
-                input.description.trim(),
+                description,
                 input.amount,
                 input.type_,
                 input.date,
@@ -138,11 +146,29 @@ pub async fn create_transaction(
                 input.payment_method_id,
                 input.card_mode
             ],
+            |_| Ok(()),
         )
+        .optional()
         .map_err(domain::db_err)?;
-        domain::refresh_card_bills(c)?;
-        Ok(())
-    })
+    if dup.is_some() {
+        return Err("já existe transação idêntica nessa data".into());
+    }
+    conn.execute(
+        "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, card_mode)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            description,
+            input.amount,
+            input.type_,
+            input.date,
+            input.category_id,
+            input.payment_method_id,
+            input.card_mode
+        ],
+    )
+    .map_err(domain::db_err)?;
+    domain::refresh_card_bills(conn)?;
+    Ok(())
 }
 
 #[tauri::command]
