@@ -249,6 +249,25 @@ input[type="number"]::-webkit-outer-spin-button {
   overscroll-behavior-y: none;
 }
 
+/* Scrollbars finos e discretos (WebKit/WebView); overlay não sobrepõe mais o conteúdo. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--muted-foreground) 30%, transparent);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--muted-foreground) 50%, transparent);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 @layer base {
   /* Desktop UIs often feel cleaner with accidental text selection disabled by default. */
   body {
