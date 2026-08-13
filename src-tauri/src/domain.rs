@@ -302,13 +302,23 @@ pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<
     Ok(())
 }
 
-/// Recalcula todas as faturas dos meses com movimento até o mês corrente.
+/// Recalcula todas as faturas dos meses com movimento até o mês mais recente
+/// de transação (ou o mês corrente, o que for maior). Faturas de meses futuros
+/// contam compras a crédito já lançadas, mantendo o gráfico por forma de pagamento.
 pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
     conn.execute("DELETE FROM transactions WHERE bill_start IS NOT NULL", [])
         .map_err(db_err)?;
     let now = chrono::Local::now().date_naive();
     let mut m = parse_month(&earliest_month(conn)?).map_err(db_err)?;
-    while m <= now {
+    let latest: Option<String> = conn
+        .query_row("SELECT MAX(date) FROM transactions", [], |r| r.get(0))
+        .map_err(db_err)?;
+    let end = latest
+        .as_deref()
+        .and_then(|d| d.get(..7).and_then(|m| parse_month(m).ok()))
+        .map(|d| d.max(now))
+        .unwrap_or(now);
+    while m <= end {
         ensure_card_bills(conn, m)?;
         m = m.checked_add_months(Months::new(1)).unwrap();
     }
@@ -1202,5 +1212,28 @@ mod tests {
         add_tx(&conn, "compra", 7000, "2026-05-15", Some(card));
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
         assert_eq!(month_expenses(&conn, jun).unwrap(), 7000);
+    }
+
+    #[test]
+    fn refresh_card_bills_gera_fatura_em_mes_futuro() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        add_tx(&conn, "credito", 5000, "2026-12-05", Some(card));
+        refresh_card_bills(&conn).unwrap();
+
+        let rows: Vec<String> = conn
+            .prepare("SELECT date FROM transactions WHERE description = 'Fatura - Nubank'")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert_eq!(rows, vec!["2026-12-20"]);
+
+        let dez = NaiveDate::from_ymd_opt(2026, 12, 1).unwrap();
+        let rows = expenses_by_pm(&conn, dez).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].name, "Nubank");
+        assert_eq!(rows[0].total, 5000);
     }
 }
