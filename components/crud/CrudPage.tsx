@@ -76,7 +76,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
     queryKey: effectiveKey,
     queryFn: () => config.load(sort),
     staleTime: 15_000,
-    placeholderData: keepPreviousData,
+    placeholderData: sort ? keepPreviousData : undefined,
   });
   const rows = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
   const loading = rowsQuery.isFetching;
