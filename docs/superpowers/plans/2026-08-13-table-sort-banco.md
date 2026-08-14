@@ -140,20 +140,25 @@ fn list(
 
 Substituir a linha 37 (`sql.push_str(" ORDER BY t.date DESC, t.id DESC");`):
 
+> **Nota de correção:** `order_clause` não tem espaço à esquerda e o SQL base de transactions não tem espaço à direita. Usar `format!(" {}", ...)`:
+
 ```rust
-    sql.push_str(&domain::order_clause(
-        sort_by,
-        sort_dir,
-        &[
-            ("date", "t.date"),
-            ("type", "t.type"),
-            ("description", "t.description"),
-            ("category", "c.name"),
-            ("payment_method", "pm.name"),
-            ("amount", "t.amount"),
-        ],
-        "ORDER BY t.date DESC, t.id DESC",
-        "t.id DESC",
+    sql.push_str(&format!(
+        " {}",
+        domain::order_clause(
+            sort_by,
+            sort_dir,
+            &[
+                ("date", "t.date"),
+                ("type", "t.type"),
+                ("description", "t.description"),
+                ("category", "c.name"),
+                ("payment_method", "pm.name"),
+                ("amount", "t.amount"),
+            ],
+            "ORDER BY t.date DESC, t.id DESC",
+            "t.id DESC",
+        )
     ));
 ```
 
