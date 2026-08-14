@@ -81,6 +81,11 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
 #[tauri::command]
 pub async fn list_reserva_movements(state: State<'_, AppState>) -> Result<Vec<TransactionRow>, String> {
     with_db(&state, |c| {
+        let s = domain::get_settings(c)?;
+        let piso = match &s.primeiro_mes {
+            Some(m) => domain::parse_month(m)?.format("%Y-%m-%d").to_string(),
+            None => "0000-01-01".to_string(),
+        };
         let mut stmt = c
             .prepare(
                 "SELECT t.id, t.description, t.amount, t.type, t.date,
@@ -89,12 +94,12 @@ pub async fn list_reserva_movements(state: State<'_, AppState>) -> Result<Vec<Tr
                  FROM transactions t
                  LEFT JOIN categories c ON c.id = t.category_id
                  LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
-                 WHERE t.type IN (4, 5)
+                 WHERE t.type IN (4, 5) AND t.date >= ?1
                  ORDER BY t.date DESC, t.id DESC",
             )
             .map_err(domain::db_err)?;
         let rows = stmt
-            .query_map([], |r| {
+            .query_map(rusqlite::params![piso], |r| {
                 Ok(TransactionRow {
                     id: r.get(0)?,
                     description: r.get(1)?,
