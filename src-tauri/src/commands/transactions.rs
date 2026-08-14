@@ -8,11 +8,18 @@ use tauri::State;
 pub async fn list_transactions(
     state: State<'_, AppState>,
     month: Option<String>,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
 ) -> Result<Vec<TransactionRow>, String> {
-    with_db(&state, |c| list(c, month.as_deref()))
+    with_db(&state, |c| list(c, month.as_deref(), sort_by.as_deref(), sort_dir.as_deref()))
 }
 
-fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, String> {
+fn list(
+    conn: &Connection,
+    month: Option<&str>,
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+) -> Result<Vec<TransactionRow>, String> {
     let (start, end, ref_month) = match month {
         Some(m) if !m.is_empty() => {
             let (s, e) = domain::month_range(m)?;
@@ -34,7 +41,20 @@ fn list(conn: &Connection, month: Option<&str>) -> Result<Vec<TransactionRow>, S
     if start.is_some() {
         sql.push_str(" WHERE t.date >= ?1 AND t.date < ?2");
     }
-    sql.push_str(" ORDER BY t.date DESC, t.id DESC");
+    sql.push_str(&format!(" {}", domain::order_clause(
+        sort_by,
+        sort_dir,
+        &[
+            ("date", "t.date"),
+            ("type", "t.type"),
+            ("description", "t.description"),
+            ("category", "c.name"),
+            ("payment_method", "pm.name"),
+            ("amount", "t.amount"),
+        ],
+        "ORDER BY t.date DESC, t.id DESC",
+        "t.id DESC",
+    )));
     let mut stmt = conn.prepare(&sql).map_err(domain::db_err)?;
     let start_s = start.map(|d| d.format("%Y-%m-%d").to_string());
     let end_s = end.map(|d| d.format("%Y-%m-%d").to_string());
@@ -396,7 +416,7 @@ mod tests {
         )
         .unwrap();
 
-        let rows = list(&conn, None).unwrap();
+        let rows = list(&conn, None, None, None).unwrap();
 
         let debit = rows.iter().find(|r| r.description == "debito").expect("débito deve aparecer");
         assert_eq!(debit.card_mode, 1);
@@ -438,5 +458,22 @@ mod tests {
             "parcela além do total não pode aparecer no detalhe"
         );
         assert_eq!(txs.iter().map(|t| t.amount).sum::<i64>(), 5000);
+    }
+
+    #[test]
+    fn list_transactions_ordena_por_valor() {
+        let conn = test_db();
+        let pix = add_pm(&conn, "PIX", 1, None);
+        for (desc, amount) in [("a", 100), ("c", 300), ("b", 200)] {
+            conn.execute(
+                "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+                 VALUES (?1, ?2, 2, '2026-06-05', ?3)",
+                params![desc, amount, pix],
+            )
+            .unwrap();
+        }
+        let rows = list(&conn, None, Some("amount"), Some("asc")).unwrap();
+        let amounts: Vec<i64> = rows.iter().map(|r| r.amount).collect();
+        assert_eq!(amounts, vec![100, 200, 300]);
     }
 }
