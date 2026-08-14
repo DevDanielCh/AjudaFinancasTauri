@@ -68,8 +68,63 @@ pub fn current_month() -> String {
     chrono::Local::now().date_naive().format("%Y-%m").to_string()
 }
 
+/// Lê as configurações; ausência = defaults (None, 0, 0).
+pub fn get_settings(conn: &Connection) -> Result<crate::models::Settings, String> {
+    let mut stmt = conn
+        .prepare("SELECT key, value FROM settings")
+        .map_err(db_err)?;
+    let rows = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+    let mut s = crate::models::Settings::default();
+    for (k, v) in rows {
+        match k.as_str() {
+            "primeiro_mes" => s.primeiro_mes = Some(v),
+            "saldo_inicial_conta" => s.saldo_inicial_conta = v.parse().unwrap_or(0),
+            "saldo_inicial_reserva" => s.saldo_inicial_reserva = v.parse().unwrap_or(0),
+            _ => {}
+        }
+    }
+    Ok(s)
+}
+
+/// Persiste as configurações (primeiro_mes None remove a chave).
+pub fn set_settings(conn: &Connection, input: &crate::models::SettingsInput) -> Result<(), String> {
+    conn.execute("DELETE FROM settings WHERE key = 'primeiro_mes'", [])
+        .map_err(db_err)?;
+    if let Some(pm) = &input.primeiro_mes {
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES ('primeiro_mes', ?1)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            [pm],
+        )
+        .map_err(db_err)?;
+    }
+    for (key, v) in [
+        ("saldo_inicial_conta", input.saldo_inicial_conta.to_string()),
+        ("saldo_inicial_reserva", input.saldo_inicial_reserva.to_string()),
+    ] {
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![key, v],
+        )
+        .map_err(db_err)?;
+    }
+    Ok(())
+}
+
 /// Mês (YYYY-MM) da transação mais antiga, ou mês corrente.
+/// Com `primeiro_mes` configurado, o piso rígido o substitui.
 pub fn earliest_month(conn: &Connection) -> Result<String, String> {
+    let s = get_settings(conn)?;
+    Ok(s.primeiro_mes.unwrap_or(earliest_tx_month(conn)?))
+}
+
+/// Mês da transação mais antiga sem considerar configurações.
+fn earliest_tx_month(conn: &Connection) -> Result<String, String> {
     let min = conn.query_row("SELECT MIN(date) FROM transactions", [], |r| {
         r.get::<_, Option<String>>(0)
     });
@@ -440,41 +495,80 @@ pub fn expenses_by_category(
 }
 
 /// Saldo da reserva/investimentos acumulado até `before` (data exclusiva).
-/// Adição (type=4) soma; remoção (type=5) subtrai; histórico completo.
+/// Adição (type=4) soma; remoção (type=5) subtrai. Com saldo inicial
+/// configurado, soma-se a ele; com `primeiro_mes`, ignora-se antes do piso.
 pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
+    let s = get_settings(conn)?;
+    let piso = match &s.primeiro_mes {
+        Some(m) => parse_month(m)?.format("%Y-%m-%d").to_string(),
+        None => "0000-01-01".to_string(),
+    };
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(CASE WHEN type = 4 THEN amount WHEN type = 5 THEN -amount ELSE 0 END), 0)
-             FROM transactions WHERE date < ?1",
-            rusqlite::params![before.format("%Y-%m-%d").to_string()],
+             FROM transactions WHERE date >= ?1 AND date < ?2",
+            rusqlite::params![piso, before.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
         .map_err(db_err)?;
-    Ok(v)
+    Ok(s.saldo_inicial_reserva + v)
 }
 
-/// Série de `months` meses terminando em `ref_month`; saldo acumula desde zero.
+/// Posição da conta em `before` (data exclusiva): saldo inicial + fluxos
+/// (receitas - despesas) dos meses desde o piso (ou a primeira transação).
+pub fn account_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
+    let s = get_settings(conn)?;
+    let start = match &s.primeiro_mes {
+        Some(pm) => parse_month(pm)?,
+        None => parse_month(&earliest_tx_month(conn)?)?,
+    };
+    let mut bal = s.saldo_inicial_conta;
+    let mut m = start;
+    while m < before {
+        let next = m.checked_add_months(Months::new(1)).unwrap();
+        bal += month_income(conn, m, next)? - month_expenses(conn, m)?;
+        m = next;
+    }
+    Ok(bal)
+}
+
+/// Série terminando em `ref_month`. Com `primeiro_mes` configurado, vai do piso
+/// até o mês (posição real da conta); sem config, janela de `months` meses
+/// acumulando saldo desde zero (comportamento atual).
 pub fn monthly_series(
     conn: &Connection,
     ref_month: NaiveDate,
     months: u32,
 ) -> Result<Vec<crate::models::MonthlyPoint>, String> {
-    let mut out = Vec::with_capacity(months as usize);
-    let mut balance = 0;
-    for k in (0..months).rev() {
-        let m = ref_month.checked_sub_months(Months::new(k)).unwrap();
+    let s = get_settings(conn)?;
+    let with_piso = s.primeiro_mes.is_some();
+    let start = match &s.primeiro_mes {
+        Some(pm) => parse_month(pm)?,
+        None => ref_month.checked_sub_months(Months::new(months - 1)).unwrap(),
+    };
+    if start > ref_month {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    let mut acc = 0;
+    let mut m = start;
+    while m <= ref_month {
         let next = m.checked_add_months(Months::new(1)).unwrap();
         let income = month_income(conn, m, next)?;
         let expenses = month_expenses(conn, m)?;
-        balance += income - expenses;
-        let reserva = reserva_balance_at(conn, next)?;
+        acc += income - expenses;
         out.push(crate::models::MonthlyPoint {
             month: m.format("%Y-%m").to_string(),
             income,
             expenses,
-            balance,
-            reserva,
+            balance: if with_piso {
+                account_balance_at(conn, next)?
+            } else {
+                acc
+            },
+            reserva: reserva_balance_at(conn, next)?,
         });
+        m = next;
     }
     Ok(out)
 }
@@ -853,6 +947,8 @@ mod tests {
         conn.execute_batch(include_str!("../migrations/002_card_bills.sql"))
             .unwrap();
         conn.execute_batch(include_str!("../migrations/006_card_debit.sql"))
+            .unwrap();
+        conn.execute_batch(include_str!("../migrations/008_settings.sql"))
             .unwrap();
         conn
     }
