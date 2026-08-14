@@ -23,7 +23,7 @@ Mesmas chaves `sortKey` nos dois lados. Tabela de referência:
 | payment-methods | Nome→`name`, Tipo→`type` (Fechamento/Vencimento **sem** sortKey) | `name`, `type` |
 | fixed-bills | Descrição→`description`, Valor→`amount`, Dia→`day`, Início→`start`, Fim→`end` | `b.description`, `b.amount`, `b.day`, `b.start_month`, `b.end_month` |
 | installments | Igual fixed-bills + Parcelas→`installments` | + `b.installments` |
-| loans | Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start`, Fim→`end` | `l.description`, `l.type`, `l.principal`, `l.installment`, `l.total_installments`, `l.start_month`, `l.end_month` |
+| loans | Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start` (Fim **sem** sortKey — `end_month` é getter computado, não existe coluna) | `l.description`, `l.type`, `l.principal`, `l.installment`, `l.total_installments`, `l.start_month` |
 
 ---
 
@@ -429,7 +429,6 @@ fn list(conn: &Connection, sort_by: Option<&str>, sort_dir: Option<&str>) -> Res
             ("installment", "l.installment"),
             ("installments", "l.total_installments"),
             ("start", "l.start_month"),
-            ("end", "l.end_month"),
         ],
         "ORDER BY l.start_month DESC, l.id DESC",
         "l.id DESC",
@@ -443,6 +442,8 @@ fn list(conn: &Connection, sort_by: Option<&str>, sort_dir: Option<&str>) -> Res
         ))
         .map_err(domain::db_err)?;
 ```
+
+> **Nota:** `end` NÃO entra na whitelist — `loans` não tem coluna `end_month` (getter computado, models.rs:178). Fim fica não-sortable, igual Fechamento/Vencimento.
 
 - [ ] **Step 2: Rodar testes**
 
@@ -830,7 +831,7 @@ Substituir o `load` (linha 31):
 
 - [ ] **Step 6: loans**
 
-Adicionar `sortKey` (linhas 19-27): Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start`, Fim→`end`.
+Adicionar `sortKey` (linhas 19-27): Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start`. **Fim sem sortKey** (`end_month` é computado, não tem coluna no banco).
 
 Substituir o `load` (linha 36): `load: api.listLoans,` (sem mudança necessária).
 

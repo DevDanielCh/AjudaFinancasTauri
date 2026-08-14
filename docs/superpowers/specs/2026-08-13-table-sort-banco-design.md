@@ -44,7 +44,7 @@ Comandos e whitelists:
 | `list_transactions` | date→`t.date`, type→`t.type`, description→`t.description`, category→`c.name`, payment_method→`pm.name`, amount→`t.amount` |
 | `list_categories` | name→`name`, type→`type`, color→`color` |
 | `list_fixed_bills` (e installments) | description→`b.description`, amount→`b.amount`, day→`b.day`, start→`b.start_month`, end→`b.end_month`, installments→`b.installments` |
-| `list_loans` | description→`l.description`, type→`l.type`, principal→`l.principal`, installment→`l.installment`, installments→`l.total_installments`, start→`l.start_month`, end→`l.end_month` |
+| `list_loans` | description→`l.description`, type→`l.type`, principal→`l.principal`, installment→`l.installment`, installments→`l.total_installments`, start→`l.start_month` (Fim não existe como coluna — `end_month` é getter computado → não sortable) |
 | `list_payment_methods` | name→`name`, type→`type` (Fechamento/Vencimento = JSON metadata → não sortable) |
 
 Se o `ORDER BY` sozinho não desempatar, manter o critério default como secundário (ex: `ORDER BY {expr} {dir}, t.id DESC`).
