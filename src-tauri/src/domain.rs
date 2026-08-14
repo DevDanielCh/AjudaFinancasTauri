@@ -979,12 +979,17 @@ mod tests {
             order_clause(Some("amount"), Some("desc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
             "ORDER BY t.amount DESC, t.id DESC"
         );
+        assert_eq!(
+            order_clause(Some("amount"), Some("Asc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
+            "ORDER BY t.amount ASC, t.id DESC"
+        );
     }
 
     #[test]
     fn order_clause_fallback_padrao() {
         let wl = &[("amount", "t.amount")];
         assert_eq!(order_clause(None, None, wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
+        assert_eq!(order_clause(Some("amount"), None, wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
         assert_eq!(order_clause(Some("unknown"), Some("asc"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
         assert_eq!(order_clause(Some("amount"), Some("bogus"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
     }
