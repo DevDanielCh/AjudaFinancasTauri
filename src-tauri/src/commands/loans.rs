@@ -24,7 +24,6 @@ fn list(conn: &Connection, sort_by: Option<&str>, sort_dir: Option<&str>) -> Res
             ("installment", "l.installment"),
             ("installments", "l.total_installments"),
             ("start", "l.start_month"),
-            ("end", "l.end_month"),
         ],
         "ORDER BY l.start_month DESC, l.id DESC",
         "l.id DESC",
