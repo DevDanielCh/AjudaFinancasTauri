@@ -14,10 +14,11 @@ export default function CategoriesPage() {
         columns: [
           {
             header: "Cor",
+            sortKey: "color",
             render: (r) => <span className="inline-block h-4 w-4 rounded-full border" style={{ backgroundColor: r.color }} />,
           },
-          { header: "Nome", render: (r) => r.name },
-          { header: "Tipo", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
+          { header: "Nome", sortKey: "name", render: (r) => r.name },
+          { header: "Tipo", sortKey: "type", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
         ],
         mobileCorners: {
           topLeft: (r) => (

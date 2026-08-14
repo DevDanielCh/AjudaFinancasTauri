@@ -11,30 +11,32 @@ import { queryKeys } from "@/lib/queries";
 import { transactionSchema } from "@/lib/schemas";
 import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { TransactionInput } from "@/lib/types";
+import type { Sort, TransactionInput } from "@/lib/types";
 
 export default function TransactionsPage() {
   const { month } = useMonth();
   const [faturaId, setFaturaId] = useState<number | null>(null);
-  const load = useCallback(() => api.listTransactions(month), [month]);
+  const load = useCallback((sort: Sort | null) => api.listTransactions(month, sort), [month]);
   return (
     <>
       <CrudPage
         config={{
           title: "Transações",
           columns: [
-            { header: "Data", render: (r) => formatDate(r.date) },
+            { header: "Data", sortKey: "date", render: (r) => formatDate(r.date) },
             {
               header: "Tipo",
+              sortKey: "type",
               render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
                 : r.type === 1 || r.type === 5 ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
                 : <Badge className="bg-negative text-negative-foreground">Despesa</Badge>,
             },
-            { header: "Descrição", render: (r) => r.description },
-            { header: "Categoria", render: (r) => r.category_name ?? "—" },
-            { header: "Forma", render: (r) => r.payment_method_name ?? "—" },
+            { header: "Descrição", sortKey: "description", render: (r) => r.description },
+            { header: "Categoria", sortKey: "category", render: (r) => r.category_name ?? "—" },
+            { header: "Forma", sortKey: "payment_method", render: (r) => r.payment_method_name ?? "—" },
             {
               header: "Valor",
+              sortKey: "amount",
               render: (r) => {
                 const positive = r.type === 1 || r.type === 5;
                 return (

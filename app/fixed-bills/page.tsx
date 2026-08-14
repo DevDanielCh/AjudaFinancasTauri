@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/queries";
 import { fixedBillSchema } from "@/lib/schemas";
 import { formatMonth, formatMoney } from "@/lib/format";
-import type { FixedBillInput } from "@/lib/types";
+import type { FixedBillInput, Sort } from "@/lib/types";
 
 export default function FixedBillsPage() {
   return (
@@ -13,11 +13,11 @@ export default function FixedBillsPage() {
       config={{
         title: "Contas Fixas",
         columns: [
-          { header: "Descrição", render: (r) => r.description },
-          { header: "Valor", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
-          { header: "Dia", render: (r) => r.day },
-          { header: "Início", render: (r) => formatMonth(r.start_month) },
-          { header: "Fim", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
+          { header: "Descrição", sortKey: "description", render: (r) => r.description },
+          { header: "Valor", sortKey: "amount", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
+          { header: "Dia", sortKey: "day", render: (r) => r.day },
+          { header: "Início", sortKey: "start", render: (r) => formatMonth(r.start_month) },
+          { header: "Fim", sortKey: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
         ],
         mobileCorners: {
           topLeft: (r) => r.description,
@@ -27,7 +27,7 @@ export default function FixedBillsPage() {
           ),
           bottomRight: (r) => `${formatMonth(r.start_month)} → ${r.end_month ? formatMonth(r.end_month) : "—"}`,
         },
-        load: () => api.listFixedBills(false),
+        load: (sort: Sort | null) => api.listFixedBills(false, sort),
         create: api.createFixedBill,
         update: (id, d) => api.updateFixedBill(id, d),
         remove: api.deleteFixedBills,
