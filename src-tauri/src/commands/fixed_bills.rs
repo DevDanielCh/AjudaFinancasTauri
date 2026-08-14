@@ -8,16 +8,37 @@ use tauri::State;
 pub async fn list_fixed_bills(
     state: State<'_, AppState>,
     only_installments: bool,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
 ) -> Result<Vec<FixedBill>, String> {
-    with_db(&state, |c| list(c, only_installments))
+    with_db(&state, |c| list(c, only_installments, sort_by.as_deref(), sort_dir.as_deref()))
 }
 
-fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, String> {
-    let (cond, order) = if only_installments {
-        ("b.installments IS NOT NULL", "b.start_month DESC, b.id DESC")
+fn list(
+    conn: &Connection,
+    only_installments: bool,
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+) -> Result<Vec<FixedBill>, String> {
+    let (cond, default) = if only_installments {
+        ("b.installments IS NOT NULL", "ORDER BY b.start_month DESC, b.id DESC")
     } else {
-        ("b.installments IS NULL", "b.start_month ASC, b.id ASC")
+        ("b.installments IS NULL", "ORDER BY b.start_month ASC, b.id ASC")
     };
+    let order = domain::order_clause(
+        sort_by,
+        sort_dir,
+        &[
+            ("description", "b.description"),
+            ("amount", "b.amount"),
+            ("day", "b.day"),
+            ("start", "b.start_month"),
+            ("end", "b.end_month"),
+            ("installments", "b.installments"),
+        ],
+        default,
+        "b.id DESC",
+    );
     let sql = format!(
         "SELECT b.id, b.description, b.amount, b.day, b.category_id, c.name,
                 b.payment_method_id, pm.name, b.start_month, b.end_month, b.installments, b.purchase_date
@@ -25,7 +46,7 @@ fn list(conn: &Connection, only_installments: bool) -> Result<Vec<FixedBill>, St
          LEFT JOIN categories c ON c.id = b.category_id
          JOIN payment_methods pm ON pm.id = b.payment_method_id
          WHERE {cond}
-         ORDER BY {order}"
+         {order}"
     );
     let mut stmt = conn.prepare(&sql).map_err(domain::db_err)?;
     let mut rows = stmt
@@ -315,7 +336,7 @@ mod tests {
         )
         .unwrap();
 
-        let rows = list(&conn, true).unwrap();
+        let rows = list(&conn, true, None, None).unwrap();
 
         let antigo = rows.iter().find(|b| b.description == "antigo").expect("antigo presente");
         assert!(antigo.finished, "plano encerrado deve marcar finished");
