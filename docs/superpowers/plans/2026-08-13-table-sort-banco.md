@@ -4,7 +4,7 @@
 
 **Goal:** Fazer o clique no header de tabelas disparar nova query ao banco com ORDER BY, em todas as 6 telas (transactions, categories, fixed-bills, installments, loans, payment-methods).
 
-**Architecture:** Backend Rust: cada comando `list_*` ganha params `sort_by`/`sort_dir`, resolvidos por whitelist própria via helper `order_clause` em `domain.rs` (fallback silencioso ao ORDER BY default atual). Frontend: `CrudPage` vira dono do estado de sort, coloca sort no `queryKey` do react-query (refetch automático) e passa sort controlado ao `DataTable`. `Column` ganha `sortKey` (chave da whitelist). Busca continua client-side.
+**Architecture:** Backend Rust: cada comando `list_*` ganha params `sort_by`/`sort_dir`, resolvidos por whitelist própria via helper `order_clause` em `domain.rs` (fallback silencioso ao ORDER BY default atual). Frontend: `CrudPage` vira dono do estado de sort, coloca sort no `queryKey` do react-query (refetch automático) e passa sort controlado ao `DataTable`. `Column` tem `label` (texto renderizado no header) e `name` (chave da whitelist, só em colunas sortable). Busca continua client-side.
 
 **Tech Stack:** Rust (rusqlite, tauri), TypeScript, Next.js 16 App Router, TanStack Table v9, TanStack Query v5.
 
@@ -14,16 +14,16 @@
 
 ## Contrato de chaves (frontend ↔ backend)
 
-Mesmas chaves `sortKey` nos dois lados. Tabela de referência:
+Mesmas chaves `name` nos dois lados. Tabela de referência:
 
-| Tela | Coluna → sortKey | SQL na whitelist |
+| Tela | Coluna → name | SQL na whitelist |
 |---|---|---|
 | transactions | Data→`date`, Tipo→`type`, Descrição→`description`, Categoria→`category`, Forma→`payment_method`, Valor→`amount` | `t.date`, `t.type`, `t.description`, `c.name`, `pm.name`, `t.amount` |
 | categories | Cor→`color`, Nome→`name`, Tipo→`type` | `color`, `name`, `type` |
-| payment-methods | Nome→`name`, Tipo→`type` (Fechamento/Vencimento **sem** sortKey) | `name`, `type` |
+| payment-methods | Nome→`name`, Tipo→`type` (Fechamento/Vencimento **sem** name) | `name`, `type` |
 | fixed-bills | Descrição→`description`, Valor→`amount`, Dia→`day`, Início→`start`, Fim→`end` | `b.description`, `b.amount`, `b.day`, `b.start_month`, `b.end_month` |
 | installments | Igual fixed-bills + Parcelas→`installments` | + `b.installments` |
-| loans | Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start` (Fim **sem** sortKey — `end_month` é getter computado, não existe coluna) | `l.description`, `l.type`, `l.principal`, `l.installment`, `l.total_installments`, `l.start_month` |
+| loans | Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start` (Fim **sem** name — `end_month` é getter computado, não existe coluna) | `l.description`, `l.type`, `l.principal`, `l.installment`, `l.total_installments`, `l.start_month` |
 
 ---
 
@@ -587,8 +587,9 @@ Substituir o corpo do loop `for (const c of columns)` (linhas 60-73):
 ```tsx
     for (const c of columns) {
       defs.push({
-        id: c.sortKey ?? c.header,
-        enableSorting: !!c.sortKey,
+        id: c.name ?? c.label,
+        header: () => c.label,
+        enableSorting: !!c.name,
         accessorFn: (row) => (c.sortValue ? c.sortValue(row) : c.render(row)),
         cell: ({ row }) => c.render(row.original),
         meta: { className: c.className },
@@ -633,7 +634,7 @@ Substituir o bloco do header sortable (linhas 110-124):
               )}
 ```
 
-Nota: `header.id` = `c.sortKey` (o `id` da column def do passo 2), então `Sort.id` é exatamente a chave da whitelist do backend.
+Nota: `header.id` = `c.name` (o `id` da column def do passo 2), então `Sort.id` é exatamente a chave da whitelist do backend.
 
 - [ ] **Step 4: Typecheck**
 
@@ -751,7 +752,9 @@ git commit -m "feat: CrudPage dono do estado de sort com refetch no banco"
 
 ---
 
-## Task 10: Frontend — páginas (sortKey + load)
+## Task 10: Frontend — páginas (name + load)
+
+**Nomeação implementada:** `label` (texto do header) e `name` (chave da whitelist).
 
 **Files:**
 - Modify: `app/transactions/page.tsx:19,25-47`
@@ -771,29 +774,29 @@ Substituir o `load` (linha 19):
 
 Adicionar `Sort` ao import de types (linha 14): `import type { Sort, TransactionInput } from "@/lib/types";`
 
-Adicionar `sortKey` nas colunas (linhas 26, 28, 33, 34, 35, 37):
+Adicionar `name` nas colunas (linhas 26, 28, 33, 34, 35, 37):
 
 ```tsx
-            { header: "Data", sortKey: "date", render: (r) => formatDate(r.date) },
+            { label: "Data", name: "date", render: (r) => formatDate(r.date) },
             {
-              header: "Tipo",
-              sortKey: "type",
+              label: "Tipo",
+              name: "type",
               render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
                 : r.type === 1 || r.type === 5 ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
                 : <Badge className="bg-negative text-negative-foreground">Despesa</Badge>,
             },
-            { header: "Descrição", sortKey: "description", render: (r) => r.description },
-            { header: "Categoria", sortKey: "category", render: (r) => r.category_name ?? "—" },
-            { header: "Forma", sortKey: "payment_method", render: (r) => r.payment_method_name ?? "—" },
+            { label: "Descrição", name: "description", render: (r) => r.description },
+            { label: "Categoria", name: "category", render: (r) => r.category_name ?? "—" },
+            { label: "Forma", name: "payment_method", render: (r) => r.payment_method_name ?? "—" },
             {
-              header: "Valor",
-              sortKey: "amount",
+              label: "Valor",
+              name: "amount",
               render: (r) => {
 ```
 
 - [ ] **Step 2: categories**
 
-Adicionar `sortKey` (linhas 14-21): Cor→`color`, Nome→`name`, Tipo→`type`.
+Adicionar `name` (linhas 14-21): Cor→`color`, Nome→`name`, Tipo→`type`.
 
 Substituir o `load` (linha 31):
 
@@ -805,13 +808,13 @@ Substituir o `load` (linha 31):
 
 - [ ] **Step 3: payment-methods**
 
-Adicionar `sortKey` nas colunas Nome→`name`, Tipo→`type`. **Não** adicionar em Fechamento/Vencimento.
+Adicionar `name` nas colunas Nome→`name`, Tipo→`type`. **Não** adicionar em Fechamento/Vencimento.
 
 Substituir o `load` (linha 39): `load: api.listPaymentMethods,` (idem, sem mudança).
 
 - [ ] **Step 4: fixed-bills**
 
-Adicionar `sortKey` (linhas 15-21): Descrição→`description`, Valor→`amount`, Dia→`day`, Início→`start`, Fim→`end`.
+Adicionar `name` (linhas 15-21): Descrição→`description`, Valor→`amount`, Dia→`day`, Início→`start`, Fim→`end`.
 
 Substituir o `load` (linha 30):
 
@@ -821,7 +824,7 @@ Substituir o `load` (linha 30):
 
 - [ ] **Step 5: installments**
 
-Adicionar `sortKey` (linhas 15-22): iguais fixed-bills + Parcelas→`installments`.
+Adicionar `name` (linhas 15-22): iguais fixed-bills + Parcelas→`installments`.
 
 Substituir o `load` (linha 31):
 
@@ -831,7 +834,7 @@ Substituir o `load` (linha 31):
 
 - [ ] **Step 6: loans**
 
-Adicionar `sortKey` (linhas 19-27): Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start`. **Fim sem sortKey** (`end_month` é computado, não tem coluna no banco).
+Adicionar `name` (linhas 19-27): Descrição→`description`, Tipo→`type`, Valor→`principal`, Parcela→`installment`, Parcelas→`installments`, Início→`start`. **Fim sem name** (`end_month` é computado, não tem coluna no banco).
 
 Substituir o `load` (linha 36): `load: api.listLoans,` (sem mudança necessária).
 
@@ -844,7 +847,7 @@ Expected: sem erros
 
 ```bash
 git add app/transactions/page.tsx app/categories/page.tsx app/payment-methods/page.tsx app/fixed-bills/page.tsx app/installments/page.tsx app/loans/page.tsx
-git commit -m "feat: sortKey e load com sort nas páginas"
+git commit -m "feat: name e load com sort nas páginas"
 ```
 
 ---
@@ -878,7 +881,7 @@ Run: `bun tauri dev`
 - Contrato sort (sort_by/sort_dir + whitelist) → Tasks 1-6, 7 ✓
 - `order_clause` com fallback default e anti-injection → Task 1 ✓
 - Whitelists das 6 telas conforme tabela → Tasks 2-6 ✓
-- `Column.sortKey`, header não-clicável sem sortKey → Tasks 8, 10 ✓
+- `Column.name`, header não-clicável sem name → Tasks 8, 10 ✓
 - `load` com sort, CrudPage dono do estado → Task 9 ✓
 - effectiveKey no queryKey + keepPreviousData → Task 9 ✓
 - DataTable corrige accessorKey → accessorFn (bug raiz) → Task 8 ✓
@@ -889,7 +892,7 @@ Run: `bun tauri dev`
 
 **3. Consistência de tipos:**
 - `Sort { id, desc }` (lib/types.ts) usado em api.ts, DataTable, CrudPage ✓
-- Chaves sortKey nos pages = chaves das whitelists Rust ✓
+- Chaves name nos pages = chaves das whitelists Rust ✓
 - `order_clause` assinatura idêntica em todas as chamadas (5 args) ✓
 - Chamadas de teste atualizadas: `list(&conn, None, None, None)` (Task 2), `list(&conn, true, None, None)` (Task 5) ✓
 - `load: api.listCategories` e `load: api.listLoans` continuam válidos (default param) ✓

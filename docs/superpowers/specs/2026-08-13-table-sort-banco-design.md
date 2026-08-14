@@ -51,7 +51,7 @@ Se o `ORDER BY` sozinho não desempatar, manter o critério default como secund�
 
 ## Frontend
 
-- `Column<T>` (components/crud/types.ts:3) ganha `sortKey?: string`. Sem `sortKey` → header não-clicável.
+- `Column<T>` (components/crud/types.ts:3): `label` (texto renderizado no header) e `name?: string` (chave da whitelist). Sem `name` → header não-clicável.
 - `CrudConfig.load` muda para `(sort: Sort | null) => Promise<T[]>` onde `Sort = { id: string; desc: boolean }`. `CrudPage` vira dono do estado de sort.
 - `CrudPage.tsx`:
   - estado `sort: Sort | null`.
@@ -62,9 +62,9 @@ Se o `ORDER BY` sozinho não desempatar, manter o critério default como secund�
 - `DataTable.tsx`:
   - sorting **controlado**: props `sorting`/`onSortingChange`, remove estado interno.
   - corrige raiz: `accessorKey: c.header` → `accessorFn` + `id` (para `getValue()` retornar valor real).
-  - `getCanSort()` = presença de `sortKey`.
+  - `getCanSort()` = presença de `name`; coluna def recebe `header: () => c.label` (senão TanStack renderiza o `id` = `name` cru).
 - `api.ts`: wrappers `list_*` passam `sort_by`/`sort_dir` ao `invoke`.
-- Páginas: cada coluna recebe `sortKey` conforme whitelist do backend; `load` recebe o parâmetro sort.
+- Páginas: cada coluna recebe `name` conforme whitelist do backend; `load` recebe o parâmetro sort.
 
 ## Fluxo de dados
 
