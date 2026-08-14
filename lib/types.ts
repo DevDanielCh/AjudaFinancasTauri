@@ -182,3 +182,8 @@ export interface SettingsInput {
   saldo_inicial_conta: number;
   saldo_inicial_reserva: number;
 }
+
+export interface Sort {
+  id: string;
+  desc: boolean;
+}
