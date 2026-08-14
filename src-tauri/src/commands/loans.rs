@@ -5,18 +5,37 @@ use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
 #[tauri::command]
-pub async fn list_loans(state: State<'_, AppState>) -> Result<Vec<Loan>, String> {
-    with_db(&state, list)
+pub async fn list_loans(
+    state: State<'_, AppState>,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
+) -> Result<Vec<Loan>, String> {
+    with_db(&state, |c| list(c, sort_by.as_deref(), sort_dir.as_deref()))
 }
 
-fn list(conn: &Connection) -> Result<Vec<Loan>, String> {
+fn list(conn: &Connection, sort_by: Option<&str>, sort_dir: Option<&str>) -> Result<Vec<Loan>, String> {
+    let order = domain::order_clause(
+        sort_by,
+        sort_dir,
+        &[
+            ("description", "l.description"),
+            ("type", "l.type"),
+            ("principal", "l.principal"),
+            ("installment", "l.installment"),
+            ("installments", "l.total_installments"),
+            ("start", "l.start_month"),
+            ("end", "l.end_month"),
+        ],
+        "ORDER BY l.start_month DESC, l.id DESC",
+        "l.id DESC",
+    );
     let mut stmt = conn
-        .prepare(
+        .prepare(&format!(
             "SELECT l.id, l.type, l.description, l.principal, l.installment,
                     l.total_installments, l.day, l.start_month, l.payment_method_id, pm.name, l.monthly_rate
              FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id
-             ORDER BY l.start_month DESC, l.id DESC",
-        )
+             {order}"
+        ))
         .map_err(domain::db_err)?;
     let raw = stmt
         .query_map([], |r| {
