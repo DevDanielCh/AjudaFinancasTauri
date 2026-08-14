@@ -170,3 +170,15 @@ export interface ChartData {
   expenses_by_cat: BreakdownRow[];
   expenses_by_pm: BreakdownRow[];
 }
+
+export interface Settings {
+  primeiro_mes: string | null;
+  saldo_inicial_conta: number;
+  saldo_inicial_reserva: number;
+}
+
+export interface SettingsInput {
+  primeiro_mes: string | null;
+  saldo_inicial_conta: number;
+  saldo_inicial_reserva: number;
+}

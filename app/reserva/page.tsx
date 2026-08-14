@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useMonth } from "@/lib/month-context";
 import { api } from "@/lib/api";
-import { queryKeys } from "@/lib/queries";
+import { queryKeys, useSettings } from "@/lib/queries";
 import { reservaSchema } from "@/lib/schemas";
 import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,19 +14,24 @@ import type { ReservaInput, TransactionRow } from "@/lib/types";
 
 export default function ReservaPage() {
   const { month } = useMonth();
+  const { data: settings } = useSettings();
+  const seed = settings?.saldo_inicial_reserva ?? 0;
   const load = useCallback(() => api.listReservaMovements(), []);
 
-  const balance = useCallback((rows: TransactionRow[]) => {
-    const saldo = rows.reduce((acc, r) => acc + (r.type === 5 ? -r.amount : r.amount), 0);
-    return (
-      <Card className="flex items-center justify-between px-4 py-3">
-        <span className="text-sm text-muted-foreground">Saldo da reserva</span>
-        <span className={cn("text-lg font-semibold font-mono", saldo < 0 ? "text-negative" : "text-positive")}>
-          {formatMoney(saldo)}
-        </span>
-      </Card>
-    );
-  }, []);
+  const balance = useCallback(
+    (rows: TransactionRow[]) => {
+      const saldo = seed + rows.reduce((acc, r) => acc + (r.type === 5 ? -r.amount : r.amount), 0);
+      return (
+        <Card className="flex items-center justify-between px-4 py-3">
+          <span className="text-sm text-muted-foreground">Saldo da reserva</span>
+          <span className={cn("text-lg font-semibold font-mono", saldo < 0 ? "text-negative" : "text-positive")}>
+            {formatMoney(saldo)}
+          </span>
+        </Card>
+      );
+    },
+    [seed]
+  );
 
   return (
     <CrudPage

@@ -16,6 +16,7 @@ const TITLES: Record<string, string> = {
   "/loans": "Financiamentos",
   "/categories": "Categorias",
   "/payment-methods": "Formas de Pagamento",
+  "/configuracoes": "Configurações",
 };
 
 export function MobileHeader() {

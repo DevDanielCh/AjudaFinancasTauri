@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, Banknote, CalendarClock, CreditCard, Ellipsis,
-  LayoutDashboard, PiggyBank, Receipt, Tags,
+  LayoutDashboard, PiggyBank, Receipt, Settings, Tags,
 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -21,6 +21,7 @@ const MORE = [
   { href: "/categories", label: "Categorias", icon: Tags },
   { href: "/fixed-bills", label: "Contas Fixas", icon: Receipt },
   { href: "/loans", label: "Financiamentos", icon: Banknote },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ] as const;
 
 export function BottomBar() {

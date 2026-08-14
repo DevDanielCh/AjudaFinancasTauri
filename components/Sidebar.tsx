@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, CalendarClock, CreditCard, Landmark,
-  LayoutDashboard, Moon, PiggyBank, RefreshCw, Sun, Tags,
+  LayoutDashboard, Moon, PiggyBank, RefreshCw, Settings, Sun, Tags,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -22,6 +22,7 @@ const NAV = [
   { href: "/fixed-bills", label: "Contas Fixas", icon: RefreshCw },
   { href: "/installments", label: "Parcelamentos", icon: CalendarClock },
   { href: "/loans", label: "Financiamentos", icon: Landmark },
+  { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function Sidebar() {
