@@ -16,6 +16,7 @@ pub fn migrations() -> Migrations<'static> {
         M::up(include_str!("../migrations/005_loan_rate.sql")),
         M::up(include_str!("../migrations/006_card_debit.sql")),
         M::up(include_str!("../migrations/007_fixed_bill_end_month.sql")),
+        M::up(include_str!("../migrations/008_settings.sql")),
     ])
 }
 

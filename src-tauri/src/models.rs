@@ -338,3 +338,40 @@ pub struct ChartData {
     pub expenses_by_cat: Vec<BreakdownRow>,
     pub expenses_by_pm: Vec<BreakdownRow>,
 }
+
+// ---- Configurações ----
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Settings {
+    #[serde(default)]
+    pub primeiro_mes: Option<String>,
+    #[serde(default)]
+    pub saldo_inicial_conta: i64,
+    #[serde(default)]
+    pub saldo_inicial_reserva: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SettingsInput {
+    #[serde(default)]
+    pub primeiro_mes: Option<String>,
+    #[serde(default)]
+    pub saldo_inicial_conta: i64,
+    #[serde(default)]
+    pub saldo_inicial_reserva: i64,
+}
+
+impl SettingsInput {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(pm) = &self.primeiro_mes {
+            month_str_to_date(pm)?;
+            if pm > &chrono::Local::now().format("%Y-%m").to_string() {
+                return Err("primeiro mês não pode ser no futuro".into());
+            }
+        }
+        if self.saldo_inicial_conta < 0 || self.saldo_inicial_reserva < 0 {
+            return Err("saldos não podem ser negativos".into());
+        }
+        Ok(())
+    }
+}
