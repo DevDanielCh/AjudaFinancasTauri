@@ -5,13 +5,28 @@ use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
 #[tauri::command]
-pub async fn list_categories(state: State<'_, AppState>) -> Result<Vec<Category>, String> {
-    with_db(&state, list)
+pub async fn list_categories(
+    state: State<'_, AppState>,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
+) -> Result<Vec<Category>, String> {
+    with_db(&state, |c| list(c, sort_by.as_deref(), sort_dir.as_deref()))
 }
 
-fn list(conn: &Connection) -> Result<Vec<Category>, String> {
+fn list(
+    conn: &Connection,
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+) -> Result<Vec<Category>, String> {
+    let order = domain::order_clause(
+        sort_by,
+        sort_dir,
+        &[("name", "name"), ("type", "type"), ("color", "color")],
+        "ORDER BY name",
+        "id DESC",
+    );
     let mut stmt = conn
-        .prepare("SELECT id, name, type, color, icon FROM categories ORDER BY name")
+        .prepare(&format!("SELECT id, name, type, color, icon FROM categories {order}"))
         .map_err(domain::db_err)?;
     let rows = stmt
         .query_map([], |r| {
