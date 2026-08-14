@@ -138,6 +138,27 @@ pub fn db_err(e: impl std::fmt::Display) -> String {
     format!("erro de banco de dados: {e}")
 }
 
+pub fn order_clause(
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+    whitelist: &[(&str, &str)],
+    default: &str,
+    tiebreak: &str,
+) -> String {
+    let Some(key) = sort_by else {
+        return default.to_string();
+    };
+    let Some(expr) = whitelist.iter().find(|(k, _)| *k == key).map(|(_, e)| *e) else {
+        return default.to_string();
+    };
+    let dir = match sort_dir.map(|d| d.to_ascii_lowercase()).as_deref() {
+        Some("asc") => "ASC",
+        Some("desc") => "DESC",
+        _ => return default.to_string(),
+    };
+    format!("ORDER BY {expr} {dir}, {tiebreak}")
+}
+
 pub fn month_income(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
     let v: i64 = conn
         .query_row(
@@ -945,6 +966,27 @@ mod tests {
         conn.execute_batch(include_str!("../migrations/008_settings.sql"))
             .unwrap();
         conn
+    }
+
+    #[test]
+    fn order_clause_chave_valida() {
+        let wl = &[("amount", "t.amount"), ("date", "t.date")];
+        assert_eq!(
+            order_clause(Some("amount"), Some("asc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
+            "ORDER BY t.amount ASC, t.id DESC"
+        );
+        assert_eq!(
+            order_clause(Some("amount"), Some("desc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
+            "ORDER BY t.amount DESC, t.id DESC"
+        );
+    }
+
+    #[test]
+    fn order_clause_fallback_padrao() {
+        let wl = &[("amount", "t.amount")];
+        assert_eq!(order_clause(None, None, wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
+        assert_eq!(order_clause(Some("unknown"), Some("asc"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
+        assert_eq!(order_clause(Some("amount"), Some("bogus"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
     }
 
     fn add_pm(conn: &Connection, name: &str, ty: i64, meta: Option<&str>) -> i64 {
