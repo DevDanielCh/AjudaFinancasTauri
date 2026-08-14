@@ -28,7 +28,7 @@ fn add_tx(c: &Connection, desc: &str, amount: i64, ty: i64, date: &str, pm_id: O
 }
 
 #[test]
-fn monthly_series_acumula_saldo_desde_zero() {
+fn monthly_series_mostra_ano_inteiro_acumulando_saldo_desde_zero() {
     let c = conn();
     let pix = add_pm(&c, "PIX");
     add_tx(&c, "salario", 100000, 1, "2026-04-05", None);
@@ -36,18 +36,19 @@ fn monthly_series_acumula_saldo_desde_zero() {
     add_tx(&c, "freela", 50000, 1, "2026-05-05", None);
     add_tx(&c, "contas", 30000, 2, "2026-05-10", Some(pix));
 
-    let series = domain::monthly_series(&c, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap(), 3).unwrap();
-    assert_eq!(series.len(), 3);
-    assert_eq!(series[0].month, "2026-03");
+    let series = domain::monthly_series(&c, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+    assert_eq!(series.len(), 12, "todos os meses do ano");
+    assert_eq!(series[0].month, "2026-01");
     assert_eq!(series[0].income, 0);
     assert_eq!(series[0].expenses, 0);
     assert_eq!(series[0].balance, 0);
-    assert_eq!(series[1].month, "2026-04");
-    assert_eq!(series[1].income, 100000);
-    assert_eq!(series[1].expenses, 40000);
-    assert_eq!(series[1].balance, 60000);
-    assert_eq!(series[2].month, "2026-05");
-    assert_eq!(series[2].balance, 80000);
+    assert_eq!(series[3].month, "2026-04");
+    assert_eq!(series[3].income, 100000);
+    assert_eq!(series[3].expenses, 40000);
+    assert_eq!(series[3].balance, 60000);
+    assert_eq!(series[4].month, "2026-05");
+    assert_eq!(series[4].balance, 80000);
+    assert_eq!(series[11].month, "2026-12");
 }
 
 #[test]

@@ -11,7 +11,7 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<ChartData, String> 
     domain::refresh_card_bills(conn)?;
     let next = ref_month.checked_add_months(Months::new(1)).unwrap();
     Ok(ChartData {
-        monthly: domain::monthly_series(conn, ref_month, 12)?,
+        monthly: domain::monthly_series(conn, ref_month)?,
         expenses_by_cat: domain::expenses_by_category(conn, ref_month, next)?,
         expenses_by_pm: domain::expenses_by_pm(conn, ref_month)?,
     })

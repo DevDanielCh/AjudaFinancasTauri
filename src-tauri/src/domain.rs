@@ -532,27 +532,21 @@ pub fn account_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, S
     Ok(bal)
 }
 
-/// Série terminando em `ref_month`. Com `primeiro_mes` configurado, vai do piso
-/// até o mês (posição real da conta); sem config, janela de `months` meses
-/// acumulando saldo desde zero (comportamento atual).
+/// Série com todos os meses do ano de `ref_month`. Com saldo inicial
+/// configurado, cada ponto usa a posição real da conta; sem config, o saldo
+/// acumula desde zero no início do ano.
 pub fn monthly_series(
     conn: &Connection,
     ref_month: NaiveDate,
-    months: u32,
 ) -> Result<Vec<crate::models::MonthlyPoint>, String> {
     let s = get_settings(conn)?;
     let with_piso = s.primeiro_mes.is_some();
-    let start = match &s.primeiro_mes {
-        Some(pm) => parse_month(pm)?,
-        None => ref_month.checked_sub_months(Months::new(months - 1)).unwrap(),
-    };
-    if start > ref_month {
-        return Ok(Vec::new());
-    }
-    let mut out = Vec::new();
+    let start = ref_month.with_month(1).unwrap();
+    let end = ref_month.with_month(12).unwrap();
+    let mut out = Vec::with_capacity(12);
     let mut acc = 0;
     let mut m = start;
-    while m <= ref_month {
+    while m <= end {
         let next = m.checked_add_months(Months::new(1)).unwrap();
         let income = month_income(conn, m, next)?;
         let expenses = month_expenses(conn, m)?;
@@ -1393,8 +1387,9 @@ mod tests {
         )
         .unwrap();
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        let points = monthly_series(&conn, jun, 1).unwrap();
-        assert_eq!(points[0].month, "2026-06");
-        assert_eq!(points[0].reserva, 50000);
+        let points = monthly_series(&conn, jun).unwrap();
+        let jun_pt = points.iter().find(|p| p.month == "2026-06").unwrap();
+        assert_eq!(jun_pt.month, "2026-06");
+        assert_eq!(jun_pt.reserva, 50000);
     }
 }

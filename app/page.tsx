@@ -93,7 +93,7 @@ export default function DashboardPage() {
               <StatCard label="Saldo acumulado" value={formatMoney(data.balance)}
                 positive={data.balance >= 0} />
             </div>
-            {chartQuery.data && <ChartSection data={chartQuery.data} />}
+            {chartQuery.data && <ChartSection data={chartQuery.data} month={month} />}
           </>
         )}
       </div>

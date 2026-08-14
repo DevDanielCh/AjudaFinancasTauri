@@ -20,7 +20,7 @@ const DONUT_COLORS = [
   "#84cc16", "#f43f5e", "#06b6d4", "#8b5cf6",
 ];
 
-export function ChartSection({ data }: { data: ChartData }) {
+export function ChartSection({ data, month }: { data: ChartData; month: string }) {
   const folded = React.useMemo(() => {
     const f = fold(data.monthly, {
       fields: ["income", "expenses", "balance", "reserva"] as const,
@@ -28,6 +28,8 @@ export function ChartSection({ data }: { data: ChartData }) {
     });
     return f.map((r) => ({ ...r, series: TREND_LABEL[r.series as keyof typeof TREND_LABEL] }));
   }, [data.monthly]);
+
+  const selectedIncome = data.monthly.find((p) => p.month === month)?.income ?? 0;
 
   const trend = React.useMemo(
     () =>
@@ -74,8 +76,8 @@ export function ChartSection({ data }: { data: ChartData }) {
           <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas, saldo e reserva" />
         </CardContent>
       </Card>
-      <DonutCard title="Despesas por categoria" rows={data.expenses_by_cat} income={data.monthly[data.monthly.length - 1]?.income ?? 0} />
-      <DonutCard title="Despesas por forma de pagamento" rows={data.expenses_by_pm} income={data.monthly[data.monthly.length - 1]?.income ?? 0} />
+      <DonutCard title="Despesas por categoria" rows={data.expenses_by_cat} income={selectedIncome} />
+      <DonutCard title="Despesas por forma de pagamento" rows={data.expenses_by_pm} income={selectedIncome} />
     </div>
   );
 }

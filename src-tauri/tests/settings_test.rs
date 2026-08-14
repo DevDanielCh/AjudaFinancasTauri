@@ -79,7 +79,7 @@ fn account_balance_at_soma_fluxos_do_piso() {
 }
 
 #[test]
-fn monthly_series_inicia_no_primeiro_mes_e_usa_posicao() {
+fn monthly_series_mostra_ano_inteiro_e_usa_posicao_com_piso() {
     let conn = test_db();
     conn.execute(
         "INSERT INTO transactions (description, amount, type, date) VALUES ('aporte', 50000, 4, '2026-06-10')",
@@ -88,20 +88,22 @@ fn monthly_series_inicia_no_primeiro_mes_e_usa_posicao() {
     .unwrap();
     set(&conn, Some("2026-06"), 0, 10000);
     let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-    let pts = domain::monthly_series(&conn, jun, 12).unwrap();
-    assert_eq!(pts.len(), 1, "série começa no piso, ignora months");
-    assert_eq!(pts[0].month, "2026-06");
-    assert_eq!(pts[0].reserva, 60000, "saldo inicial reserva 10000 + aporte 50000");
+    let pts = domain::monthly_series(&conn, jun).unwrap();
+    assert_eq!(pts.len(), 12, "ano inteiro mesmo com piso");
+    assert_eq!(pts[0].month, "2026-01");
+    assert_eq!(pts[0].reserva, 10000, "antes do piso: só o saldo inicial");
+    let jun_pt = pts.iter().find(|p| p.month == "2026-06").unwrap();
+    assert_eq!(jun_pt.reserva, 60000, "saldo inicial reserva 10000 + aporte 50000");
 }
 
 #[test]
-fn monthly_series_sem_config_mantem_janela() {
+fn monthly_series_sem_config_mostra_ano_inteiro() {
     let conn = test_db();
     let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-    let pts = domain::monthly_series(&conn, jun, 3).unwrap();
-    assert_eq!(pts.len(), 3);
-    assert_eq!(pts[0].month, "2026-04");
-    assert_eq!(pts[2].month, "2026-06");
+    let pts = domain::monthly_series(&conn, jun).unwrap();
+    assert_eq!(pts.len(), 12);
+    assert_eq!(pts[0].month, "2026-01");
+    assert_eq!(pts[11].month, "2026-12");
 }
 
 #[test]
