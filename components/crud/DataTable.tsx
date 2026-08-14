@@ -62,8 +62,9 @@ export function DataTable<T extends { id: number }>({
     ];
     for (const c of columns) {
       defs.push({
-        id: c.sortKey ?? c.header,
-        enableSorting: !!c.sortKey,
+        id: c.name ?? c.label,
+        header: () => c.label,
+        enableSorting: !!c.name,
         accessorFn: (row) => (c.sortValue ? c.sortValue(row) : c.render(row)),
         cell: ({ row }) => c.render(row.original),
         meta: { className: c.className },

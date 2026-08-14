@@ -23,20 +23,20 @@ export default function TransactionsPage() {
         config={{
           title: "Transações",
           columns: [
-            { header: "Data", sortKey: "date", render: (r) => formatDate(r.date) },
+            { label: "Data", name: "date", render: (r) => formatDate(r.date) },
             {
-              header: "Tipo",
-              sortKey: "type",
+              label: "Tipo",
+              name: "type",
               render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
                 : r.type === 1 || r.type === 5 ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
                 : <Badge className="bg-negative text-negative-foreground">Despesa</Badge>,
             },
-            { header: "Descrição", sortKey: "description", render: (r) => r.description },
-            { header: "Categoria", sortKey: "category", render: (r) => r.category_name ?? "—" },
-            { header: "Forma", sortKey: "payment_method", render: (r) => r.payment_method_name ?? "—" },
+            { label: "Descrição", name: "description", render: (r) => r.description },
+            { label: "Categoria", name: "category", render: (r) => r.category_name ?? "—" },
+            { label: "Forma", name: "payment_method", render: (r) => r.payment_method_name ?? "—" },
             {
-              header: "Valor",
-              sortKey: "amount",
+              label: "Valor",
+              name: "amount",
               render: (r) => {
                 const positive = r.type === 1 || r.type === 5;
                 return (

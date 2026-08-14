@@ -39,17 +39,17 @@ export default function ReservaPage() {
         title: "Reservas",
         description: "Investimentos e reserva de emergência",
         columns: [
-          { header: "Data", render: (r) => formatDate(r.date) },
+          { label: "Data", render: (r) => formatDate(r.date) },
           {
-            header: "Tipo",
+            label: "Tipo",
             render: (r) =>
               r.type === 5
                 ? <Badge className="bg-negative text-negative-foreground">Remoção</Badge>
                 : <Badge className="bg-positive text-positive-foreground">Adição</Badge>,
           },
-          { header: "Descrição", render: (r) => r.description },
+          { label: "Descrição", render: (r) => r.description },
           {
-            header: "Valor",
+            label: "Valor",
             render: (r) => {
               const positive = r.type === 4;
               return (

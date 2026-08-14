@@ -13,12 +13,12 @@ export default function CategoriesPage() {
         title: "Categorias",
         columns: [
           {
-            header: "Cor",
-            sortKey: "color",
+            label: "Cor",
+            name: "color",
             render: (r) => <span className="inline-block h-4 w-4 rounded-full border" style={{ backgroundColor: r.color }} />,
           },
-          { header: "Nome", sortKey: "name", render: (r) => r.name },
-          { header: "Tipo", sortKey: "type", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
+          { label: "Nome", name: "name", render: (r) => r.name },
+          { label: "Tipo", name: "type", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
         ],
         mobileCorners: {
           topLeft: (r) => (

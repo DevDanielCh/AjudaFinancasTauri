@@ -13,11 +13,11 @@ export default function FixedBillsPage() {
       config={{
         title: "Contas Fixas",
         columns: [
-          { header: "Descrição", sortKey: "description", render: (r) => r.description },
-          { header: "Valor", sortKey: "amount", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
-          { header: "Dia", sortKey: "day", render: (r) => r.day },
-          { header: "Início", sortKey: "start", render: (r) => formatMonth(r.start_month) },
-          { header: "Fim", sortKey: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
+          { label: "Descrição", name: "description", render: (r) => r.description },
+          { label: "Valor", name: "amount", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
+          { label: "Dia", name: "day", render: (r) => r.day },
+          { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
+          { label: "Fim", name: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
         ],
         mobileCorners: {
           topLeft: (r) => r.description,

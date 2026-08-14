@@ -13,12 +13,12 @@ export default function InstallmentsPage() {
       config={{
         title: "Parcelamentos",
         columns: [
-          { header: "Descrição", sortKey: "description", render: (r) => r.description },
-          { header: "Valor", sortKey: "amount", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
-          { header: "Dia", sortKey: "day", render: (r) => r.day },
-          { header: "Início", sortKey: "start", render: (r) => formatMonth(r.start_month) },
-          { header: "Fim", sortKey: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
-          { header: "Parcelas", sortKey: "installments", render: (r) => r.installments ?? "—" },
+          { label: "Descrição", name: "description", render: (r) => r.description },
+          { label: "Valor", name: "amount", render: (r) => <span className="font-mono">{formatMoney(r.amount)}</span> },
+          { label: "Dia", name: "day", render: (r) => r.day },
+          { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
+          { label: "Fim", name: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
+          { label: "Parcelas", name: "installments", render: (r) => r.installments ?? "—" },
         ],
         mobileCorners: {
           topLeft: (r) => r.description,

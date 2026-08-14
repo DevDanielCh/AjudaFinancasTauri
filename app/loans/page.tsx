@@ -17,13 +17,13 @@ export default function LoansPage() {
         config={{
           title: "Financiamentos/Empréstimos",
           columns: [
-            { header: "Descrição", sortKey: "description", render: (r) => r.description },
-            { header: "Tipo", sortKey: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
-            { header: "Valor", sortKey: "principal", render: (r) => <span className="font-mono">{formatMoney(r.principal)}</span> },
-            { header: "Parcela", sortKey: "installment", render: (r) => <span className="font-mono">{formatMoney(r.installment)}</span> },
-            { header: "Parcelas", sortKey: "installments", render: (r) => `${r.paid_count}/${r.total_installments}` },
-            { header: "Início", sortKey: "start", render: (r) => formatMonth(r.start_month) },
-            { header: "Fim", render: (r) => formatMonth(r.end_month) },
+            { label: "Descrição", name: "description", render: (r) => r.description },
+            { label: "Tipo", name: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
+            { label: "Valor", name: "principal", render: (r) => <span className="font-mono">{formatMoney(r.principal)}</span> },
+            { label: "Parcela", name: "installment", render: (r) => <span className="font-mono">{formatMoney(r.installment)}</span> },
+            { label: "Parcelas", name: "installments", render: (r) => `${r.paid_count}/${r.total_installments}` },
+            { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
+            { label: "Fim", render: (r) => formatMonth(r.end_month) },
           ],
           mobileCorners: {
             topLeft: (r) => r.description,

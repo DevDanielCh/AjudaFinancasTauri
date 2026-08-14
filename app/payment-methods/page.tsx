@@ -12,10 +12,10 @@ export default function PaymentMethodsPage() {
       config={{
         title: "Formas de Pagamento",
         columns: [
-          { header: "Nome", sortKey: "name", render: (r) => r.name },
-          { header: "Tipo", sortKey: "type", render: (r) => (r.type === 2 ? "Cartão" : "Padrão") },
+          { label: "Nome", name: "name", render: (r) => r.name },
+          { label: "Tipo", name: "type", render: (r) => (r.type === 2 ? "Cartão" : "Padrão") },
           {
-            header: "Fechamento/Vencimento",
+            label: "Fechamento/Vencimento",
             render: (r) => {
               if (r.type !== 2) return "—";
               try {

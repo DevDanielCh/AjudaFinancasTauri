@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
 export interface Column<T> {
-  header: string;
-  sortKey?: string;
+  label: string;
+  name?: string;
   render: (row: T) => ReactNode;
   className?: string;
   sortValue?: (row: T) => string | number;
