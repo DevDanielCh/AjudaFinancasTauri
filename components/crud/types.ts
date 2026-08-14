@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 export interface Column<T> {
   header: string;
+  sortKey?: string;
   render: (row: T) => ReactNode;
   className?: string;
   sortValue?: (row: T) => string | number;

@@ -17,6 +17,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import type { Sort } from "@/lib/types";
 import type { Column } from "./types";
 
 const FEATURES = tableFeatures({
@@ -25,7 +26,7 @@ const FEATURES = tableFeatures({
 });
 
 export function DataTable<T extends { id: number }>({
-  columns, rows, selected, onToggle, onRowDoubleClick, loading, rowClass,
+  columns, rows, selected, onToggle, onRowDoubleClick, loading, rowClass, sort, onSort,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -34,6 +35,8 @@ export function DataTable<T extends { id: number }>({
   onRowDoubleClick?: (row: T) => void;
   loading?: boolean;
   rowClass?: (row: T) => string;
+  sort?: Sort | null;
+  onSort: (sort: Sort | null) => void;
 }) {
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
@@ -59,14 +62,9 @@ export function DataTable<T extends { id: number }>({
     ];
     for (const c of columns) {
       defs.push({
-        id: c.header,
-        accessorKey: c.header,
-        sortFn: (rowA, rowB) => {
-          const a = c.sortValue ? c.sortValue(rowA.original) : c.render(rowA.original);
-          const b = c.sortValue ? c.sortValue(rowB.original) : c.render(rowB.original);
-          if (typeof a === "number" && typeof b === "number") return a - b;
-          return String(a).toLowerCase().localeCompare(String(b).toLowerCase(), "pt-BR");
-        },
+        id: c.sortKey ?? c.header,
+        enableSorting: !!c.sortKey,
+        accessorFn: (row) => (c.sortValue ? c.sortValue(row) : c.render(row)),
         cell: ({ row }) => c.render(row.original),
         meta: { className: c.className },
       });
@@ -111,13 +109,23 @@ export function DataTable<T extends { id: number }>({
                 <button
                   type="button"
                   className="inline-flex items-center gap-1"
-                  onClick={() => header.column.toggleSorting()}
+                  onClick={() => {
+                    const cur = sort;
+                    const next = !cur || cur.id !== header.id
+                      ? { id: header.id, desc: false }
+                      : cur.desc
+                        ? null
+                        : { id: header.id, desc: true };
+                    onSort(next);
+                  }}
                 >
                   <table.FlexRender header={header} />
-                  {header.column.getIsSorted() === "asc" ? (
-                    <ArrowUp className="size-3.5" />
-                  ) : header.column.getIsSorted() === "desc" ? (
-                    <ArrowDown className="size-3.5" />
+                  {sort?.id === header.id ? (
+                    sort.desc ? (
+                      <ArrowDown className="size-3.5" />
+                    ) : (
+                      <ArrowUp className="size-3.5" />
+                    )
                   ) : (
                     <ArrowUpDown className="size-3.5 opacity-40" />
                   )}
