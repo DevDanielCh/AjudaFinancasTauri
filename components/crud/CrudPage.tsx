@@ -70,7 +70,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const pageSize = config.pageSize ?? 25;
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const [sort, setSort] = useState<Sort | null>(null);
-  const effectiveKey = [...config.queryKey, sort];
+  const effectiveKey = useMemo(() => [...config.queryKey, sort], [config.queryKey, sort]);
 
   const rowsQuery = useQuery({
     queryKey: effectiveKey,
