@@ -1,7 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import type { ZodType } from "zod";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { CardList } from "./CardList";
 import { CardOptionsSheet } from "./CardOptionsSheet";
 import { FormDialog } from "./FormDialog";
 import type { Column, MobileCorners } from "./types";
+import type { Sort } from "@/lib/types";
 import type { CrudFormApi } from "@/lib/forms";
 import { msg } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   columns: Column<T>[];
   pageSize?: number;
   keepOpen?: boolean;
-  load: () => Promise<T[]>;
+  load: (sort: Sort | null) => Promise<T[]>;
   create: (data: F) => Promise<void>;
   update: (id: number, data: F) => Promise<void>;
   remove: (ids: number[]) => Promise<void>;
@@ -68,21 +69,24 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
 
   const pageSize = config.pageSize ?? 25;
   const [visibleCount, setVisibleCount] = useState(pageSize);
+  const [sort, setSort] = useState<Sort | null>(null);
+  const effectiveKey = [...config.queryKey, sort];
 
   const rowsQuery = useQuery({
-    queryKey: config.queryKey,
-    queryFn: config.load,
+    queryKey: effectiveKey,
+    queryFn: () => config.load(sort),
     staleTime: 15_000,
+    placeholderData: keepPreviousData,
   });
   const rows = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
   const loading = rowsQuery.isFetching;
 
   const invalidate = useCallback(() => {
-    void client.invalidateQueries({ queryKey: config.queryKey, exact: true });
+    void client.invalidateQueries({ queryKey: effectiveKey, exact: true });
     for (const key of config.invalidate ?? []) {
       void client.invalidateQueries({ queryKey: key });
     }
-  }, [client, config.queryKey, config.invalidate]);
+  }, [client, effectiveKey, config.invalidate]);
 
   const refresh = useCallback(async () => {
     setQuery("");
@@ -126,6 +130,11 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
       else next.add(id);
       return next;
     });
+
+  const handleSort = (next: Sort | null) => {
+    setSort(next);
+    setVisibleCount(pageSize);
+  };
 
   const askDelete = () => {
     const ids = [...selected].filter((id) => {
@@ -248,6 +257,8 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
               onRowDoubleClick={config.onRowDoubleClick}
               loading={loading}
               rowClass={config.rowClass}
+              sort={sort}
+              onSort={handleSort}
             />
           )}
           {hasMore && <div ref={sentinelRef} className="h-2" />}
