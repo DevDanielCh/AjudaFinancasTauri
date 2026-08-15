@@ -1,5 +1,6 @@
 "use client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { RefreshCw } from "lucide-react";
@@ -93,6 +94,9 @@ export default function DashboardPage() {
               <StatCard label="Saldo acumulado" value={formatMoney(data.balance)}
                 positive={data.balance >= 0} />
             </div>
+            {data.meta_investimento > 0 && (
+              <MetaCard pct={data.meta_investimento} income={data.income} aportes={data.aportes} />
+            )}
             {chartQuery.data && <ChartSection data={chartQuery.data} month={month} />}
           </>
         )}
@@ -110,6 +114,31 @@ function StatCard({ label, value, positive, negative, children }: { label: strin
       <CardContent>
         <div className={cn("text-2xl font-bold tabular-nums font-mono", cls)}>{value}</div>
         {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+function MetaCard({ pct, income, aportes }: { pct: number; income: number; aportes: number }) {
+  const metaValor = Math.round((income * pct) / 100);
+  const atingiu = aportes >= metaValor;
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center justify-between gap-2 text-sm font-medium">
+          Meta de investimento
+          <Badge className={atingiu ? "" : "bg-negative text-negative-foreground"}>
+            {atingiu ? "Meta batida" : "Não bateu"}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-1">
+        <div className={cn("text-2xl font-bold tabular-nums font-mono", atingiu ? "text-positive" : "text-negative")}>
+          {formatMoney(metaValor)}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {pct}% da renda · aportado {formatMoney(aportes)} no mês
+        </p>
       </CardContent>
     </Card>
   );
