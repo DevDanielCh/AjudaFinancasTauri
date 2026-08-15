@@ -16,6 +16,7 @@ fn set(conn: &Connection, primeiro_mes: Option<&str>, conta: i64, reserva: i64) 
             primeiro_mes: primeiro_mes.map(String::from),
             saldo_inicial_conta: conta,
             saldo_inicial_reserva: reserva,
+            meta_investimento: 0.0,
         },
     )
     .unwrap();
@@ -112,6 +113,7 @@ fn update_settings_valida() {
         primeiro_mes: Some("garbage".into()),
         saldo_inicial_conta: 0,
         saldo_inicial_reserva: 0,
+        meta_investimento: 0.0,
     }
     .validate()
     .is_err());
@@ -119,6 +121,7 @@ fn update_settings_valida() {
         primeiro_mes: Some("2099-01".into()),
         saldo_inicial_conta: 0,
         saldo_inicial_reserva: 0,
+        meta_investimento: 0.0,
     }
     .validate()
     .is_err());
@@ -126,6 +129,7 @@ fn update_settings_valida() {
         primeiro_mes: None,
         saldo_inicial_conta: -1,
         saldo_inicial_reserva: 0,
+        meta_investimento: 0.0,
     }
     .validate()
     .is_err());
@@ -133,6 +137,7 @@ fn update_settings_valida() {
         primeiro_mes: None,
         saldo_inicial_conta: 0,
         saldo_inicial_reserva: 10,
+        meta_investimento: 0.0,
     }
     .validate()
     .is_ok());

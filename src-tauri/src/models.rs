@@ -349,6 +349,8 @@ pub struct Settings {
     pub saldo_inicial_conta: i64,
     #[serde(default)]
     pub saldo_inicial_reserva: i64,
+    #[serde(default)]
+    pub meta_investimento: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -359,6 +361,8 @@ pub struct SettingsInput {
     pub saldo_inicial_conta: i64,
     #[serde(default)]
     pub saldo_inicial_reserva: i64,
+    #[serde(default)]
+    pub meta_investimento: f64,
 }
 
 impl SettingsInput {
@@ -371,6 +375,9 @@ impl SettingsInput {
         }
         if self.saldo_inicial_conta < 0 || self.saldo_inicial_reserva < 0 {
             return Err("saldos não podem ser negativos".into());
+        }
+        if !(0.0..=100.0).contains(&self.meta_investimento) {
+            return Err("meta de investimento deve ser entre 0 e 100".into());
         }
         Ok(())
     }

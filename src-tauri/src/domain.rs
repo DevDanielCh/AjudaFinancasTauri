@@ -84,6 +84,7 @@ pub fn get_settings(conn: &Connection) -> Result<crate::models::Settings, String
             "primeiro_mes" => s.primeiro_mes = Some(v),
             "saldo_inicial_conta" => s.saldo_inicial_conta = v.parse().unwrap_or(0),
             "saldo_inicial_reserva" => s.saldo_inicial_reserva = v.parse().unwrap_or(0),
+            "meta_investimento" => s.meta_investimento = v.parse().unwrap_or(0.0),
             _ => {}
         }
     }
@@ -105,6 +106,7 @@ pub fn set_settings(conn: &Connection, input: &crate::models::SettingsInput) -> 
     for (key, v) in [
         ("saldo_inicial_conta", input.saldo_inicial_conta.to_string()),
         ("saldo_inicial_reserva", input.saldo_inicial_reserva.to_string()),
+        ("meta_investimento", input.meta_investimento.to_string()),
     ] {
         conn.execute(
             "INSERT INTO settings (key, value) VALUES (?1, ?2)
@@ -1438,5 +1440,28 @@ mod tests {
         let jun_pt = points.iter().find(|p| p.month == "2026-06").unwrap();
         assert_eq!(jun_pt.month, "2026-06");
         assert_eq!(jun_pt.reserva, 50000);
+    }
+
+    #[test]
+    fn settings_roundtrip_inclui_meta_investimento() {
+        let conn = test_db();
+        let input = crate::models::SettingsInput {
+            primeiro_mes: None,
+            saldo_inicial_conta: 0,
+            saldo_inicial_reserva: 0,
+            meta_investimento: 12.5,
+        };
+        assert!(input.validate().is_ok());
+        set_settings(&conn, &input).unwrap();
+        let s = get_settings(&conn).unwrap();
+        assert_eq!(s.meta_investimento, 12.5);
+
+        let inv = crate::models::SettingsInput {
+            primeiro_mes: None,
+            saldo_inicial_conta: 0,
+            saldo_inicial_reserva: 0,
+            meta_investimento: 150.0,
+        };
+        assert!(inv.validate().is_err(), "acima de 100 deve falhar");
     }
 }
