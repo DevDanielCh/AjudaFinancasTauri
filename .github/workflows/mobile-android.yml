@@ -62,6 +62,9 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Initialize Android project
+        run: bun tauri android init
+
       - name: Build Android APK
         run: bun tauri android build --apk
 
