@@ -28,6 +28,7 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
 
     let next = ref_month.checked_add_months(Months::new(1)).unwrap();
     let settings = domain::get_settings(conn)?;
+    let aportes = domain::month_investments(conn, ref_month, next)?;
     let (balance, prev_balance) = if settings.primeiro_mes.is_some() {
         (
             domain::account_balance_at(conn, next)?,
@@ -48,6 +49,8 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
         prev_balance,
         income_by_cat,
         expenses_by_pm,
+        meta_investimento: settings.meta_investimento,
+        aportes,
     })
 }
 

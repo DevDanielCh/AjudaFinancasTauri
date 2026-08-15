@@ -320,6 +320,10 @@ pub struct DashboardData {
     pub prev_balance: i64,
     pub income_by_cat: Vec<BreakdownRow>,
     pub expenses_by_pm: Vec<BreakdownRow>,
+    /// Percentual configurado das receitas destinado a investimentos (0–100).
+    pub meta_investimento: f64,
+    /// Aportes à reserva (type 4) no mês.
+    pub aportes: i64,
 }
 
 #[derive(Debug, Clone, Serialize)]
