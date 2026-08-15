@@ -1,6 +1,7 @@
 "use client";
 import { useCallback } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { MouseEvent } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import type { ZodType } from "zod";
@@ -11,6 +12,7 @@ import { ConfirmDialog } from "@/components/confirm";
 import { DataTable } from "./DataTable";
 import { CardList } from "./CardList";
 import { CardOptionsSheet } from "./CardOptionsSheet";
+import { RowActionsMenu } from "./RowActionsMenu";
 import { FormDialog } from "./FormDialog";
 import type { Column, MobileCorners } from "./types";
 import type { Sort } from "@/lib/types";
@@ -65,6 +67,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const [confirm, setConfirm] = useState<{ message: string; ids: number[] } | null>(null);
   const [query, setQuery] = useState("");
   const [optionsRow, setOptionsRow] = useState<T | null>(null);
+  const [menu, setMenu] = useState<{ row: T; x: number; y: number } | null>(null);
   const isMobile = useIsMobile();
 
   const pageSize = config.pageSize ?? 25;
@@ -134,6 +137,12 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const handleSort = (next: Sort | null) => {
     setSort(next);
     setVisibleCount(pageSize);
+  };
+
+  const handleRowContextMenu = (row: T, e: MouseEvent) => {
+    if (!selected.has(row.id)) setSelected(new Set([row.id]));
+    const canEdit = !config.protected?.(row);
+    if (config.onView || canEdit) setMenu({ row, x: e.clientX, y: e.clientY });
   };
 
   const askDelete = () => {
@@ -259,6 +268,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
               rowClass={config.rowClass}
               sort={sort}
               onSort={handleSort}
+              onRowContextMenu={handleRowContextMenu}
             />
           )}
           {hasMore && <div ref={sentinelRef} className="h-2" />}
@@ -299,6 +309,21 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
               ids,
               message: ids.length === 1 ? "Excluir este registro?" : `Excluir ${ids.length} registros?`,
             });
+          }}
+        />
+
+        <RowActionsMenu
+          open={!!menu}
+          onOpenChange={(o) => { if (!o) setMenu(null); }}
+          row={menu?.row ?? null}
+          x={menu?.x ?? 0}
+          y={menu?.y ?? 0}
+          canEdit={(row) => !(config.protected?.(row))}
+          onView={config.onView}
+          onEdit={(row) => setDialog({ mode: "edit", row, input: config.toInput(row) })}
+          onDelete={(row) => {
+            setMenu(null);
+            setConfirm({ ids: [row.id], message: "Excluir este registro?" });
           }}
         />
       </div>
