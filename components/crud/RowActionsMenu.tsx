@@ -35,7 +35,7 @@ export function RowActionsMenu<T extends { id: number }>({
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange} modal={false}>
       <DropdownMenuTrigger
-        render={<span style={{ position: "fixed", left: x, top: y }} className="pointer-events-none" />}
+        render={<span key={`${row?.id}:${x}:${y}`} style={{ position: "fixed", left: x, top: y }} className="pointer-events-none" />}
       />
       <DropdownMenuContent side="bottom" align="start" sideOffset={0}>
         {row && onView && (

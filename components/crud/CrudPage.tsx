@@ -321,10 +321,9 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
           canEdit={(row) => !(config.protected?.(row))}
           onView={config.onView}
           onEdit={(row) => setDialog({ mode: "edit", row, input: config.toInput(row) })}
-          onDelete={(row) => {
-            setMenu(null);
-            setConfirm({ ids: [row.id], message: "Excluir este registro?" });
-          }}
+          onDelete={(row) =>
+            setConfirm({ ids: [row.id], message: "Excluir este registro?" })
+          }
         />
       </div>
     </PullToRefresh>
