@@ -26,13 +26,14 @@ const FEATURES = tableFeatures({
 });
 
 export function DataTable<T extends { id: number }>({
-  columns, rows, selected, onToggle, onRowDoubleClick, loading, rowClass, sort, onSort,
+  columns, rows, selected, onToggle, onRowDoubleClick, loading, rowClass, sort, onSort, onRowContextMenu,
 }: {
   columns: Column<T>[];
   rows: T[];
   selected: Set<number>;
   onToggle: (id: number) => void;
   onRowDoubleClick?: (row: T) => void;
+  onRowContextMenu?: (row: T, e: React.MouseEvent) => void;
   loading?: boolean;
   rowClass?: (row: T) => string;
   sort?: Sort | null;
@@ -145,6 +146,11 @@ export function DataTable<T extends { id: number }>({
             className={cn("cursor-pointer", rowClass?.(row.original))}
             onClick={() => onToggle(row.original.id)}
             onDoubleClick={() => onRowDoubleClick?.(row.original)}
+            onContextMenu={(e) => {
+              if (!onRowContextMenu) return;
+              e.preventDefault();
+              onRowContextMenu(row.original, e);
+            }}
           >
             {row.getAllCells().map((cell) => (
               <TableCell
