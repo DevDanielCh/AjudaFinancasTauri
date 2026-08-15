@@ -14,16 +14,25 @@ import { useMonth } from "@/lib/month-context";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
-  { href: "/reserva", label: "Reserva", icon: PiggyBank },
-  { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
-  { href: "/categories", label: "Categorias", icon: Tags },
-  { href: "/fixed-bills", label: "Contas Fixas", icon: RefreshCw },
-  { href: "/installments", label: "Parcelamentos", icon: CalendarClock },
-  { href: "/loans", label: "Financiamentos", icon: Landmark },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
-];
+const MODULE_GROUPS = [
+  {
+    label: "Organização Financeira",
+    items: [
+      { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
+      { href: "/fixed-bills", label: "Contas Fixas", icon: RefreshCw },
+      { href: "/installments", label: "Parcelamentos", icon: CalendarClock },
+      { href: "/loans", label: "Financiamentos", icon: Landmark },
+      { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
+      { href: "/categories", label: "Categorias", icon: Tags },
+    ],
+  },
+  {
+    label: "Investimentos",
+    items: [
+      { href: "/reserva", label: "Reserva", icon: PiggyBank },
+    ],
+  },
+] as const;
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -53,24 +62,41 @@ export function Sidebar() {
         Dashboard
       </Link>
       <Separator className="my-1" />
-      <nav className="flex flex-1 flex-col gap-1">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
-                active && "bg-accent"
-              )}
-            >
-              <Icon className="size-4" />
-              {label}
-            </Link>
-          );
-        })}
+      <nav className="flex flex-1 flex-col gap-3">
+        {MODULE_GROUPS.map((group) => (
+          <div key={group.label} className="flex flex-col gap-1">
+            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {group.label}
+            </p>
+            {group.items.map(({ href, label, icon: Icon }) => {
+              const active = pathname.startsWith(href);
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
+                    active && "bg-accent"
+                  )}
+                >
+                  <Icon className="size-4" />
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
+      <Link
+        href="/configuracoes"
+        className={cn(
+          "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
+          pathname.startsWith("/configuracoes") && "bg-accent"
+        )}
+      >
+        <Settings className="size-4" />
+        Configurações
+      </Link>
       <Button
         variant="ghost"
         className="justify-start"
