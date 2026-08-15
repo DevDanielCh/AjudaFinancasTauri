@@ -121,13 +121,13 @@ function StatCard({ label, value, positive, negative, children }: { label: strin
 
 function MetaCard({ pct, income, aportes }: { pct: number; income: number; aportes: number }) {
   const metaValor = Math.round((income * pct) / 100);
-  const atingiu = aportes >= metaValor;
+  const atingiu = metaValor > 0 && aportes >= metaValor;
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between gap-2 text-sm font-medium">
           Meta de investimento
-          <Badge className={atingiu ? "" : "bg-negative text-negative-foreground"}>
+          <Badge className={cn(atingiu ? "bg-positive text-positive-foreground" : "bg-negative text-negative-foreground")}>
             {atingiu ? "Meta batida" : "Não bateu"}
           </Badge>
         </CardTitle>
@@ -137,7 +137,7 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
           {formatMoney(metaValor)}
         </div>
         <p className="text-sm text-muted-foreground">
-          {pct}% da renda · aportado {formatMoney(aportes)} no mês
+          {pct.toLocaleString("pt-BR")}% da renda · aportado {formatMoney(aportes)} no mês
         </p>
       </CardContent>
     </Card>
