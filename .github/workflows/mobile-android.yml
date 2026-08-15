@@ -101,6 +101,8 @@ jobs:
               gh release view "$VERSION" >/dev/null 2>&1 && break
               sleep 15
             done
+            gh release view "$VERSION" >/dev/null 2>&1 || \
+              { echo "Release $VERSION nao foi criado pelo workflow desktop (job Release). Verifique os logs."; exit 1; }
           fi
 
       - name: Upload APK to release
