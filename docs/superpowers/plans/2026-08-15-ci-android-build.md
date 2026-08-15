@@ -26,6 +26,13 @@
 - Local sem parser YAML (`no pyyaml`/`no actionlint`) → validação com `bunx yaml-lint`.
 - Upload usa `gh release upload`; o gh CLI não renomeia asset → copiar o APK para o nome final antes do upload.
 
+## Lições validadas no run real do CI (não reverter)
+
+- **`android-actions/setup-android` divide `packages` por ESPAÇO** (`.split(' ')`), não por vírgula. Com vírgulas, cada item vira `platform-tools,` (com vírgula) e o sdkmanager falha com `Failed to find package`. Sintaxe correta: um pacote por linha sem vírgula (fold `>-` transforma em espaços).
+- **`src-tauri/gen/` é gitignored** → o runner não tem o projeto Android. Rodar `bun tauri android init` antes do build (regenera `gen/android` + `tauri.settings.gradle` com os caminhos do runner; não-interativo pois o identifier `com.ajudafinancas.app` vem do tauri.conf.json).
+- **`actions/setup-java@v4` deprecado** → usar `@v5`.
+- Annotations de Node 20 (checkout/cache/etc) são warnings cosméticos — ações ainda rodam no Node 24.
+
 ---
 
 ### Task 1: Criar o workflow mobile-android.yml
@@ -71,7 +78,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
@@ -80,9 +87,9 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: >-
-            platform-tools,
-            platforms;android-36,
-            build-tools;36.0.0,
+            platform-tools
+            platforms;android-36
+            build-tools;36.0.0
             ndk;25.2.9519653
 
       - name: Set NDK_HOME
@@ -101,6 +108,9 @@ jobs:
 
       - name: Install frontend dependencies
         run: bun install
+
+      - name: Initialize Android project
+        run: bun tauri android init
 
       - name: Build Android APK
         run: bun tauri android build --apk
