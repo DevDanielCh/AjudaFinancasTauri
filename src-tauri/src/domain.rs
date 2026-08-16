@@ -543,7 +543,7 @@ pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
     Ok(())
 }
 
-use crate::models::AmortizationRow;
+use crate::organizacao_financeira::models::AmortizationRow;
 
 /// Regera contas fixas dos meses de `início` até `now` (inclui meses vazios) e
 /// recalcula as faturas. Chamado ao criar/editar conta fixa para o app refletir

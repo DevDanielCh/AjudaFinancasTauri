@@ -1,6 +1,6 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
-use crate::models::{Category, CategoryInput};
+use crate::organizacao_financeira::models::{Category, CategoryInput};
 use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 

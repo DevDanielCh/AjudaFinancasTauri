@@ -1,6 +1,6 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
-use crate::models::{PaymentMethod, PaymentMethodInput};
+use crate::organizacao_financeira::models::{PaymentMethod, PaymentMethodInput};
 use crate::shared::card_bills;
 use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
