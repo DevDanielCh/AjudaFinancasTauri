@@ -1,6 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::{FixedBill, FixedBillInput};
+use crate::shared::card_bills;
 use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
@@ -242,7 +243,7 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
             rusqlite::params_from_iter(ids.iter()),
         )
         .map_err(domain::db_err)?;
-        domain::refresh_card_bills(c)
+        card_bills::refresh_card_bills(c)
     })
 }
 

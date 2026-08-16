@@ -1,4 +1,5 @@
-use ajudafinancas_lib::domain::{billing_period, month_range};
+use ajudafinancas_lib::shared::card_bills::billing_period;
+use ajudafinancas_lib::shared::util::month_range;
 use chrono::NaiveDate;
 
 #[test]

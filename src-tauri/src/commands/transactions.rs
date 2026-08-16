@@ -1,6 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::{CardBillDetail, TransactionInput, TransactionRow};
+use crate::shared::card_bills;
 use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
@@ -28,7 +29,7 @@ fn list(
         _ => (None, None, None),
     };
     if let Some(m) = ref_month {
-        domain::ensure_card_bills(conn, m)?;
+        card_bills::ensure_card_bills(conn, m)?;
     }
     let mut sql = String::from(
         "SELECT t.id, t.description, t.amount, t.type, t.date,
@@ -86,7 +87,7 @@ fn list(
         .map_err(domain::db_err)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(domain::db_err)?;
-    let card_ids = domain::fatura_capable_card_ids(conn)?;
+    let card_ids = card_bills::fatura_capable_card_ids(conn)?;
     Ok(rows
         .into_iter()
         // Fatura substitui o crédito; débito aparece como despesa normal.
@@ -192,7 +193,7 @@ pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String>
         ],
     )
     .map_err(domain::db_err)?;
-    domain::refresh_card_bills(conn)?;
+    card_bills::refresh_card_bills(conn)?;
     Ok(())
 }
 
@@ -204,7 +205,7 @@ pub async fn update_transaction(
 ) -> Result<(), String> {
     input.validate()?;
     with_db(&state, |c| {
-        if domain::is_card_bill(c, id)? {
+        if card_bills::is_card_bill(c, id)? {
             return Err("fatura é gerada automaticamente e não pode ser editada".into());
         }
         let affected = c
@@ -227,7 +228,7 @@ pub async fn update_transaction(
         if affected == 0 {
             return Err("transação não encontrada".into());
         }
-        domain::refresh_card_bills(c)?;
+        card_bills::refresh_card_bills(c)?;
         Ok(())
     })
 }
@@ -239,13 +240,13 @@ pub async fn delete_transactions(state: State<'_, AppState>, ids: Vec<i64>) -> R
     }
     with_db(&state, |c| {
         delete_ids(c, &ids)?;
-        domain::refresh_card_bills(c)
+        card_bills::refresh_card_bills(c)
     })
 }
 
 pub fn delete_ids(conn: &Connection, ids: &[i64]) -> Result<(), String> {
     for id in ids {
-        if domain::is_card_bill(conn, *id)? {
+        if card_bills::is_card_bill(conn, *id)? {
             return Err("fatura é gerada automaticamente e não pode ser excluída".into());
         }
     }

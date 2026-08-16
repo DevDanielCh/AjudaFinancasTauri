@@ -1,6 +1,5 @@
 use ajudafinancas_lib::commands::transactions::card_bill_purchases;
 use ajudafinancas_lib::db::migrations;
-use ajudafinancas_lib::domain;
 use rusqlite::Connection;
 
 fn test_db() -> Connection {
@@ -32,7 +31,11 @@ fn fatura_detail_ignora_compra_debito() {
     )
     .unwrap();
 
-    domain::ensure_card_bills(&conn, domain::parse_month("2026-06").unwrap()).unwrap();
+    ajudafinancas_lib::shared::card_bills::ensure_card_bills(
+        &conn,
+        ajudafinancas_lib::shared::util::parse_month("2026-06").unwrap(),
+    )
+    .unwrap();
 
     let txs = card_bill_purchases(&conn, card, "2026-05-10", "2026-06-10").unwrap();
     assert_eq!(txs.len(), 1);

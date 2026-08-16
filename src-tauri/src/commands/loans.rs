@@ -1,6 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::{Loan, LoanDetail, LoanInput};
+use crate::shared::card_bills;
 use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
@@ -281,6 +282,6 @@ pub async fn delete_loans(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(
             rusqlite::params_from_iter(ids.iter()),
         )
         .map_err(domain::db_err)?;
-        domain::refresh_card_bills(c)
+        card_bills::refresh_card_bills(c)
     })
 }

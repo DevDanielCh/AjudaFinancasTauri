@@ -1,6 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::{PaymentMethod, PaymentMethodInput};
+use crate::shared::card_bills;
 use rusqlite::{params, Connection, OptionalExtension};
 use tauri::State;
 
@@ -116,7 +117,7 @@ pub async fn update_payment_method(
         if affected == 0 {
             return Err("forma de pagamento não encontrada".into());
         }
-        domain::refresh_card_bills(c)?;
+        card_bills::refresh_card_bills(c)?;
         Ok(())
     })
 }

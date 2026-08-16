@@ -1,6 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::domain;
 use crate::models::DashboardData;
+use crate::shared::card_bills;
 use chrono::Months;
 use tauri::State;
 
@@ -10,9 +11,9 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
 
     domain::generate_fixed_bills(conn, ref_month)?;
     domain::generate_loan_installments(conn, ref_month)?;
-    domain::refresh_card_bills(conn)?;
-    domain::ensure_card_bills(conn, prev)?;
-    domain::ensure_card_bills(conn, ref_month)?;
+    card_bills::refresh_card_bills(conn)?;
+    card_bills::ensure_card_bills(conn, prev)?;
+    card_bills::ensure_card_bills(conn, ref_month)?;
 
     let income = domain::month_income(conn, ref_month, ref_month.checked_add_months(Months::new(1)).unwrap())?;
     let expenses = domain::month_expenses(conn, ref_month)?;

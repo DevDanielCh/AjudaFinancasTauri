@@ -1,6 +1,5 @@
 use ajudafinancas_lib::commands::transactions::delete_ids;
 use ajudafinancas_lib::db::migrations;
-use ajudafinancas_lib::domain;
 use rusqlite::Connection;
 
 fn test_db() -> Connection {
@@ -39,8 +38,8 @@ fn is_card_bill_identifica_fatura() {
     let conn = test_db();
     let f = insert_fatura(&conn);
     let n = insert_normal(&conn);
-    assert!(domain::is_card_bill(&conn, f).unwrap());
-    assert!(!domain::is_card_bill(&conn, n).unwrap());
+    assert!(ajudafinancas_lib::shared::card_bills::is_card_bill(&conn, f).unwrap());
+    assert!(!ajudafinancas_lib::shared::card_bills::is_card_bill(&conn, n).unwrap());
 }
 
 #[test]
