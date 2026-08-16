@@ -135,7 +135,7 @@ fn sync_generated_cobre_meses_com_movimento() {
     assert_eq!(n, 1, "conta fixa gerada para 2026-01 (mês com movimento)");
 }
 
-use ajudafinancas_lib::models::LoanInput;
+use ajudafinancas_lib::organizacao_financeira::models::LoanInput;
 
 #[test]
 fn taxa_mensal_bissecao_reconstroi_fluxo() {

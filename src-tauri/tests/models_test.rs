@@ -1,4 +1,4 @@
-use ajudafinancas_lib::models::{FixedBillInput, LoanInput, TransactionInput};
+use ajudafinancas_lib::organizacao_financeira::models::{FixedBillInput, LoanInput, TransactionInput};
 
 #[test]
 fn valida_transacao() {

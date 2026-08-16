@@ -4,7 +4,7 @@ use ajudafinancas_lib::commands::loans;
 use ajudafinancas_lib::commands::payment_methods;
 use ajudafinancas_lib::commands::transactions;
 use ajudafinancas_lib::db::migrations;
-use ajudafinancas_lib::models::{
+use ajudafinancas_lib::organizacao_financeira::models::{
     CategoryInput, FixedBillInput, LoanInput, PaymentMethodInput, TransactionInput,
 };
 use rusqlite::Connection;
