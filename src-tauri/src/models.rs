@@ -1,17 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-fn month_str_to_date(s: &str) -> Result<chrono::NaiveDate, String> {
-    chrono::NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
-        .map_err(|_| format!("mês inválido: {s}"))
-}
-
-pub fn add_months(s: &str, n: u32) -> String {
-    let d = month_str_to_date(s).unwrap();
-    d.checked_add_months(chrono::Months::new(n))
-        .unwrap()
-        .format("%Y-%m")
-        .to_string()
-}
+use crate::shared::util::{add_months, month_str_to_date};
 
 // ---- Inputs (create/update) ----
 

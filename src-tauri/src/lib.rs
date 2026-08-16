@@ -7,7 +7,10 @@ use tauri_plugin_log::{Target, TargetKind};
 pub mod commands;
 pub mod db;
 pub mod domain;
+pub mod investimentos;
 pub mod models;
+pub mod organizacao_financeira;
+pub mod shared;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -61,8 +64,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            commands::meta::get_earliest_month,
-            commands::meta::get_version,
+            shared::util::get_earliest_month,
+            shared::util::get_version,
             commands::dashboard::get_dashboard,
             commands::dashboard::sync_dashboard,
             commands::chart::get_chart_data,

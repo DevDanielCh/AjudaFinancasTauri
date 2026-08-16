@@ -1,23 +1,7 @@
 use chrono::{Datelike, Months, NaiveDate};
 use rusqlite::{params, Connection};
 
-pub fn parse_month(s: &str) -> Result<NaiveDate, String> {
-    NaiveDate::parse_from_str(&format!("{s}-01"), "%Y-%m-%d")
-        .map_err(|_| format!("mês inválido: {s}"))
-}
-
-pub fn month_range(month: &str) -> Result<(NaiveDate, NaiveDate), String> {
-    let start = parse_month(month)?;
-    let end = start.checked_add_months(Months::new(1)).unwrap();
-    Ok((start, end))
-}
-
-/// Meses entre dois "YYYY-MM" (from <= to).
-pub fn month_diff(from: &str, to: &str) -> i64 {
-    let f = parse_month(from).unwrap();
-    let t = parse_month(to).unwrap();
-    (t.year() as i64) * 12 + t.month0() as i64 - ((f.year() as i64) * 12 + f.month0() as i64)
-}
+pub use crate::shared::util::{current_month, db_err, month_diff, month_range, order_clause, parse_month};
 
 /// Número da parcela (1-based) dado o mês inicial e o mês da parcela.
 pub fn installment_index(start_month: &str, parcel_month: &str) -> i64 {
@@ -62,10 +46,6 @@ pub fn billing_period(close_day: u32, ref_month: NaiveDate) -> (NaiveDate, Naive
         prev.with_day(start_day).unwrap(),
         ref_month.with_day(end_day).unwrap(),
     )
-}
-
-pub fn current_month() -> String {
-    chrono::Local::now().date_naive().format("%Y-%m").to_string()
 }
 
 /// Lê as configurações; ausência = defaults (None, 0, 0).
@@ -134,31 +114,6 @@ fn earliest_tx_month(conn: &Connection) -> Result<String, String> {
         Ok(Some(d)) if d.len() >= 7 => Ok(d[..7].to_string()),
         _ => Ok(current_month()),
     }
-}
-
-pub fn db_err(e: impl std::fmt::Display) -> String {
-    format!("erro de banco de dados: {e}")
-}
-
-pub fn order_clause(
-    sort_by: Option<&str>,
-    sort_dir: Option<&str>,
-    whitelist: &[(&str, &str)],
-    default: &str,
-    tiebreak: &str,
-) -> String {
-    let Some(key) = sort_by else {
-        return default.to_string();
-    };
-    let Some(expr) = whitelist.iter().find(|(k, _)| *k == key).map(|(_, e)| *e) else {
-        return default.to_string();
-    };
-    let dir = match sort_dir.map(|d| d.to_ascii_lowercase()).as_deref() {
-        Some("asc") => "ASC",
-        Some("desc") => "DESC",
-        _ => return default.to_string(),
-    };
-    format!("ORDER BY {expr} {dir}, {tiebreak}")
 }
 
 pub fn month_income(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
@@ -968,46 +923,8 @@ pub fn loan_schedule(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rusqlite::{params, Connection};
-
-    fn test_db() -> Connection {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute_batch(include_str!("../migrations/001_init.sql"))
-            .unwrap();
-        conn.execute_batch(include_str!("../migrations/002_card_bills.sql"))
-            .unwrap();
-        conn.execute_batch(include_str!("../migrations/006_card_debit.sql"))
-            .unwrap();
-        conn.execute_batch(include_str!("../migrations/008_settings.sql"))
-            .unwrap();
-        conn
-    }
-
-    #[test]
-    fn order_clause_chave_valida() {
-        let wl = &[("amount", "t.amount"), ("date", "t.date")];
-        assert_eq!(
-            order_clause(Some("amount"), Some("asc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
-            "ORDER BY t.amount ASC, t.id DESC"
-        );
-        assert_eq!(
-            order_clause(Some("amount"), Some("desc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
-            "ORDER BY t.amount DESC, t.id DESC"
-        );
-        assert_eq!(
-            order_clause(Some("amount"), Some("Asc"), wl, "ORDER BY t.date DESC, t.id DESC", "t.id DESC"),
-            "ORDER BY t.amount ASC, t.id DESC"
-        );
-    }
-
-    #[test]
-    fn order_clause_fallback_padrao() {
-        let wl = &[("amount", "t.amount")];
-        assert_eq!(order_clause(None, None, wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
-        assert_eq!(order_clause(Some("amount"), None, wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
-        assert_eq!(order_clause(Some("unknown"), Some("asc"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
-        assert_eq!(order_clause(Some("amount"), Some("bogus"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
-    }
+    use crate::shared::{add_pm, add_tx, test_db};
+    use rusqlite::params;
 
     #[test]
     fn month_investments_soma_aportes_do_mes() {
@@ -1023,24 +940,6 @@ mod tests {
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
         let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
         assert_eq!(month_investments(&conn, jun, jul).unwrap(), 1000, "só type 4 do mês");
-    }
-
-    fn add_pm(conn: &Connection, name: &str, ty: i64, meta: Option<&str>) -> i64 {
-        conn.execute(
-            "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
-            params![name, ty, meta],
-        )
-        .unwrap();
-        conn.last_insert_rowid()
-    }
-
-    fn add_tx(conn: &Connection, desc: &str, amount: i64, date: &str, pm_id: Option<i64>) {
-        conn.execute(
-            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
-             VALUES (?1, ?2, 2, ?3, ?4)",
-            params![desc, amount, date, pm_id],
-        )
-        .unwrap();
     }
 
     #[test]
