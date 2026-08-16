@@ -2,8 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeftRight, Banknote, CalendarClock, CreditCard, Ellipsis,
-  LayoutDashboard, PiggyBank, Receipt, Settings, Tags,
+  ArrowLeftRight, CalendarClock, CreditCard, Ellipsis,
+  Landmark, LayoutDashboard, PiggyBank, RefreshCw, Settings, Tags,
 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -21,8 +21,8 @@ const MORE_GROUPS = [
     items: [
       { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
       { href: "/categories", label: "Categorias", icon: Tags },
-      { href: "/fixed-bills", label: "Contas Fixas", icon: Receipt },
-      { href: "/loans", label: "Financiamentos", icon: Banknote },
+      { href: "/fixed-bills", label: "Contas Fixas", icon: RefreshCw },
+      { href: "/loans", label: "Financiamentos", icon: Landmark },
     ],
   },
   {
