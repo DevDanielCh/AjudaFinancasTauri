@@ -8,7 +8,6 @@ pub mod commands;
 pub mod db;
 pub mod domain;
 pub mod investimentos;
-pub mod models;
 pub mod organizacao_financeira;
 pub mod shared;
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -66,9 +65,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             shared::util::get_earliest_month,
             shared::util::get_version,
-            commands::dashboard::get_dashboard,
-            commands::dashboard::sync_dashboard,
-            commands::chart::get_chart_data,
+            shared::report::get_dashboard,
+            shared::report::sync_dashboard,
+            shared::report::get_chart_data,
             commands::transactions::list_transactions,
             commands::transactions::list_reserva_movements,
             commands::transactions::create_transaction,

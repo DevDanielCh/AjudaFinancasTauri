@@ -419,7 +419,7 @@ mod tests {
         let card = add_pm(&conn, "Legado", 2, Some(r#"{"close_day":10}"#));
         add_tx(&conn, "compra", 7000, "2026-05-15", Some(card));
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        assert_eq!(crate::domain::month_expenses(&conn, jun).unwrap(), 7000);
+        assert_eq!(crate::shared::report::month_expenses(&conn, jun).unwrap(), 7000);
     }
 
     #[test]
@@ -439,7 +439,7 @@ mod tests {
         assert_eq!(rows, vec!["2026-12-20"]);
 
         let dez = NaiveDate::from_ymd_opt(2026, 12, 1).unwrap();
-        let rows = crate::domain::expenses_by_pm(&conn, dez).unwrap();
+        let rows = crate::shared::report::expenses_by_pm(&conn, dez).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].name, "Nubank");
         assert_eq!(rows[0].total, 5000);

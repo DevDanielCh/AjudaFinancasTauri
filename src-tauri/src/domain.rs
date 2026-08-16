@@ -1,7 +1,7 @@
 use chrono::{Datelike, Months, NaiveDate};
 use rusqlite::Connection;
 
-use crate::shared::card_bills::{billing_period, card_close_day, card_days, card_debit_expenses, last_day_of, refresh_card_bills};
+use crate::shared::card_bills::{last_day_of, refresh_card_bills};
 use crate::shared::settings;
 
 pub use crate::shared::util::{current_month, db_err, month_diff, month_range, order_clause, parse_month};
@@ -30,18 +30,6 @@ pub fn purchase_installment(purchase: &str) -> Result<(String, i64), String> {
     Ok((d.format("%Y-%m").to_string(), d.day() as i64))
 }
 
-pub fn month_income(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
-    let v: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (1, 5) AND date >= ?1 AND date < ?2",
-            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
-            |r| r.get(0),
-        )
-        .map_err(db_err)?;
-    Ok(v)
-}
-
 /// Soma dos aportes à reserva (type = 4) no período.
 pub fn month_investments(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
     let v: i64 = conn
@@ -53,154 +41,6 @@ pub fn month_investments(conn: &Connection, start: NaiveDate, end: NaiveDate) ->
         )
         .map_err(db_err)?;
     Ok(v)
-}
-
-pub fn pm_expenses(
-    conn: &Connection,
-    pm_id: i64,
-    start: NaiveDate,
-    end: NaiveDate,
-) -> Result<i64, String> {
-    let v: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (2, 4) AND payment_method_id = ?1 AND date >= ?2 AND date < ?3",
-            rusqlite::params![
-                pm_id,
-                start.format("%Y-%m-%d").to_string(),
-                end.format("%Y-%m-%d").to_string()
-            ],
-            |r| r.get(0),
-        )
-        .map_err(db_err)?;
-    Ok(v)
-}
-
-pub fn no_pm_expenses(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
-    let v: i64 = conn
-        .query_row(
-            "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (2, 4) AND payment_method_id IS NULL AND date >= ?1 AND date < ?2",
-            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
-            |r| r.get(0),
-        )
-        .map_err(db_err)?;
-    Ok(v)
-}
-
-
-/// Despesas do mês de referência. Cartões com fatura configurada (fechamento +
-/// vencimento) não contam as compras a crédito; a transação Fatura conta no mês
-/// do vencimento e compras a débito contam no mês civil da compra.
-pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, String> {
-    let (start, end) = (
-        ref_month.with_day(1).unwrap(),
-        ref_month.checked_add_months(Months::new(1)).unwrap(),
-    );
-    let mut total = 0;
-    let mut stmt = conn
-        .prepare("SELECT id, type, metadata FROM payment_methods")
-        .map_err(db_err)?;
-    let pms = stmt
-        .query_map([], |r| {
-            Ok((
-                r.get::<_, i64>(0)?,
-                r.get::<_, i64>(1)?,
-                r.get::<_, Option<String>>(2)?,
-            ))
-        })
-        .map_err(db_err)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(db_err)?;
-    for (id, ty, meta) in pms {
-        if card_days(ty, meta.as_deref()).is_some() {
-            // Fatura substitui o crédito; débito é despesa normal no mês civil.
-            total += card_debit_expenses(conn, id, start, end)?;
-            continue;
-        }
-        let mut s = start;
-        let mut e = end;
-        if let Some(cd) = card_close_day(ty, meta.as_deref()) {
-            if cd > 0 {
-                let (ps, pe) = billing_period(cd as u32, ref_month);
-                s = ps;
-                e = pe;
-            }
-        }
-        total += pm_expenses(conn, id, s, e)?;
-    }
-    total += no_pm_expenses(conn, start, end)?;
-    let bills: i64 = conn
-        .query_row(
-             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-              WHERE type = 3 AND date >= ?1 AND date < ?2",
-            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
-            |r| r.get(0),
-        )
-        .map_err(db_err)?;
-    Ok(total + bills)
-}
-
-pub fn income_by_category(
-    conn: &Connection,
-    start: NaiveDate,
-    end: NaiveDate,
-) -> Result<Vec<crate::models::BreakdownRow>, String> {
-    let mut stmt = conn
-        .prepare(
-            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
-             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.type IN (1, 5) AND t.date >= ?1 AND t.date < ?2
-             GROUP BY c.name ORDER BY total DESC",
-        )
-        .map_err(db_err)?;
-    let rows = stmt
-        .query_map(
-            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
-            |r| {
-                Ok(crate::models::BreakdownRow {
-                    name: r.get(0)?,
-                    total: r.get(1)?,
-                })
-            },
-        )
-        .map_err(db_err)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(db_err)?;
-    Ok(rows)
-}
-
-/// Despesas por categoria no período (type = 2; faturas type = 3 ficam de fora).
-pub fn expenses_by_category(
-    conn: &Connection,
-    start: NaiveDate,
-    end: NaiveDate,
-) -> Result<Vec<crate::models::BreakdownRow>, String> {
-    let mut stmt = conn
-        .prepare(
-            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
-             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.type IN (2, 4) AND t.date >= ?1 AND t.date < ?2
-             GROUP BY c.name ORDER BY total DESC",
-        )
-        .map_err(db_err)?;
-    let rows = stmt
-        .query_map(
-            rusqlite::params![
-                start.format("%Y-%m-%d").to_string(),
-                end.format("%Y-%m-%d").to_string()
-            ],
-            |r| {
-                Ok(crate::models::BreakdownRow {
-                    name: r.get(0)?,
-                    total: r.get(1)?,
-                })
-            },
-        )
-        .map_err(db_err)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(db_err)?;
-    Ok(rows)
 }
 
 /// Saldo da reserva/investimentos acumulado até `before` (data exclusiva).
@@ -221,127 +61,6 @@ pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, S
         )
         .map_err(db_err)?;
     Ok(s.saldo_inicial_reserva + v)
-}
-
-/// Posição da conta em `before` (data exclusiva): saldo inicial + fluxos
-/// (receitas - despesas) dos meses desde o piso (ou a primeira transação).
-pub fn account_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
-    let s = settings::get_settings_impl(conn)?;
-    let start = match &s.primeiro_mes {
-        Some(pm) => parse_month(pm)?,
-        None => parse_month(&settings::earliest_tx_month(conn)?)?,
-    };
-    let mut bal = s.saldo_inicial_conta;
-    let mut m = start;
-    while m < before {
-        let next = m.checked_add_months(Months::new(1)).unwrap();
-        bal += month_income(conn, m, next)? - month_expenses(conn, m)?;
-        m = next;
-    }
-    Ok(bal)
-}
-
-/// Série com todos os meses do ano de `ref_month`. Com saldo inicial
-/// configurado, cada ponto usa a posição real da conta; sem config, o saldo
-/// acumula desde zero no início do ano.
-pub fn monthly_series(
-    conn: &Connection,
-    ref_month: NaiveDate,
-) -> Result<Vec<crate::models::MonthlyPoint>, String> {
-    let s = settings::get_settings_impl(conn)?;
-    let with_piso = s.primeiro_mes.is_some();
-    let start = ref_month.with_month(1).unwrap();
-    let end = ref_month.with_month(12).unwrap();
-    let mut out = Vec::with_capacity(12);
-    let mut acc = 0;
-    let mut m = start;
-    while m <= end {
-        let next = m.checked_add_months(Months::new(1)).unwrap();
-        let income = month_income(conn, m, next)?;
-        let expenses = month_expenses(conn, m)?;
-        acc += income - expenses;
-        out.push(crate::models::MonthlyPoint {
-            month: m.format("%Y-%m").to_string(),
-            income,
-            expenses,
-            balance: if with_piso {
-                account_balance_at(conn, next)?
-            } else {
-                acc
-            },
-            reserva: reserva_balance_at(conn, next)?,
-        });
-        m = next;
-    }
-    Ok(out)
-}
-
-pub fn expenses_by_pm(
-    conn: &Connection,
-    ref_month: NaiveDate,
-) -> Result<Vec<crate::models::BreakdownRow>, String> {
-    let (start, end) = (
-        ref_month.with_day(1).unwrap(),
-        ref_month.checked_add_months(Months::new(1)).unwrap(),
-    );
-    let mut out = Vec::new();
-    let mut stmt = conn
-        .prepare("SELECT id, name, type, metadata FROM payment_methods ORDER BY name")
-        .map_err(db_err)?;
-    let pms = stmt
-        .query_map([], |r| {
-            Ok((
-                r.get::<_, i64>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, i64>(2)?,
-                r.get::<_, Option<String>>(3)?,
-            ))
-        })
-        .map_err(db_err)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(db_err)?;
-    for (id, name, ty, meta) in pms {
-        let t = if card_days(ty, meta.as_deref()).is_some() {
-            let bill: i64 = conn
-                .query_row(
-                     "SELECT COALESCE(SUM(amount), 0) FROM transactions
-                      WHERE type = 3 AND payment_method_id = ?1
-                        AND date >= ?2 AND date < ?3",
-                    rusqlite::params![
-                        id,
-                        start.format("%Y-%m-%d").to_string(),
-                        end.format("%Y-%m-%d").to_string()
-                    ],
-                    |r| r.get(0),
-                )
-                .map_err(db_err)?;
-            let debit: i64 = card_debit_expenses(conn, id, start, end)?;
-            bill + debit
-        } else {
-            let mut s = start;
-            let mut e = end;
-            if let Some(cd) = card_close_day(ty, meta.as_deref()) {
-                if cd > 0 {
-                    let (ps, pe) = billing_period(cd as u32, ref_month);
-                    s = ps;
-                    e = pe;
-                }
-            }
-            pm_expenses(conn, id, s, e)?
-        };
-        if t > 0 {
-            out.push(crate::models::BreakdownRow { name, total: t });
-        }
-    }
-    let no_pm = no_pm_expenses(conn, start, end)?;
-    if no_pm > 0 {
-        out.push(crate::models::BreakdownRow {
-            name: "Sem forma de pagamento".into(),
-            total: no_pm,
-        });
-    }
-    out.sort_by(|a, b| b.total.cmp(&a.total));
-    Ok(out)
 }
 
 /// Gera transações das contas fixas ativas no mês. Dia clampado ao último dia.
@@ -511,38 +230,6 @@ pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result
     Ok(())
 }
 
-/// Regera contas fixas e parcelas de todos os meses com movimento, do mais antigo ao atual.
-pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
-    let min = conn.query_row("SELECT MIN(date) FROM transactions", [], |r| {
-        r.get::<_, Option<String>>(0)
-    });
-    let Some(min) = min.ok().flatten() else {
-        return Ok(());
-    };
-    let mut m = parse_month(&min[..7]).map_err(db_err)?;
-    while m <= now {
-        let start = m.with_day(1).unwrap().format("%Y-%m-%d").to_string();
-        let end = m
-            .checked_add_months(Months::new(1))
-            .unwrap()
-            .format("%Y-%m-%d")
-            .to_string();
-        let count: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM transactions WHERE date >= ?1 AND date < ?2",
-                rusqlite::params![start, end],
-                |r| r.get(0),
-            )
-            .map_err(db_err)?;
-        if count > 0 {
-            generate_fixed_bills(conn, m)?;
-            generate_loan_installments(conn, m)?;
-        }
-        m = m.checked_add_months(Months::new(1)).unwrap();
-    }
-    Ok(())
-}
-
 use crate::organizacao_financeira::models::AmortizationRow;
 
 /// Regera contas fixas dos meses de `início` até `now` (inclui meses vazios) e
@@ -641,7 +328,7 @@ pub fn loan_schedule(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::shared::{add_pm, add_tx, test_db};
+    use crate::shared::{add_pm, test_db};
     use rusqlite::params;
 
     #[test]
@@ -770,59 +457,6 @@ mod tests {
     }
 
     #[test]
-    fn month_expenses_counts_bill_not_card_purchases() {
-        let conn = test_db();
-        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
-        let pix = add_pm(&conn, "PIX", 1, None);
-        add_tx(&conn, "compra", 5000, "2026-05-15", Some(card));
-        add_tx(&conn, "compra", 3000, "2026-06-05", Some(card));
-        add_tx(&conn, "conta", 1500, "2026-06-10", Some(pix));
-        crate::shared::card_bills::ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
-
-        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        assert_eq!(month_expenses(&conn, jun).unwrap(), 9500);
-        let mai = NaiveDate::from_ymd_opt(2026, 5, 1).unwrap();
-        assert_eq!(month_expenses(&conn, mai).unwrap(), 0);
-    }
-
-    #[test]
-    fn month_expenses_conta_debito_do_cartao() {
-        let conn = test_db();
-        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
-        add_tx(&conn, "credito", 5000, "2026-06-05", Some(card));
-        conn.execute(
-            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
-             VALUES ('debito', 3000, 2, '2026-06-15', ?1, 1)",
-            params![card],
-        )
-        .unwrap();
-        crate::shared::card_bills::ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
-
-        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        assert_eq!(month_expenses(&conn, jun).unwrap(), 8000);
-    }
-
-    #[test]
-    fn expenses_by_pm_conta_debito_do_cartao() {
-        let conn = test_db();
-        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
-        add_tx(&conn, "credito", 5000, "2026-05-15", Some(card));
-        conn.execute(
-            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
-             VALUES ('debito', 3000, 2, '2026-06-15', ?1, 1)",
-            params![card],
-        )
-        .unwrap();
-        crate::shared::card_bills::ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
-
-        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        let rows = expenses_by_pm(&conn, jun).unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].name, "Nubank");
-        assert_eq!(rows[0].total, 8000);
-    }
-
-    #[test]
     fn reserva_balance_acumula_por_tipo() {
         let conn = test_db();
         conn.execute_batch(
@@ -840,35 +474,5 @@ mod tests {
         assert_eq!(reserva_balance_at(&conn, jul).unwrap(), 70000, "após resgate e sem o 2º aporte");
         let set = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap();
         assert_eq!(reserva_balance_at(&conn, set).unwrap(), 90000, "transação normal ignorada");
-    }
-
-    #[test]
-    fn reserva_conta_no_caixa_como_despesa_e_receita() {
-        let conn = test_db();
-        conn.execute_batch(
-            "INSERT INTO transactions (description, amount, type, date) VALUES
-             ('aporte', 100000, 4, '2026-06-10'),
-             ('resgate', 30000, 5, '2026-06-15')",
-        )
-        .unwrap();
-        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        let nxt = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
-        assert_eq!(month_income(&conn, jun, nxt).unwrap(), 30000, "remoção conta como receita");
-        assert_eq!(month_expenses(&conn, jun).unwrap(), 100000, "adição conta como despesa");
-    }
-
-    #[test]
-    fn monthly_series_inclui_saldo_da_reserva() {
-        let conn = test_db();
-        conn.execute_batch(
-            "INSERT INTO transactions (description, amount, type, date) VALUES
-             ('aporte', 50000, 4, '2026-06-10')",
-        )
-        .unwrap();
-        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        let points = monthly_series(&conn, jun).unwrap();
-        let jun_pt = points.iter().find(|p| p.month == "2026-06").unwrap();
-        assert_eq!(jun_pt.month, "2026-06");
-        assert_eq!(jun_pt.reserva, 50000);
     }
 }
