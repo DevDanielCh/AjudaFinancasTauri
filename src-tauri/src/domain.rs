@@ -1,6 +1,8 @@
 use chrono::{Datelike, Months, NaiveDate};
 use rusqlite::{params, Connection};
 
+use crate::shared::settings;
+
 pub use crate::shared::util::{current_month, db_err, month_diff, month_range, order_clause, parse_month};
 
 /// Número da parcela (1-based) dado o mês inicial e o mês da parcela.
@@ -46,74 +48,6 @@ pub fn billing_period(close_day: u32, ref_month: NaiveDate) -> (NaiveDate, Naive
         prev.with_day(start_day).unwrap(),
         ref_month.with_day(end_day).unwrap(),
     )
-}
-
-/// Lê as configurações; ausência = defaults (None, 0, 0).
-pub fn get_settings(conn: &Connection) -> Result<crate::models::Settings, String> {
-    let mut stmt = conn
-        .prepare("SELECT key, value FROM settings")
-        .map_err(db_err)?;
-    let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
-        .map_err(db_err)?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(db_err)?;
-    let mut s = crate::models::Settings::default();
-    for (k, v) in rows {
-        match k.as_str() {
-            "primeiro_mes" => s.primeiro_mes = Some(v),
-            "saldo_inicial_conta" => s.saldo_inicial_conta = v.parse().unwrap_or(0),
-            "saldo_inicial_reserva" => s.saldo_inicial_reserva = v.parse().unwrap_or(0),
-            "meta_investimento" => s.meta_investimento = v.parse().unwrap_or(0.0),
-            _ => {}
-        }
-    }
-    Ok(s)
-}
-
-/// Persiste as configurações (primeiro_mes None remove a chave).
-pub fn set_settings(conn: &Connection, input: &crate::models::SettingsInput) -> Result<(), String> {
-    conn.execute("DELETE FROM settings WHERE key = 'primeiro_mes'", [])
-        .map_err(db_err)?;
-    if let Some(pm) = &input.primeiro_mes {
-        conn.execute(
-            "INSERT INTO settings (key, value) VALUES ('primeiro_mes', ?1)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            [pm],
-        )
-        .map_err(db_err)?;
-    }
-    for (key, v) in [
-        ("saldo_inicial_conta", input.saldo_inicial_conta.to_string()),
-        ("saldo_inicial_reserva", input.saldo_inicial_reserva.to_string()),
-        ("meta_investimento", input.meta_investimento.to_string()),
-    ] {
-        conn.execute(
-            "INSERT INTO settings (key, value) VALUES (?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            rusqlite::params![key, v],
-        )
-        .map_err(db_err)?;
-    }
-    Ok(())
-}
-
-/// Mês (YYYY-MM) da transação mais antiga, ou mês corrente.
-/// Com `primeiro_mes` configurado, o piso rígido o substitui.
-pub fn earliest_month(conn: &Connection) -> Result<String, String> {
-    let s = get_settings(conn)?;
-    Ok(s.primeiro_mes.unwrap_or(earliest_tx_month(conn)?))
-}
-
-/// Mês da transação mais antiga sem considerar configurações.
-fn earliest_tx_month(conn: &Connection) -> Result<String, String> {
-    let min = conn.query_row("SELECT MIN(date) FROM transactions", [], |r| {
-        r.get::<_, Option<String>>(0)
-    });
-    match min {
-        Ok(Some(d)) if d.len() >= 7 => Ok(d[..7].to_string()),
-        _ => Ok(current_month()),
-    }
 }
 
 pub fn month_income(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
@@ -355,7 +289,7 @@ pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
     conn.execute("DELETE FROM transactions WHERE bill_start IS NOT NULL", [])
         .map_err(db_err)?;
     let now = chrono::Local::now().date_naive();
-    let mut m = parse_month(&earliest_month(conn)?).map_err(db_err)?;
+    let mut m = parse_month(&settings::earliest_month(conn)?).map_err(db_err)?;
     let latest: Option<String> = conn
         .query_row("SELECT MAX(date) FROM transactions", [], |r| r.get(0))
         .map_err(db_err)?;
@@ -489,7 +423,7 @@ pub fn expenses_by_category(
 /// Adição (type=4) soma; remoção (type=5) subtrai. Com saldo inicial
 /// configurado, soma-se a ele; com `primeiro_mes`, ignora-se antes do piso.
 pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
-    let s = get_settings(conn)?;
+    let s = settings::get_settings_impl(conn)?;
     let piso = match &s.primeiro_mes {
         Some(m) => parse_month(m)?.format("%Y-%m-%d").to_string(),
         None => "0000-01-01".to_string(),
@@ -508,10 +442,10 @@ pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, S
 /// Posição da conta em `before` (data exclusiva): saldo inicial + fluxos
 /// (receitas - despesas) dos meses desde o piso (ou a primeira transação).
 pub fn account_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
-    let s = get_settings(conn)?;
+    let s = settings::get_settings_impl(conn)?;
     let start = match &s.primeiro_mes {
         Some(pm) => parse_month(pm)?,
-        None => parse_month(&earliest_tx_month(conn)?)?,
+        None => parse_month(&settings::earliest_tx_month(conn)?)?,
     };
     let mut bal = s.saldo_inicial_conta;
     let mut m = start;
@@ -530,7 +464,7 @@ pub fn monthly_series(
     conn: &Connection,
     ref_month: NaiveDate,
 ) -> Result<Vec<crate::models::MonthlyPoint>, String> {
-    let s = get_settings(conn)?;
+    let s = settings::get_settings_impl(conn)?;
     let with_piso = s.primeiro_mes.is_some();
     let start = ref_month.with_month(1).unwrap();
     let end = ref_month.with_month(12).unwrap();
@@ -831,7 +765,7 @@ use crate::models::AmortizationRow;
 /// recalcula as faturas. Chamado ao criar/editar conta fixa para o app refletir
 /// as transações imediatamente.
 pub fn reconcile_fixed_bills(conn: &Connection, start_month: &str, now: NaiveDate) -> Result<(), String> {
-    let min = earliest_month(conn)?.min(start_month.to_string());
+    let min = settings::earliest_month(conn)?.min(start_month.to_string());
     let mut m = parse_month(&min)?;
     while m <= now {
         generate_fixed_bills(conn, m)?;
@@ -1368,28 +1302,5 @@ mod tests {
         let jun_pt = points.iter().find(|p| p.month == "2026-06").unwrap();
         assert_eq!(jun_pt.month, "2026-06");
         assert_eq!(jun_pt.reserva, 50000);
-    }
-
-    #[test]
-    fn settings_roundtrip_inclui_meta_investimento() {
-        let conn = test_db();
-        let input = crate::models::SettingsInput {
-            primeiro_mes: None,
-            saldo_inicial_conta: 0,
-            saldo_inicial_reserva: 0,
-            meta_investimento: 12.5,
-        };
-        assert!(input.validate().is_ok());
-        set_settings(&conn, &input).unwrap();
-        let s = get_settings(&conn).unwrap();
-        assert_eq!(s.meta_investimento, 12.5);
-
-        let inv = crate::models::SettingsInput {
-            primeiro_mes: None,
-            saldo_inicial_conta: 0,
-            saldo_inicial_reserva: 0,
-            meta_investimento: 150.0,
-        };
-        assert!(inv.validate().is_err(), "acima de 100 deve falhar");
     }
 }

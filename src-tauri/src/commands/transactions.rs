@@ -101,7 +101,7 @@ fn list(
 #[tauri::command]
 pub async fn list_reserva_movements(state: State<'_, AppState>) -> Result<Vec<TransactionRow>, String> {
     with_db(&state, |c| {
-        let s = domain::get_settings(c)?;
+        let s = crate::shared::settings::get_settings_impl(c)?;
         let piso = match &s.primeiro_mes {
             Some(m) => domain::parse_month(m)?.format("%Y-%m-%d").to_string(),
             None => "0000-01-01".to_string(),

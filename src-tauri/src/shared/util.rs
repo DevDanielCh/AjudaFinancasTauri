@@ -65,7 +65,7 @@ pub fn add_months(s: &str, n: u32) -> String {
 
 #[tauri::command]
 pub fn get_earliest_month(state: State<'_, AppState>) -> Result<String, String> {
-    with_db(&state, crate::domain::earliest_month)
+    with_db(&state, crate::shared::settings::earliest_month)
 }
 
 #[tauri::command]

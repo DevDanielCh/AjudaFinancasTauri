@@ -1,5 +1,5 @@
 use ajudafinancas_lib::domain;
-use ajudafinancas_lib::models::SettingsInput;
+use ajudafinancas_lib::shared::settings::{self, SettingsInput};
 use chrono::NaiveDate;
 use rusqlite::Connection;
 
@@ -10,7 +10,7 @@ fn test_db() -> Connection {
 }
 
 fn set(conn: &Connection, primeiro_mes: Option<&str>, conta: i64, reserva: i64) {
-    domain::set_settings(
+    settings::set_settings(
         conn,
         &SettingsInput {
             primeiro_mes: primeiro_mes.map(String::from),
@@ -25,7 +25,7 @@ fn set(conn: &Connection, primeiro_mes: Option<&str>, conta: i64, reserva: i64) 
 #[test]
 fn get_settings_default_quando_vazio() {
     let conn = test_db();
-    let s = domain::get_settings(&conn).unwrap();
+    let s = settings::get_settings_impl(&conn).unwrap();
     assert_eq!(s.primeiro_mes, None);
     assert_eq!(s.saldo_inicial_conta, 0);
     assert_eq!(s.saldo_inicial_reserva, 0);
@@ -36,9 +36,9 @@ fn earliest_month_respeita_primeiro_mes() {
     let conn = test_db();
     conn.execute("INSERT INTO transactions (description, amount, type, date) VALUES ('x', 1, 2, '2025-01-10')", [])
         .unwrap();
-    assert_eq!(domain::earliest_month(&conn).unwrap(), "2025-01");
+    assert_eq!(settings::earliest_month(&conn).unwrap(), "2025-01");
     set(&conn, Some("2026-03"), 0, 0);
-    assert_eq!(domain::earliest_month(&conn).unwrap(), "2026-03", "config sobrescreve transação antiga");
+    assert_eq!(settings::earliest_month(&conn).unwrap(), "2026-03", "config sobrescreve transação antiga");
 }
 
 #[test]

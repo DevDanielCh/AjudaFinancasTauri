@@ -27,7 +27,7 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
     let expenses_by_pm = domain::expenses_by_pm(conn, ref_month)?;
 
     let next = ref_month.checked_add_months(Months::new(1)).unwrap();
-    let settings = domain::get_settings(conn)?;
+    let settings = crate::shared::settings::get_settings_impl(conn)?;
     let aportes = domain::month_investments(conn, ref_month, next)?;
     let (balance, prev_balance) = if settings.primeiro_mes.is_some() {
         (

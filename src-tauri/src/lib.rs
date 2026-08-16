@@ -92,8 +92,8 @@ pub fn run() {
             commands::loans::create_loan,
             commands::loans::update_loan,
             commands::loans::delete_loans,
-            commands::settings::get_settings,
-            commands::settings::update_settings,
+            shared::settings::get_settings,
+            shared::settings::update_settings,
         ])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
