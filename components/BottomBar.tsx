@@ -2,45 +2,56 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeftRight, CalendarClock, CreditCard, Landmark,
-  MoreHorizontal, PiggyBank, RefreshCw, Settings, Tags,
+  ArrowLeftRight, Banknote, CalendarClock, CreditCard, Ellipsis,
+  LayoutDashboard, PiggyBank, Receipt, Settings, Tags,
 } from "lucide-react";
 import { useState } from "react";
-import {
-  Sheet, SheetContent, SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const MANUAL = [
-  { label: "Transações", href: "/transactions", icon: ArrowLeftRight },
-  { label: "Contas Fixas", href: "/fixed-bills", icon: RefreshCw },
-  { label: "Parcelamentos", href: "/installments", icon: CalendarClock },
-  { label: "Financiamentos", href: "/loans", icon: Landmark },
-  { label: "Reserva", href: "/reserva", icon: PiggyBank },
-];
+const TABS = [
+  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/transactions", label: "Transações", icon: ArrowLeftRight },
+  { href: "/installments", label: "Parcelamentos", icon: CalendarClock },
+] as const;
 
-const MORE = [
-  { label: "Formas de Pagamento", href: "/payment-methods", icon: CreditCard },
-  { label: "Categorias", href: "/categories", icon: Tags },
-  { label: "Configurações", href: "/configuracoes", icon: Settings },
-];
+const MORE_GROUPS = [
+  {
+    label: "Organização Financeira",
+    items: [
+      { href: "/payment-methods", label: "Formas de Pagamento", icon: CreditCard },
+      { href: "/categories", label: "Categorias", icon: Tags },
+      { href: "/fixed-bills", label: "Contas Fixas", icon: Receipt },
+      { href: "/loans", label: "Financiamentos", icon: Banknote },
+    ],
+  },
+  {
+    label: "Investimentos",
+    items: [
+      { href: "/reserva", label: "Reserva", icon: PiggyBank },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { href: "/configuracoes", label: "Configurações", icon: Settings },
+    ],
+  },
+] as const;
 
 export function BottomBar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const isMoreActive = ["/payment-methods", "/categories", "/configuracoes"].some(
-    (h) => pathname.startsWith(h)
-  );
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <>
       <nav
         aria-label="Navegação principal"
         className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-6 sm:hidden"
       >
-        <div className="flex w-full max-w-sm items-center justify-between gap-1 rounded-full border border-background/60 bg-background/70 px-2 py-1.5 shadow-lg backdrop-blur-xl">
-          {MANUAL.map(({ label, href, icon: Icon }) => {
-            const active = pathname.startsWith(href);
+        <div className="flex w-full max-w-xs items-center justify-between gap-1 rounded-full border border-background/60 bg-background/70 px-2 py-1.5 shadow-lg backdrop-blur-xl">
+          {TABS.map(({ href, label, icon: Icon }) => {
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <Link
                 key={href}
@@ -58,47 +69,40 @@ export function BottomBar() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className={cn(
-              "flex flex-1 flex-col items-center gap-1 pb-1 pt-1.5 text-[10px] font-medium transition-colors",
-              "text-muted-foreground",
-              isMoreActive && "text-foreground"
-            )}
+            aria-label="Mais"
+            className="flex flex-1 items-center justify-center rounded-full py-2 text-muted-foreground"
           >
-            <MoreHorizontal className="size-6" />
-            Mais
+            <Ellipsis className="size-5" />
           </button>
         </div>
       </nav>
 
-      <SheetContent
-        side="bottom"
-        showCloseButton={false}
-        className="w-full rounded-t-2xl pb-10"
-      >
-        <div className="mb-2 flex w-full items-center justify-center">
-          <div className="h-1.5 w-10 rounded-full bg-muted" />
-        </div>
-        <SheetTitle className="sr-only">Mais</SheetTitle>
-        <div className="grid grid-cols-3 gap-2 px-2">
-          {MORE.map(({ label, href, icon: Icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg py-3 text-xs font-medium",
-                  active ? "text-foreground" : "text-muted-foreground"
-                )}
-              >
-                <Icon className="size-5" />
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      </SheetContent>
-    </Sheet>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="bottom" showCloseButton={false} className="gap-1 pb-6">
+          <SheetTitle className="sr-only">Mais</SheetTitle>
+          {MORE_GROUPS.map((group) => (
+            <div key={group.label} className="flex flex-col">
+              <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.label}
+              </p>
+              {group.items.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium hover:bg-accent",
+                    pathname.startsWith(href) && "bg-accent"
+                  )}
+                >
+                  <Icon className="size-4 text-muted-foreground" />
+                  {label}
+                </Link>
+              ))}
+            </div>
+          ))}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
