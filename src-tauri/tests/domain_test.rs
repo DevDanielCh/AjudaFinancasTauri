@@ -25,6 +25,7 @@ fn month_range_gera_inicio_e_fim() {
 
 use ajudafinancas_lib::db::migrations;
 use ajudafinancas_lib::domain;
+use ajudafinancas_lib::shared::report;
 use rusqlite::Connection;
 
 fn conn() -> Connection {
@@ -128,7 +129,7 @@ fn sync_generated_cobre_meses_com_movimento() {
         [],
     )
     .unwrap();
-    domain::sync_generated(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
+    report::sync_generated(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
     let n: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions WHERE fixed_bill_id IS NOT NULL", [], |r| r.get(0))
         .unwrap();

@@ -1,4 +1,5 @@
 use ajudafinancas_lib::domain;
+use ajudafinancas_lib::shared::report;
 use ajudafinancas_lib::shared::settings::{self, SettingsInput};
 use chrono::NaiveDate;
 use rusqlite::Connection;
@@ -73,7 +74,7 @@ fn account_balance_at_soma_fluxos_do_piso() {
     set(&conn, Some("2026-02"), 10000, 0);
     let mar = NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
     assert_eq!(
-        domain::account_balance_at(&conn, mar).unwrap(),
+        report::account_balance_at(&conn, mar).unwrap(),
         7000,
         "saldo 10000 + (0 - despesa 2000 - aporte 1000); receita de janeiro ignorada"
     );
@@ -89,7 +90,7 @@ fn monthly_series_mostra_ano_inteiro_e_usa_posicao_com_piso() {
     .unwrap();
     set(&conn, Some("2026-06"), 0, 10000);
     let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-    let pts = domain::monthly_series(&conn, jun).unwrap();
+    let pts = report::monthly_series(&conn, jun).unwrap();
     assert_eq!(pts.len(), 12, "ano inteiro mesmo com piso");
     assert_eq!(pts[0].month, "2026-01");
     assert_eq!(pts[0].reserva, 10000, "antes do piso: só o saldo inicial");
@@ -101,7 +102,7 @@ fn monthly_series_mostra_ano_inteiro_e_usa_posicao_com_piso() {
 fn monthly_series_sem_config_mostra_ano_inteiro() {
     let conn = test_db();
     let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-    let pts = domain::monthly_series(&conn, jun).unwrap();
+    let pts = report::monthly_series(&conn, jun).unwrap();
     assert_eq!(pts.len(), 12);
     assert_eq!(pts[0].month, "2026-01");
     assert_eq!(pts[11].month, "2026-12");

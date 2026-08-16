@@ -1,5 +1,5 @@
 use ajudafinancas_lib::db::migrations;
-use ajudafinancas_lib::domain;
+use ajudafinancas_lib::shared::report;
 use chrono::NaiveDate;
 use rusqlite::Connection;
 
@@ -36,7 +36,7 @@ fn monthly_series_mostra_ano_inteiro_acumulando_saldo_desde_zero() {
     add_tx(&c, "freela", 50000, 1, "2026-05-05", None);
     add_tx(&c, "contas", 30000, 2, "2026-05-10", Some(pix));
 
-    let series = domain::monthly_series(&c, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+    let series = report::monthly_series(&c, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
     assert_eq!(series.len(), 12, "todos os meses do ano");
     assert_eq!(series[0].month, "2026-01");
     assert_eq!(series[0].income, 0);
@@ -71,7 +71,7 @@ fn expenses_by_category_agrupa_e_ignora_receitas() {
     .unwrap();
     add_tx(&c, "avulsa", 3000, 2, "2026-06-07", Some(pix));
 
-    let rows = domain::expenses_by_category(
+    let rows = report::expenses_by_category(
         &c,
         NaiveDate::from_ymd_opt(2026, 6, 1).unwrap(),
         NaiveDate::from_ymd_opt(2026, 7, 1).unwrap(),
