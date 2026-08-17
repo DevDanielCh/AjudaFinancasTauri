@@ -1,4 +1,3 @@
-use ajudafinancas_lib::commands::fixed_bills;
 use ajudafinancas_lib::commands::loans;
 use ajudafinancas_lib::commands::transactions;
 use ajudafinancas_lib::organizacao_financeira::service;
@@ -126,8 +125,8 @@ fn create_conta_fixa_duplicada_rejeita() {
         installments: None,
         purchase_date: None,
     };
-    fixed_bills::create(&conn, &mut input.clone()).unwrap();
-    let err = fixed_bills::create(&conn, &mut input).unwrap_err();
+    service::create_fixed_bill(&conn, &mut input.clone()).unwrap();
+    let err = service::create_fixed_bill(&conn, &mut input).unwrap_err();
     assert!(err.contains("já existe"));
 }
 

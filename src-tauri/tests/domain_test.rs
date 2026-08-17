@@ -23,6 +23,7 @@ fn month_range_gera_inicio_e_fim() {
     assert!(month_range("abc").is_err());
 }
 
+use ajudafinancas_lib::organizacao_financeira::service;
 use ajudafinancas_lib::db::migrations;
 use ajudafinancas_lib::domain;
 use ajudafinancas_lib::shared::report;
@@ -44,7 +45,7 @@ fn gera_conta_fixa_no_dia_clampado_e_nao_duplica() {
     )
     .unwrap();
     let feb = chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap();
-    domain::generate_fixed_bills(&c, feb).unwrap();
+    service::generate_fixed_bills(&c, feb).unwrap();
 
     let n: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
@@ -57,7 +58,7 @@ fn gera_conta_fixa_no_dia_clampado_e_nao_duplica() {
     assert_eq!(amount, 150000);
 
     // rodar de novo no mesmo mês não duplica
-    domain::generate_fixed_bills(&c, feb).unwrap();
+    service::generate_fixed_bills(&c, feb).unwrap();
     let n2: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
         .unwrap();
@@ -74,7 +75,7 @@ fn ignora_conta_fixa_fora_do_periodo() {
     )
     .unwrap();
     let m = chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
-    domain::generate_fixed_bills(&c, m).unwrap();
+    service::generate_fixed_bills(&c, m).unwrap();
     let n: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
         .unwrap();
