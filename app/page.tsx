@@ -125,7 +125,7 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
   const progresso = metaValor > 0 ? Math.min((aportes / metaValor) * 100, 100) : 0;
 
   return (
-    <Card>
+    <Card className="overflow-visible">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between gap-2 text-sm font-medium">
           Meta de investimento
