@@ -289,7 +289,7 @@ pub fn card_bill_purchases(
             let start_month: Option<String> = r.get(14)?;
             let installment = match (installments, start_month) {
                 (Some(total), Some(sm)) if total >= 1 => {
-                    Some(format!("{}/{}", domain::installment_index(&sm, &date[..7]), total))
+                    Some(format!("{}/{}", crate::organizacao_financeira::service::installment_index(&sm, &date[..7]), total))
                 }
                 _ => None,
             };

@@ -239,7 +239,7 @@ mod tests {
             params![card],
         )
         .unwrap();
-        crate::domain::generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+        crate::organizacao_financeira::service::generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
         ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
 
         let total: i64 = conn

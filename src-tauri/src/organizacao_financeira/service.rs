@@ -1,6 +1,8 @@
-use crate::organizacao_financeira::models::{CategoryInput, PaymentMethodInput};
-use crate::shared::card_bills;
-use crate::shared::util::db_err;
+use chrono::{Datelike, Months, NaiveDate};
+use crate::organizacao_financeira::models::{CategoryInput, FixedBillInput, PaymentMethodInput};
+use crate::shared::card_bills::{self, last_day_of, refresh_card_bills};
+use crate::shared::settings;
+use crate::shared::util::{db_err, month_diff, parse_month};
 use rusqlite::{params, Connection, OptionalExtension};
 
 pub fn create_category(conn: &Connection, input: &CategoryInput) -> Result<(), String> {
@@ -130,4 +132,412 @@ pub(crate) fn delete_payment_methods(conn: &Connection, ids: &[i64]) -> Result<(
     )
     .map_err(db_err)?;
     Ok(())
+}
+
+// ---- fixed_bills helpers ----
+
+pub(crate) fn installment_index(start_month: &str, parcel_month: &str) -> i64 {
+    month_diff(start_month, parcel_month).max(0) + 1
+}
+
+pub(crate) fn installment_finished(start_month: &str, installments: i64, row_month: &str) -> bool {
+    installments >= 1 && installment_index(start_month, row_month) > installments
+}
+
+pub(crate) fn purchase_installment(purchase: &str) -> Result<(String, i64), String> {
+    let d = NaiveDate::parse_from_str(purchase, "%Y-%m-%d")
+        .map_err(|_| "data da compra inválida".to_string())?;
+    Ok((d.format("%Y-%m").to_string(), d.day() as i64))
+}
+
+/// Gera transações das contas fixas ativas no mês. Dia clampado ao último dia.
+pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), String> {
+    let month_key = month.format("%Y-%m").to_string();
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, description, amount, day, category_id, payment_method_id, installments, start_month
+             FROM fixed_bills
+             WHERE start_month <= ?1 AND (end_month IS NULL OR end_month >= ?1)",
+        )
+        .map_err(db_err)?;
+    let bills = stmt
+        .query_map(rusqlite::params![month_key], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, Option<i64>>(4)?,
+                r.get::<_, i64>(5)?,
+                r.get::<_, Option<i64>>(6)?,
+                r.get::<_, String>(7)?,
+            ))
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+
+    let start = month.with_day(1).unwrap().format("%Y-%m-%d").to_string();
+    let end = month
+        .checked_add_months(Months::new(1))
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+    let last = last_day_of(month) as i64;
+
+    for (
+        id,
+        description,
+        amount,
+        day,
+        category_id,
+        payment_method_id,
+        installments,
+        start_month,
+    ) in bills
+    {
+        if let Some(n) = installments {
+            if month_diff(&start_month, &month_key) >= n {
+                continue;
+            }
+        }
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE fixed_bill_id = ?1 AND date >= ?2 AND date < ?3",
+                rusqlite::params![id, start, end],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        if exists > 0 {
+            continue;
+        }
+        let due = month
+            .with_day(day.min(last) as u32)
+            .unwrap()
+            .format("%Y-%m-%d")
+            .to_string();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, fixed_bill_id, loan_id)
+             VALUES (?1, ?2, 2, ?3, ?4, ?5, ?6, NULL)",
+            rusqlite::params![description, amount, due, category_id, payment_method_id, id],
+        )
+        .map_err(db_err)?;
+    }
+    Ok(())
+}
+
+pub fn reconcile_fixed_bills(conn: &Connection, start_month: &str, now: NaiveDate) -> Result<(), String> {
+    let min = settings::earliest_month(conn)?.min(start_month.to_string());
+    let mut m = parse_month(&min)?;
+    while m <= now {
+        generate_fixed_bills(conn, m)?;
+        m = m.checked_add_months(Months::new(1)).unwrap();
+    }
+    refresh_card_bills(conn)
+}
+
+fn apply_card_day(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
+    let pm: Option<(i64, Option<String>)> = conn
+        .query_row(
+            "SELECT type, metadata FROM payment_methods WHERE id = ?1",
+            params![input.payment_method_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .optional()
+        .map_err(db_err)?;
+    if let Some((ty, meta)) = pm {
+        if ty == 2 {
+            let cd: Option<i64> = meta
+                .as_deref()
+                .and_then(|m| serde_json::from_str::<serde_json::Value>(m).ok())
+                .and_then(|v| v.get("close_day")?.as_i64());
+            if let Some(cd) = cd {
+                if cd > 0 {
+                    input.day = cd;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn apply_purchase_date(input: &mut FixedBillInput) -> Result<(), String> {
+    if let Some(pd) = input.purchase_date.clone() {
+        let (start_month, day) = purchase_installment(&pd)?;
+        input.start_month = start_month;
+        input.day = day;
+    }
+    Ok(())
+}
+
+pub(crate) fn finalize_installments(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
+    if input.purchase_date.is_some() {
+        apply_purchase_date(input)?;
+    } else {
+        apply_card_day(conn, input)?;
+    }
+    if input.installments.is_some() {
+        *input = input.normalized()?;
+    }
+    Ok(())
+}
+
+pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
+    finalize_installments(conn, input)?;
+    input.validate()?;
+    let description = input.description.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM fixed_bills
+             WHERE description = ?1 AND amount = ?2 AND day = ?3 AND start_month = ?4
+               AND payment_method_id = ?5 AND installments IS ?6
+             LIMIT 1",
+            params![
+                description,
+                input.amount,
+                input.day,
+                input.start_month,
+                input.payment_method_id,
+                input.installments
+            ],
+            |_| Ok(()),
+        )
+        .optional()
+        .map_err(db_err)?;
+    if dup.is_some() {
+        return Err("já existe conta fixa idêntica nesse mês".into());
+    }
+    let end_month = input.end_month.clone();
+    conn.execute(
+        "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            description,
+            input.amount,
+            input.day,
+            input.category_id,
+            input.payment_method_id,
+            input.start_month,
+            end_month,
+            input.installments,
+            input.purchase_date
+        ],
+    )
+    .map_err(db_err)?;
+    reconcile_fixed_bills(conn, &input.start_month, chrono::Local::now().date_naive())?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::shared::{add_pm, test_db};
+    use rusqlite::{params, Connection};
+
+    fn base_input() -> FixedBillInput {
+        FixedBillInput {
+            description: "compra".into(),
+            amount: 1000,
+            day: 1,
+            category_id: None,
+            payment_method_id: 0,
+            start_month: "2026-08".into(),
+            end_month: None,
+            installments: Some(3),
+            purchase_date: None,
+        }
+    }
+
+    #[test]
+    fn purchase_installment_uses_purchase_month_and_day() {
+        assert_eq!(
+            purchase_installment("2025-11-20").unwrap(),
+            ("2025-11".to_string(), 20)
+        );
+        assert_eq!(
+            purchase_installment("2025-01-05").unwrap(),
+            ("2025-01".to_string(), 5)
+        );
+    }
+
+    #[test]
+    fn purchase_installment_rejects_invalid_date() {
+        assert!(purchase_installment("20/11/2025").is_err());
+        assert!(purchase_installment("garbage").is_err());
+    }
+
+    #[test]
+    fn installment_index_counts_from_start() {
+        assert_eq!(installment_index("2026-05", "2026-05"), 1);
+        assert_eq!(installment_index("2026-05", "2026-06"), 2);
+        assert_eq!(installment_index("2026-05", "2026-07"), 3);
+        assert_eq!(installment_index("2025-11", "2026-07"), 9);
+        assert_eq!(installment_index("2026-07", "2026-05"), 1);
+    }
+
+    #[test]
+    fn installment_finished_edges() {
+        assert!(!installment_finished("2026-01", 3, "2026-01")); // 1/3
+        assert!(!installment_finished("2026-01", 3, "2026-03")); // 3/3, último
+        assert!(installment_finished("2026-01", 3, "2026-04")); // 4/3, passou
+        assert!(!installment_finished("2026-01", 3, "2025-12")); // antes do início → index 1
+        assert!(!installment_finished("2026-01", 0, "2026-04")); // total inválido
+    }
+
+    #[test]
+    fn finalize_deriva_end_month_do_mes_da_compra() {
+        let conn = test_db();
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES ('Nubank', 2, NULL)",
+            [],
+        )
+        .unwrap();
+        let card_id = conn.last_insert_rowid();
+        let mut input = base_input();
+        input.payment_method_id = card_id;
+        input.purchase_date = Some("2026-05-20".into());
+
+        finalize_installments(&conn, &mut input).unwrap();
+
+        assert_eq!(input.start_month, "2026-05");
+        assert_eq!(input.day, 20);
+        assert_eq!(input.end_month.as_deref(), Some("2026-07"));
+    }
+
+    #[test]
+    fn finalize_cartao_sem_compra_usa_dia_de_fechamento() {
+        let conn = test_db();
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES ('Nubank', 2, '{\"close_day\": 10}')",
+            [],
+        )
+        .unwrap();
+        let card_id = conn.last_insert_rowid();
+        let mut input = base_input();
+        input.payment_method_id = card_id;
+        input.day = 1;
+
+        finalize_installments(&conn, &mut input).unwrap();
+
+        assert_eq!(input.day, 10, "dia vira o de fechamento do cartão");
+        assert_eq!(input.start_month, "2026-08");
+        assert_eq!(
+            input.end_month.as_deref(),
+            Some("2026-10"),
+            "end deriva do start do formulário"
+        );
+    }
+
+    #[test]
+    fn finalize_sem_parcelas_preserva_end_month() {
+        let conn = test_db();
+        let mut input = base_input();
+        input.installments = None;
+        input.end_month = Some("2027-01".into());
+
+        finalize_installments(&conn, &mut input).unwrap();
+
+        assert_eq!(
+            input.end_month.as_deref(),
+            Some("2027-01"),
+            "end_month manual preservado"
+        );
+        assert_eq!(input.day, 1, "sem compra nem cartão, dia inalterado");
+    }
+
+    #[test]
+    fn generate_stops_at_installments_count() {
+        let conn = test_db();
+        let pm = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela', 1000, 10, ?1, '2026-01', '2026-06', 3)",
+            params![pm],
+        )
+        .unwrap();
+
+        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 3, 1).unwrap()).unwrap();
+        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()).unwrap();
+
+        let rows: i64 = conn
+            .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(rows, 1, "março (3/3) gera; abril (4/3) para");
+    }
+
+    #[test]
+    fn reconcile_generates_bills_in_empty_months() {
+        let conn = test_db();
+        let pix = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments)
+             VALUES ('Internet', 12000, 5, NULL, ?1, '2026-05', NULL, NULL)",
+            params![pix],
+        )
+        .unwrap();
+        let bill_id = conn.last_insert_rowid();
+
+        reconcile_fixed_bills(&conn, "2026-05", NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
+
+        let dates: Vec<String> = {
+            let mut stmt = conn
+                .prepare("SELECT date FROM transactions WHERE fixed_bill_id = ?1 ORDER BY date")
+                .unwrap();
+            let rows = stmt
+                .query_map(params![bill_id], |r| r.get(0))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            rows
+        };
+        assert_eq!(dates, vec!["2026-05-05", "2026-06-05", "2026-07-05"]);
+    }
+
+    #[test]
+    fn reconcile_starts_at_bill_month_when_no_transactions() {
+        let conn = test_db();
+        let pix = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments)
+             VALUES ('Aluguel', 80000, 10, NULL, ?1, '2026-06', NULL, NULL)",
+            params![pix],
+        )
+        .unwrap();
+        let bill_id = conn.last_insert_rowid();
+
+        reconcile_fixed_bills(&conn, "2026-06", NaiveDate::from_ymd_opt(2026, 8, 1).unwrap()).unwrap();
+
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE fixed_bill_id = ?1",
+                params![bill_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 3);
+    }
+
+    #[test]
+    fn migration_007_corrige_end_month_legado() {
+        use rusqlite_migration::{M, Migrations};
+
+        let mut conn = Connection::open_in_memory().unwrap();
+        Migrations::new(vec![M::up(include_str!("../../migrations/001_init.sql"))])
+            .to_latest(&mut conn)
+            .unwrap();
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('legado', 1000, 20, 1, '2026-03', '2026-12', 5)",
+            [],
+        )
+        .unwrap();
+
+        conn.execute_batch(include_str!("../../migrations/007_fixed_bill_end_month.sql"))
+            .unwrap();
+
+        let end: String = conn
+            .query_row("SELECT end_month FROM fixed_bills", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(end, "2026-07", "end_month recalculado a partir do start_month");
+    }
 }
