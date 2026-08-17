@@ -15,6 +15,7 @@ import { getVersion } from "@/src/shared/repository";
 import { useDashboard } from "@/src/shared/services";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { formatMoney } from "@/lib/format";
 
 const MODULE_GROUPS = [
   {
@@ -117,8 +118,9 @@ function MonthStatusBadge({ month }: { month: string | null }) {
   const { data } = useDashboard(month);
   if (!data) return null;
   const balance = data.income - data.expenses;
+  const abs = Math.abs(balance);
   const variant = balance > 0 ? "positive" : balance < 0 ? "negative" : "yellow";
-  const label = balance > 0 ? "Verde" : balance < 0 ? "Vermelho" : "Amarelo";
+  const label = balance > 0 ? `Sobrou ${formatMoney(abs)}` : balance < 0 ? `Faltou ${formatMoney(abs)}` : `Empatou ${formatMoney(abs)}`;
   return (
     <Badge
       className={cn(
