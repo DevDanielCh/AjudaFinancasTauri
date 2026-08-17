@@ -355,7 +355,7 @@ pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
             .map_err(db_err)?;
         if count > 0 {
             crate::organizacao_financeira::service::generate_fixed_bills(conn, m)?;
-            crate::domain::generate_loan_installments(conn, m)?;
+            crate::organizacao_financeira::service::generate_loan_installments(conn, m)?;
         }
         m = m.checked_add_months(Months::new(1)).unwrap();
     }
@@ -367,7 +367,7 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
     let prev = ref_month.checked_sub_months(Months::new(1)).unwrap();
 
     crate::organizacao_financeira::service::generate_fixed_bills(conn, ref_month)?;
-    crate::domain::generate_loan_installments(conn, ref_month)?;
+    crate::organizacao_financeira::service::generate_loan_installments(conn, ref_month)?;
     refresh_card_bills(conn)?;
     ensure_card_bills(conn, prev)?;
     ensure_card_bills(conn, ref_month)?;
@@ -429,7 +429,7 @@ pub async fn sync_dashboard(state: State<'_, AppState>, month: String) -> Result
 fn build_chart(conn: &rusqlite::Connection, month: &str) -> Result<ChartData, String> {
     let ref_month = parse_month(month)?;
     crate::organizacao_financeira::service::generate_fixed_bills(conn, ref_month)?;
-    crate::domain::generate_loan_installments(conn, ref_month)?;
+    crate::organizacao_financeira::service::generate_loan_installments(conn, ref_month)?;
     refresh_card_bills(conn)?;
     let next = ref_month.checked_add_months(Months::new(1)).unwrap();
     Ok(ChartData {

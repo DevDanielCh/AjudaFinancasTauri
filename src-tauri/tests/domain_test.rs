@@ -25,7 +25,6 @@ fn month_range_gera_inicio_e_fim() {
 
 use ajudafinancas_lib::organizacao_financeira::service;
 use ajudafinancas_lib::db::migrations;
-use ajudafinancas_lib::domain;
 use ajudafinancas_lib::shared::report;
 use rusqlite::Connection;
 
@@ -93,7 +92,7 @@ fn gera_parcelas_de_emprestimo() {
     .unwrap();
 
     // mês 1: entrada (receita) + 1ª parcela (despesa)
-    domain::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).unwrap();
+    service::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).unwrap();
     let (income, expense): (i64, i64) = c
         .query_row(
             "SELECT SUM(CASE WHEN type=1 THEN 1 ELSE 0 END), SUM(CASE WHEN type=2 THEN 1 ELSE 0 END) FROM transactions",
@@ -108,7 +107,7 @@ fn gera_parcelas_de_emprestimo() {
     assert!(desc.contains("(entrada)"));
 
     // mês 2: só parcela, sem duplicar a entrada
-    domain::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
+    service::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
     let total: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
         .unwrap();
@@ -152,13 +151,13 @@ fn taxa_mensal_bissecao_reconstroi_fluxo() {
         payment_method_id: 1,
         monthly_rate: 0.0,
     };
-    let rate = domain::loan_monthly_rate(l.principal, l.installment, l.total_installments);
+    let rate = service::loan_monthly_rate(l.principal, l.installment, l.total_installments);
     assert!(rate > 0.0 && rate < 0.5, "taxa = {rate}");
     // PV = PMT * (1-(1+i)^-n)/i deve aproximar o principal
     let pv = (l.installment as f64) * (1.0 - (1.0 + rate).powf(-(l.total_installments as f64))) / rate;
     assert!((pv - l.principal as f64).abs() < 1.0, "pv={pv}");
 
-    let zero = domain::loan_monthly_rate(100, 10, 5);
+    let zero = service::loan_monthly_rate(100, 10, 5);
     assert_eq!(zero, 0.0, "total <= principal => taxa 0");
 }
 
@@ -175,7 +174,7 @@ fn schedule_amortiza_ate_zero() {
         payment_method_id: 1,
         monthly_rate: 0.0,
     };
-    let rows = domain::loan_schedule(l.principal, l.installment, l.total_installments, &l.start_month, l.monthly_rate, "2026-03");
+    let rows = service::loan_schedule(l.principal, l.installment, l.total_installments, &l.start_month, l.monthly_rate, "2026-03");
     assert_eq!(rows.len() as i64, l.total_installments);
     let sum_principal: i64 = rows.iter().map(|r| r.principal).sum();
     assert_eq!(sum_principal, l.principal, "soma das amortizações = principal");
@@ -189,7 +188,7 @@ fn liquidacao_antecipada_desconta_na_taxa_contratada() {
     // Caso real: 48.900 em 60x de 1.382,16. Taxa contratada ≈ 1,6457% a.m.
     // (implicada pelo valor do banco de 591,48 p/ a parcela 60 em 2026-08).
     let rate = 0.016457;
-    let rows = domain::loan_schedule(4_890_000, 138_216, 60, "2026-01", rate, "2026-08");
+    let rows = service::loan_schedule(4_890_000, 138_216, 60, "2026-01", rate, "2026-08");
     assert!(
         (591_46..=591_50).contains(&rows[59].settlement),
         "liquidação da parcela 60 hoje = {}",

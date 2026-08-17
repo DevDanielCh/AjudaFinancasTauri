@@ -1,9 +1,10 @@
 use crate::db::{with_db, AppState};
 use crate::organizacao_financeira::models::{
-    Category, CategoryInput, FixedBill, FixedBillInput, PaymentMethod, PaymentMethodInput,
+    Category, CategoryInput, FixedBill, FixedBillInput, Loan, LoanDetail, LoanInput, PaymentMethod, PaymentMethodInput,
 };
 use crate::organizacao_financeira::{repository, service};
 use crate::shared::card_bills;
+use crate::shared::util::current_month;
 use rusqlite::params;
 use tauri::State;
 
@@ -151,6 +152,106 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
         .map_err(crate::shared::util::db_err)?;
         c.execute(
             &format!("DELETE FROM fixed_bills WHERE id IN ({placeholders})"),
+            rusqlite::params_from_iter(ids.iter()),
+        )
+        .map_err(crate::shared::util::db_err)?;
+        card_bills::refresh_card_bills(c)
+    })
+}
+
+// ---- loans ----
+
+#[tauri::command]
+pub async fn list_loans(
+    state: State<'_, AppState>,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
+) -> Result<Vec<Loan>, String> {
+    with_db(&state, |c| repository::list_loans(c, sort_by.as_deref(), sort_dir.as_deref()))
+}
+
+#[tauri::command]
+pub async fn get_loan_detail(state: State<'_, AppState>, id: i64) -> Result<LoanDetail, String> {
+    with_db(&state, |c| {
+        let loan = repository::get_loan_detail(c, id)?;
+        let schedule = service::loan_schedule(
+            loan.principal,
+            loan.installment,
+            loan.total_installments,
+            &loan.start_month,
+            loan.monthly_rate,
+            &current_month(),
+        );
+        Ok(LoanDetail { loan, schedule })
+    })
+}
+
+#[tauri::command]
+pub async fn create_loan(state: State<'_, AppState>, input: LoanInput) -> Result<(), String> {
+    input.validate()?;
+    with_db(&state, |c| {
+        let rate = if input.monthly_rate > 0.0 {
+            input.monthly_rate
+        } else {
+            service::loan_monthly_rate(input.principal, input.installment, input.total_installments)
+        };
+        repository::create_loan(c, &input, rate)
+    })
+}
+
+#[tauri::command]
+pub async fn update_loan(
+    state: State<'_, AppState>,
+    id: i64,
+    input: LoanInput,
+) -> Result<(), String> {
+    input.validate()?;
+    with_db(&state, |c| {
+        let rate = if input.monthly_rate > 0.0 {
+            input.monthly_rate
+        } else {
+            service::loan_monthly_rate(input.principal, input.installment, input.total_installments)
+        };
+        let affected = c
+            .execute(
+                "UPDATE loans SET type = ?1, description = ?2, principal = ?3, installment = ?4,
+                        total_installments = ?5, day = ?6, start_month = ?7, payment_method_id = ?8, monthly_rate = ?9
+                 WHERE id = ?10",
+                params![
+                    input.type_,
+                    input.description.trim(),
+                    input.principal,
+                    input.installment,
+                    input.total_installments,
+                    input.day,
+                    input.start_month,
+                    input.payment_method_id,
+                    rate,
+                    id
+                ],
+            )
+            .map_err(crate::shared::util::db_err)?;
+        if affected == 0 {
+            return Err("empréstimo não encontrado".into());
+        }
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub async fn delete_loans(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(), String> {
+    if ids.is_empty() {
+        return Err("ids requeridos".into());
+    }
+    with_db(&state, |c| {
+        let placeholders = vec!["?"; ids.len()].join(",");
+        c.execute(
+            &format!("DELETE FROM transactions WHERE loan_id IN ({placeholders})"),
+            rusqlite::params_from_iter(ids.iter()),
+        )
+        .map_err(crate::shared::util::db_err)?;
+        c.execute(
+            &format!("DELETE FROM loans WHERE id IN ({placeholders})"),
             rusqlite::params_from_iter(ids.iter()),
         )
         .map_err(crate::shared::util::db_err)?;

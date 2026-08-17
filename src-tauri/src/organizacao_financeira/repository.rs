@@ -1,6 +1,8 @@
-use crate::organizacao_financeira::models::{Category, FixedBill, PaymentMethod};
+use crate::organizacao_financeira::models::{Category, FixedBill, Loan, LoanInput, PaymentMethod};
 use crate::shared::util::{current_month, db_err, order_clause};
-use rusqlite::Connection;
+use rusqlite::{params, Connection, OptionalExtension};
+
+use super::service;
 
 pub(crate) fn list_categories(
     conn: &Connection,
@@ -126,6 +128,203 @@ pub(crate) fn list_fixed_bills(
         }
     }
     Ok(rows)
+}
+
+pub(crate) fn build_loan(input: &LoanInput) -> Loan {
+    Loan {
+        id: 0,
+        type_: input.type_,
+        description: input.description.clone(),
+        principal: input.principal,
+        installment: input.installment,
+        total_installments: input.total_installments,
+        day: input.day,
+        start_month: input.start_month.clone(),
+        payment_method_id: input.payment_method_id,
+        payment_method_name: String::new(),
+        total_paid: input.total_paid(),
+        total_interest: input.total_paid() - input.principal,
+        end_month: input.end_month(),
+        paid_count: 0,
+        monthly_rate: input.monthly_rate,
+    }
+}
+
+pub(crate) fn list_loans(
+    conn: &Connection,
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+) -> Result<Vec<Loan>, String> {
+    let order = order_clause(
+        sort_by,
+        sort_dir,
+        &[
+            ("description", "l.description"),
+            ("type", "l.type"),
+            ("principal", "l.principal"),
+            ("installment", "l.installment"),
+            ("installments", "l.total_installments"),
+            ("start", "l.start_month"),
+        ],
+        "ORDER BY l.start_month DESC, l.id DESC",
+        "l.id DESC",
+    );
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT l.id, l.type, l.description, l.principal, l.installment,
+                    l.total_installments, l.day, l.start_month, l.payment_method_id, pm.name, l.monthly_rate
+             FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id
+             {order}"
+        ))
+        .map_err(db_err)?;
+    let raw = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+                r.get::<_, i64>(6)?,
+                r.get::<_, String>(7)?,
+                r.get::<_, i64>(8)?,
+                r.get::<_, String>(9)?,
+                r.get::<_, Option<f64>>(10)?,
+            ))
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+
+    let mut out = Vec::with_capacity(raw.len());
+    for (id, ty, description, principal, installment, total_n, day, start_month, pm_id, pm_name, stored_rate) in raw {
+        let paid_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE loan_id = ?1 AND type = 2",
+                params![id],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        let monthly_rate = stored_rate.unwrap_or_else(|| {
+            service::loan_monthly_rate(principal, installment, total_n)
+        });
+        out.push(Loan {
+            id,
+            type_: ty,
+            description: description.clone(),
+            principal,
+            installment,
+            total_installments: total_n,
+            day,
+            start_month: start_month.clone(),
+            payment_method_id: pm_id,
+            payment_method_name: pm_name,
+            total_paid: installment * total_n,
+            total_interest: installment * total_n - principal,
+            end_month: LoanInput {
+                type_: ty,
+                description,
+                principal,
+                installment,
+                total_installments: total_n,
+                day,
+                start_month,
+                payment_method_id: pm_id,
+                monthly_rate,
+            }
+            .end_month(),
+            paid_count,
+            monthly_rate,
+        });
+    }
+    Ok(out)
+}
+
+pub(crate) fn get_loan_detail(
+    conn: &Connection,
+    id: i64,
+) -> Result<Loan, String> {
+    let raw: Option<(i64, i64, String, i64, i64, i64, i64, String, i64, String, Option<f64>)> = conn
+        .query_row(
+            "SELECT l.id, l.type, l.description, l.principal, l.installment,
+                    l.total_installments, l.day, l.start_month, l.payment_method_id, pm.name, l.monthly_rate
+             FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id
+             WHERE l.id = ?1",
+            params![id],
+            |r| {
+                Ok((
+                    r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?,
+                    r.get(5)?, r.get(6)?, r.get(7)?, r.get(8)?, r.get(9)?, r.get(10)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(db_err)?;
+    let Some((id, ty, description, principal, installment, total_n, day, start_month, pm_id, pm_name, stored_rate)) = raw else {
+        return Err("empréstimo não encontrado".into());
+    };
+    let monthly_rate = stored_rate.unwrap_or_else(|| {
+        service::loan_monthly_rate(principal, installment, total_n)
+    });
+    let input = LoanInput {
+        type_: ty,
+        description,
+        principal,
+        installment,
+        total_installments: total_n,
+        day,
+        start_month: start_month.clone(),
+        payment_method_id: pm_id,
+        monthly_rate,
+    };
+    let loan = build_loan(&input);
+    let loan = Loan {
+        payment_method_name: pm_name,
+        paid_count: conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE loan_id = ?1 AND type = 2",
+                params![id],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?,
+        ..loan
+    };
+    Ok(loan)
+}
+
+pub fn create_loan(conn: &Connection, input: &LoanInput, rate: f64) -> Result<(), String> {
+    let description = input.description.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM loans
+             WHERE description = ?1 AND principal = ?2 AND start_month = ?3
+             LIMIT 1",
+            params![description, input.principal, input.start_month],
+            |_| Ok(()),
+        )
+        .optional()
+        .map_err(db_err)?;
+    if dup.is_some() {
+        return Err("já existe empréstimo idêntico nesse mês".into());
+    }
+    conn.execute(
+        "INSERT INTO loans (type, description, principal, installment, total_installments, day, start_month, payment_method_id, monthly_rate)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            input.type_,
+            description,
+            input.principal,
+            input.installment,
+            input.total_installments,
+            input.day,
+            input.start_month,
+            input.payment_method_id,
+            rate
+        ],
+    )
+    .map_err(db_err)?;
+    Ok(())
 }
 
 #[cfg(test)]

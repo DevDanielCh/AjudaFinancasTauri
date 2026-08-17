@@ -1,6 +1,5 @@
-use ajudafinancas_lib::commands::loans;
+use ajudafinancas_lib::organizacao_financeira::{repository, service};
 use ajudafinancas_lib::commands::transactions;
-use ajudafinancas_lib::organizacao_financeira::service;
 use ajudafinancas_lib::db::migrations;
 use ajudafinancas_lib::organizacao_financeira::models::{
     CategoryInput, FixedBillInput, LoanInput, PaymentMethodInput, TransactionInput,
@@ -147,7 +146,8 @@ fn create_emprestimo_duplicado_rejeita() {
         payment_method_id: pm_id,
         monthly_rate: 0.0,
     };
-    loans::create(&conn, &input).unwrap();
-    let err = loans::create(&conn, &input).unwrap_err();
+    let rate = service::loan_monthly_rate(input.principal, input.installment, input.total_installments);
+    repository::create_loan(&conn, &input, rate).unwrap();
+    let err = repository::create_loan(&conn, &input, rate).unwrap_err();
     assert!(err.contains("já existe"));
 }

@@ -1,5 +1,5 @@
 use chrono::{Datelike, Months, NaiveDate};
-use crate::organizacao_financeira::models::{CategoryInput, FixedBillInput, PaymentMethodInput};
+use crate::organizacao_financeira::models::{AmortizationRow, CategoryInput, FixedBillInput, PaymentMethodInput};
 use crate::shared::card_bills::{self, last_day_of, refresh_card_bills};
 use crate::shared::settings;
 use crate::shared::util::{db_err, month_diff, parse_month};
@@ -325,6 +325,177 @@ pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Resul
     )
     .map_err(db_err)?;
     reconcile_fixed_bills(conn, &input.start_month, chrono::Local::now().date_naive())?;
+    Ok(())
+}
+
+// ---- loans helpers ----
+
+/// Taxa mensal i que resolve PV = PMT * (1-(1+i)^-n)/i por bisseção.
+pub fn loan_monthly_rate(principal: i64, installment: i64, n: i64) -> f64 {
+    if principal <= 0 || installment <= 0 || n < 1 {
+        return 0.0;
+    }
+    let pv = principal as f64;
+    let pmt = installment as f64;
+    let n = n as f64;
+    if pmt * n <= pv {
+        return 0.0;
+    }
+    let g = |i: f64| pmt * (1.0 - (1.0 + i).powf(-n)) / i - pv;
+    let mut lo = 0.0;
+    let mut hi = 0.0001;
+    while g(hi) > 0.0 && hi < 100.0 {
+        hi *= 2.0;
+    }
+    for _ in 0..200 {
+        let mid = (lo + hi) / 2.0;
+        if g(mid) > 0.0 {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    (lo + hi) / 2.0
+}
+
+/// Tabela de amortização (parcelas iguais, juros sobre saldo devedor).
+pub fn loan_schedule(
+    principal: i64,
+    installment: i64,
+    n: i64,
+    start_month: &str,
+    rate: f64,
+    as_of_month: &str,
+) -> Vec<AmortizationRow> {
+    let rate = if rate > 0.0 {
+        rate
+    } else {
+        loan_monthly_rate(principal, installment, n)
+    };
+    let mut balance = principal;
+    let mut rows = Vec::with_capacity(n as usize);
+    for k in 1..=n {
+        let interest = (balance as f64 * rate).round() as i64;
+        let mut p = installment - interest;
+        let mut paid = installment;
+        if k == n {
+            p = balance;
+            paid = interest + p;
+        }
+        balance -= p;
+        let month = parse_month(start_month)
+            .unwrap()
+            .checked_add_months(Months::new(k as u32 - 1))
+            .unwrap()
+            .format("%Y-%m")
+            .to_string();
+        let t = month_diff(as_of_month, &month);
+        let settlement = if t > 0 {
+            (installment as f64 / (1.0 + rate).powf(t as f64)).round() as i64
+        } else {
+            0
+        };
+        rows.push(AmortizationRow {
+            number: k,
+            month,
+            installment: paid,
+            interest,
+            principal: p,
+            balance,
+            settlement,
+        });
+    }
+    rows
+}
+
+/// Gera entrada (empréstimos) e parcelas mensais dos empréstimos ativos no mês.
+pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result<(), String> {
+    let month_key = month.format("%Y-%m").to_string();
+    let start = month.with_day(1).unwrap().format("%Y-%m-%d").to_string();
+    let end = month
+        .checked_add_months(Months::new(1))
+        .unwrap()
+        .format("%Y-%m-%d")
+        .to_string();
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, type, description, principal, installment, total_installments, day, payment_method_id, start_month
+             FROM loans",
+        )
+        .map_err(db_err)?;
+    let loans = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, i64>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+                r.get::<_, i64>(4)?,
+                r.get::<_, i64>(5)?,
+                r.get::<_, i64>(6)?,
+                r.get::<_, i64>(7)?,
+                r.get::<_, String>(8)?,
+            ))
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+
+    for (id, ty, description, principal, installment, total_n, day, pm_id, start_month) in loans {
+        if start_month > month_key {
+            continue;
+        }
+        let loan_start = parse_month(&start_month).map_err(db_err)?;
+        let loan_end = loan_start
+            .checked_add_months(Months::new(total_n as u32 - 1))
+            .unwrap();
+        if loan_end < month {
+            continue;
+        }
+
+        if ty == 1 {
+            let exists: i64 = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM transactions WHERE loan_id = ?1 AND type = 1",
+                    rusqlite::params![id],
+                    |r| r.get(0),
+                )
+                .map_err(db_err)?;
+            if exists == 0 {
+                conn.execute(
+                    "INSERT INTO transactions (description, amount, type, date, payment_method_id, loan_id)
+                     VALUES (?1, ?2, 1, ?3, ?4, ?5)",
+                    rusqlite::params![
+                        format!("{description} (entrada)"),
+                        principal,
+                        loan_start.format("%Y-%m-%d").to_string(),
+                        pm_id,
+                        id
+                    ],
+                )
+                .map_err(db_err)?;
+            }
+        }
+
+        let exists: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE loan_id = ?1 AND type = 2 AND date >= ?2 AND date < ?3",
+                rusqlite::params![id, start, end],
+                |r| r.get(0),
+            )
+            .map_err(db_err)?;
+        if exists == 0 {
+            let due_day = day.min(crate::shared::card_bills::last_day_of(month) as i64) as u32;
+            let due = month.with_day(due_day).unwrap().format("%Y-%m-%d").to_string();
+            conn.execute(
+                "INSERT INTO transactions (description, amount, type, date, payment_method_id, loan_id)
+                 VALUES (?1, ?2, 2, ?3, ?4, ?5)",
+                rusqlite::params![description, installment, due, pm_id, id],
+            )
+            .map_err(db_err)?;
+        }
+    }
     Ok(())
 }
 
