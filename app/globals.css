@@ -229,10 +229,6 @@ body {
   height: 100%;
 }
 
-body {
-  overflow: hidden;
-}
-
 /* Hide native number-input step spinners (WebKit desktop). */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
