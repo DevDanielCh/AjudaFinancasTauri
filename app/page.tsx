@@ -14,9 +14,9 @@ import { cn } from "@/lib/utils";
 import { useDashboard, useChartData, useSyncDashboard } from "@/src/shared/services";
 import { ChartSection } from "@/components/dashboard/ChartSection";
 import { PullToRefresh } from "@/components/PullToRefresh";
-import { barY, group } from "@tanstack/charts";
+import { barY } from "@tanstack/charts";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
-import { scalePoint } from "@tanstack/charts/scales/point";
+import { scaleBand } from "@tanstack/charts/scales/band";
 import { Chart } from "@tanstack/charts/react";
 import { defineChart } from "@tanstack/charts";
 
@@ -145,13 +145,11 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
             x: "series",
             y: "value",
             color: "series",
-            layout: group({ padding: 0.4 }),
             radius: 4,
-            inset: 8,
           }),
         ],
         x: {
-          scale: () => scalePoint<string>().padding(0.4),
+          scale: () => scaleBand<string>().padding(0.4),
         },
         y: {
           scale: scaleLinear,
