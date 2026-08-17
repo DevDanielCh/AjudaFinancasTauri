@@ -46,7 +46,7 @@ export default function DashboardPage() {
 
   return (
     <PullToRefresh onRefresh={() => doSync()}>
-      <div className="flex flex-col gap-4 pb-4 sm:overflow-y-auto sm:pr-2">
+      <div className="flex flex-col gap-4 pb-4 sm:h-[calc(100vh-1.5rem)] sm:overflow-y-auto sm:pr-2">
         <div className="flex items-center justify-between">
           <h1 className="hidden text-2xl font-semibold tracking-tight sm:block">Dashboard</h1>
           <Button variant="outline" size="sm" disabled={dashboardQuery.isFetching} onClick={() => void doSync()}
