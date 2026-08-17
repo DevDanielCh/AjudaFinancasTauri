@@ -8,7 +8,7 @@ import { scalePoint } from "@tanstack/charts/scales/point";
 import { Chart } from "@tanstack/charts/react";
 import { tooltip } from "@tanstack/charts/tooltip";
 import { pie, polar, radialArc } from "@tanstack/charts/polar";
-import type { BreakdownRow, ChartData } from "@/lib/types";
+import type { BreakdownRow, ChartData } from "@/src/shared/models";
 import { formatMoney, formatMonth } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

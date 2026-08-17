@@ -1,22 +1,27 @@
 "use client";
 import { useCallback } from "react";
 import { CrudPage } from "@/components/crud/CrudPage";
-import { ReservaForm } from "@/components/forms/ReservaForm";
+import { ReservaAddForm } from "@/src/Investimentos/Views/Reserva/ReservaAddForm";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useMonth } from "@/lib/month-context";
-import { api } from "@/lib/api";
-import { queryKeys, useSettings } from "@/lib/queries";
+import { transactionApi } from "@/src/OrganizacaoFinanceira/Repositories/transaction";
+import { reservaApi } from "@/src/Investimentos/Repositories/reserva";
+import { useSettings } from "@/src/shared/services";
+import { reservaKeys } from "@/src/Investimentos/Services/reserva";
+import { transactionKeys } from "@/src/OrganizacaoFinanceira/Services/transaction";
+import { dashboardKeys, chartKeys } from "@/src/shared/services";
 import { reservaSchema } from "@/lib/schemas";
 import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { ReservaInput, TransactionRow } from "@/lib/types";
+import type { ReservaInput } from "@/src/Investimentos/Models/reserva";
+import type { TransactionRow } from "@/src/OrganizacaoFinanceira/Models/transaction";
 
 export default function ReservaPage() {
   const { month } = useMonth();
   const { data: settings } = useSettings();
   const seed = settings?.saldo_inicial_reserva ?? 0;
-  const load = useCallback(() => api.listReservaMovements(), []);
+  const load = useCallback(() => reservaApi.listMovements(), []);
 
   const balance = useCallback(
     (rows: TransactionRow[]) => {
@@ -76,25 +81,25 @@ export default function ReservaPage() {
         keepOpen: true,
         load,
         create: (d: ReservaInput) =>
-          api.createTransaction({ ...d, category_id: null, payment_method_id: null, card_mode: 0 }),
+          transactionApi.create({ ...d, category_id: null, payment_method_id: null, card_mode: 0 }),
         update: (id, d: ReservaInput) =>
-          api.updateTransaction(id, { ...d, category_id: null, payment_method_id: null, card_mode: 0 }),
-        remove: api.deleteTransactions,
+          transactionApi.update(id, { ...d, category_id: null, payment_method_id: null, card_mode: 0 }),
+        remove: transactionApi.remove,
         empty: (): ReservaInput => ({
           description: "", amount: 0, type: 4, date: new Date().toISOString().slice(0, 10),
         }),
         toInput: (r): ReservaInput => ({ description: r.description, amount: r.amount, type: r.type, date: r.date }),
         summary: balance,
         protectedDeleteMessage: "Movimentações de reserva protegidas",
-        queryKey: queryKeys.reserva,
+        queryKey: reservaKeys,
         invalidate: [
-          queryKeys.dashboard(month),
-          queryKeys.chart(null),
-          queryKeys.transactions(month),
+          dashboardKeys(month),
+          chartKeys(null),
+          transactionKeys(month),
           ["card-bill"],
         ],
         schema: reservaSchema,
-        FormFields: ReservaForm,
+        FormFields: ReservaAddForm,
       }}
     />
   );

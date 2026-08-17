@@ -1,22 +1,26 @@
 "use client";
 import { useCallback, useState } from "react";
 import { CrudPage } from "@/components/crud/CrudPage";
-import { TransactionForm } from "@/components/forms/TransactionForm";
-import { FaturaDetailDialog } from "@/components/transactions/FaturaDetailDialog";
+import { TransacaoAddForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoAddForm";
+import { TransacaoViewForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoViewForm";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
-import { api } from "@/lib/api";
-import { queryKeys } from "@/lib/queries";
+import { transactionApi } from "@/src/OrganizacaoFinanceira/Repositories/transaction";
+import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
+import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
+import { transactionKeys } from "@/src/OrganizacaoFinanceira/Services/transaction";
+import { dashboardKeys } from "@/src/shared/services";
 import { transactionSchema } from "@/lib/schemas";
 import { formatDate, formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { Sort, TransactionInput } from "@/lib/types";
+import type { Sort } from "@/src/shared/models";
+import type { TransactionInput } from "@/src/OrganizacaoFinanceira/Models/transaction";
 
 export default function TransactionsPage() {
   const { month } = useMonth();
   const [faturaId, setFaturaId] = useState<number | null>(null);
-  const load = useCallback((sort: Sort | null) => api.listTransactions(month, sort), [month]);
+  const load = useCallback((sort: Sort | null) => transactionApi.list(month, sort), [month]);
   return (
     <>
       <CrudPage
@@ -62,9 +66,9 @@ export default function TransactionsPage() {
           },
           keepOpen: true,
           load,
-          create: api.createTransaction,
-          update: (id, d) => api.updateTransaction(id, d),
-          remove: api.deleteTransactions,
+          create: transactionApi.create,
+          update: (id, d) => transactionApi.update(id, d),
+          remove: transactionApi.remove,
           empty: (): TransactionInput => ({
             description: "", amount: 0, type: 2, date: new Date().toISOString().slice(0, 10),
             category_id: null, payment_method_id: null, card_mode: 0,
@@ -78,13 +82,13 @@ export default function TransactionsPage() {
           protected: (r) => r.is_card_bill || r.type === 4 || r.type === 5,
           loadResources: async () => {
             const [categories, paymentMethods] = await Promise.all([
-              api.listCategories(), api.listPaymentMethods(),
+              categoryApi.list(), paymentMethodApi.list(),
             ]);
             return { categories, paymentMethods };
           },
-          FormFields: TransactionForm,
-          queryKey: queryKeys.transactions(month),
-          invalidate: [queryKeys.dashboard(month), ["card-bill"]],
+          FormFields: TransacaoAddForm,
+          queryKey: transactionKeys(month),
+          invalidate: [dashboardKeys(month), ["card-bill"]],
           schema: transactionSchema,
           onView: (r) => {
             if (r.is_card_bill) setFaturaId(r.id);
@@ -92,7 +96,7 @@ export default function TransactionsPage() {
           },
         }}
       />
-      <FaturaDetailDialog id={faturaId} onClose={() => setFaturaId(null)} />
+      <TransacaoViewForm id={faturaId} onClose={() => setFaturaId(null)} />
     </>
   );
 }

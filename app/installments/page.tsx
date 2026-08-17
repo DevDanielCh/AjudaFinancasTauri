@@ -1,11 +1,14 @@
 "use client";
 import { CrudPage } from "@/components/crud/CrudPage";
-import { FixedBillForm } from "@/components/forms/FixedBillForm";
-import { api } from "@/lib/api";
-import { queryKeys } from "@/lib/queries";
+import { ContaFixaAddForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaAddForm";
+import { fixedBillApi } from "@/src/OrganizacaoFinanceira/Repositories/fixed-bill";
+import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
+import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
+import { fixedBillKeys } from "@/src/OrganizacaoFinanceira/Services/fixed-bill";
 import { fixedBillSchema } from "@/lib/schemas";
 import { formatMonth, formatMoney } from "@/lib/format";
-import type { FixedBillInput, Sort } from "@/lib/types";
+import type { FixedBillInput } from "@/src/OrganizacaoFinanceira/Models/fixed-bill";
+import type { Sort } from "@/src/shared/models";
 
 export default function InstallmentsPage() {
   return (
@@ -28,10 +31,10 @@ export default function InstallmentsPage() {
           ),
           bottomRight: (r) => `${formatMonth(r.start_month)} → ${r.end_month ? formatMonth(r.end_month) : "—"}`,
         },
-        load: (sort: Sort | null) => api.listFixedBills(true, sort),
-        create: api.createFixedBill,
-        update: (id, d) => api.updateFixedBill(id, d),
-        remove: api.deleteFixedBills,
+        load: (sort: Sort | null) => fixedBillApi.list(true, sort),
+        create: fixedBillApi.create,
+        update: (id, d) => fixedBillApi.update(id, d),
+        remove: fixedBillApi.remove,
         rowClass: (r) => (r.finished ? "opacity-50" : ""),
         empty: (): FixedBillInput => ({
           description: "", amount: 0, day: 1, category_id: null,
@@ -46,7 +49,7 @@ export default function InstallmentsPage() {
         }),
         loadResources: async () => {
           const [categories, paymentMethods] = await Promise.all([
-            api.listCategories(), api.listPaymentMethods(),
+            categoryApi.list(), paymentMethodApi.list(),
           ]);
           const cardCloseDays: Record<number, number> = {};
           const cardValidityDays: Record<number, number> = {};
@@ -61,8 +64,8 @@ export default function InstallmentsPage() {
           }
           return { categories, paymentMethods, cardCloseDays, cardValidityDays };
         },
-        FormFields: (props) => <FixedBillForm {...props} mode="installments" />,
-        queryKey: queryKeys.fixedBills(true),
+        FormFields: (props) => <ContaFixaAddForm {...props} mode="installments" />,
+        queryKey: fixedBillKeys(true),
         invalidate: [["transactions"], ["dashboard"]],
         schema: fixedBillSchema,
       }}

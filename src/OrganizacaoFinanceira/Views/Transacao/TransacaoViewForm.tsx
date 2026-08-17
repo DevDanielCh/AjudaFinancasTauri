@@ -7,7 +7,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { api } from "@/lib/api";
+import { transactionApi } from "../../Repositories/transaction";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { CardBillDetail } from "../../Models/transaction";
@@ -20,7 +20,7 @@ export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose:
     if (!id) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetail(null);
-    api.getCardBill(id).then(setDetail).catch(() => onClose());
+    transactionApi.getCardBill(id).then(setDetail).catch(() => onClose());
   }, [id, onClose]);
 
   const body = (

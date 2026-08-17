@@ -1,10 +1,10 @@
 "use client";
 import { CrudPage } from "@/components/crud/CrudPage";
-import { CategoryForm } from "@/components/forms/CategoryForm";
-import { api } from "@/lib/api";
-import { queryKeys } from "@/lib/queries";
+import { CategoriaAddForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaAddForm";
+import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
+import { categoryKeys } from "@/src/OrganizacaoFinanceira/Services/category";
 import { categorySchema } from "@/lib/schemas";
-import type { CategoryInput } from "@/lib/types";
+import type { CategoryInput } from "@/src/OrganizacaoFinanceira/Models/category";
 
 export default function CategoriesPage() {
   return (
@@ -29,14 +29,14 @@ export default function CategoriesPage() {
           ),
           topRight: (r) => (r.type === 1 ? "Receita" : "Despesa"),
         },
-        load: api.listCategories,
-        create: api.createCategory,
-        update: (id, d) => api.updateCategory(id, d),
-        remove: api.deleteCategories,
+        load: categoryApi.list,
+        create: categoryApi.create,
+        update: (id, d) => categoryApi.update(id, d),
+        remove: categoryApi.remove,
         empty: (): CategoryInput => ({ name: "", type: 2, color: "#6b7280", icon: null }),
         toInput: (r): CategoryInput => ({ name: r.name, type: r.type, color: r.color, icon: r.icon }),
-        FormFields: CategoryForm,
-        queryKey: queryKeys.categories,
+        FormFields: CategoriaAddForm,
+        queryKey: categoryKeys,
         invalidate: [["transactions"], ["dashboard"], ["chart-data"]],
         schema: categorySchema,
       }}

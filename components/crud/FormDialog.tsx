@@ -24,7 +24,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { FieldError } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import { msg } from "@/lib/api";
+import { msg } from "@/src/shared/repository";
 import type { CrudConfig, DialogState } from "./CrudPage";
 import type { CrudFormApi } from "@/lib/forms";
 

@@ -7,7 +7,8 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { api, msg } from "@/lib/api";
+import { loanApi } from "../../Repositories/loan";
+import { msg } from "@/src/shared/repository";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { formatDate, formatMoney } from "@/lib/format";
 import { useMonth } from "@/lib/month-context";
@@ -23,7 +24,7 @@ export function FinanciamentoViewForm({ id, onClose }: { id: number | null; onCl
     if (!id) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetail(null);
-    api.getLoanDetail(id).then(setDetail).catch((e) => msg(e));
+    loanApi.getDetail(id).then(setDetail).catch((e) => msg(e));
   }, [id]);
 
   const dueDate = (ym: string) => {

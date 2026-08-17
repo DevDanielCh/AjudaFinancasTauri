@@ -8,9 +8,9 @@ import { toast } from "@/components/ui/toast";
 import { MonthPicker } from "@/components/MonthPicker";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { Spinner } from "@/components/ui/spinner";
-import { useSettings, useUpdateSettings } from "@/lib/queries";
-import { msg } from "@/lib/api";
-import type { Settings } from "@/lib/types";
+import { useSettings, useUpdateSettings } from "@/src/shared/services";
+import { msg } from "@/src/shared/repository";
+import type { Settings } from "@/src/shared/models";
 
 export default function ConfiguracoesPage() {
   const { data: settings, isLoading } = useSettings();

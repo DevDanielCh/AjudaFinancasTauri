@@ -17,7 +17,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { Sort } from "@/lib/types";
+import type { Sort } from "@/src/shared/models";
 import type { Column } from "./types";
 
 const FEATURES = tableFeatures({

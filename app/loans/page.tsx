@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { CrudPage } from "@/components/crud/CrudPage";
-import { LoanForm } from "@/components/forms/LoanForm";
-import { DetailDialog } from "@/components/loans/DetailDialog";
-import { api } from "@/lib/api";
-import { queryKeys } from "@/lib/queries";
+import { FinanciamentoAddForm } from "@/src/OrganizacaoFinanceira/Views/Financiamento/FinanciamentoAddForm";
+import { FinanciamentoViewForm } from "@/src/OrganizacaoFinanceira/Views/Financiamento/FinanciamentoViewForm";
+import { loanApi } from "@/src/OrganizacaoFinanceira/Repositories/loan";
+import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
+import { loanKeys } from "@/src/OrganizacaoFinanceira/Services/loan";
 import { loanSchema } from "@/lib/schemas";
 import { formatMonth, formatMoney } from "@/lib/format";
-import type { Loan, LoanInput } from "@/lib/types";
+import type { Loan, LoanInput } from "@/src/OrganizacaoFinanceira/Models/loan";
 
 export default function LoansPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
@@ -33,10 +34,10 @@ export default function LoansPage() {
             ),
             bottomRight: (r) => `${formatMonth(r.start_month)} → ${formatMonth(r.end_month)}`,
           },
-          load: api.listLoans,
-          create: api.createLoan,
-          update: (id, d) => api.updateLoan(id, d),
-          remove: api.deleteLoans,
+          load: loanApi.list,
+          create: loanApi.create,
+          update: (id, d) => loanApi.update(id, d),
+          remove: loanApi.remove,
           empty: (): LoanInput => ({
             type: 1, description: "", principal: 0, installment: 0,
             total_installments: 0, day: 1,
@@ -49,16 +50,16 @@ export default function LoansPage() {
             day: r.day, start_month: r.start_month, payment_method_id: r.payment_method_id,
             monthly_rate: r.monthly_rate,
           }),
-          loadResources: async () => ({ paymentMethods: await api.listPaymentMethods() }),
-          FormFields: LoanForm,
+          loadResources: async () => ({ paymentMethods: await paymentMethodApi.list() }),
+          FormFields: FinanciamentoAddForm,
           onRowDoubleClick: (r) => setDetailId(r.id),
           onView: (r) => setDetailId(r.id),
-          queryKey: queryKeys.loans,
+          queryKey: loanKeys,
           invalidate: [["transactions"], ["dashboard"]],
           schema: loanSchema,
         }}
       />
-      <DetailDialog id={detailId} onClose={() => setDetailId(null)} />
+      <FinanciamentoViewForm id={detailId} onClose={() => setDetailId(null)} />
     </>
   );
 }

@@ -7,10 +7,10 @@ import { RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
 import { Spinner } from "@/components/ui/spinner";
-import { msg } from "@/lib/api";
+import { msg } from "@/src/shared/repository";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useDashboard, useChartData, useSyncDashboard } from "@/lib/queries";
+import { useDashboard, useChartData, useSyncDashboard } from "@/src/shared/services";
 import { ChartSection } from "@/components/dashboard/ChartSection";
 import { PullToRefresh } from "@/components/PullToRefresh";
 

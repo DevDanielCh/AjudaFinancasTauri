@@ -12,3 +12,13 @@ export const getChartData = (month: string | null) => invoke<ChartData>("get_cha
 export function msg(e: unknown): string {
   return typeof e === "string" ? e : e instanceof Error ? e.message : "Erro desconhecido";
 }
+
+export const sharedApi = {
+  getEarliestMonth,
+  getVersion,
+  getSettings,
+  updateSettings,
+  getDashboard,
+  syncDashboard,
+  getChartData,
+};

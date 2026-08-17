@@ -9,7 +9,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import { msg } from "@/lib/api";
+import { msg } from "@/src/shared/repository";
 
 export function UpdateDialog() {
   const isMobile = useIsMobile();

@@ -1,8 +1,8 @@
 "use client";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "./api";
-import { queryKeys } from "./queries";
+import { getEarliestMonth } from "@/src/shared/repository";
+import { earliestMonthKeys } from "@/src/shared/services";
 
 interface MonthCtx {
   month: string;
@@ -17,8 +17,8 @@ export function MonthProvider({ children }: { children: React.ReactNode }) {
   const [month, setMonthState] = useState(today);
 
   const earliest = useQuery({
-    queryKey: queryKeys.earliestMonth,
-    queryFn: () => api.getEarliestMonth(),
+    queryKey: earliestMonthKeys,
+    queryFn: () => getEarliestMonth(),
     staleTime: 60_000,
   });
 

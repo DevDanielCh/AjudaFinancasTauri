@@ -11,7 +11,7 @@ import { MonthPicker } from "@/components/MonthPicker";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useMonth } from "@/lib/month-context";
-import { api } from "@/lib/api";
+import { getVersion } from "@/src/shared/repository";
 import { cn } from "@/lib/utils";
 
 const MODULE_GROUPS = [
@@ -43,7 +43,7 @@ export function Sidebar() {
 
   useEffect(() => {
     setMounted(true); // eslint-disable-line react-hooks/set-state-in-effect
-    api.getVersion().then(setVersion).catch(() => {});
+    getVersion().then(setVersion).catch(() => {});
   }, []);
 
   return (
