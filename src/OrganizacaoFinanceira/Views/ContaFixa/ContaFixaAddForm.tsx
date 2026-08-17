@@ -11,7 +11,9 @@ import { FieldErrors } from "@/components/forms/FieldErrors";
 import { Spinner } from "@/components/ui/spinner";
 import { useStore } from "@/lib/forms";
 import { formatMonth } from "@/lib/format";
-import type { Category, FixedBillInput, PaymentMethod } from "@/lib/types";
+import type { Category } from "../../Models/category";
+import type { FixedBillInput } from "../../Models/fixed-bill";
+import type { PaymentMethod } from "../../Models/payment-method";
 import type { CrudFormApi } from "@/lib/forms";
 
 export interface FixedBillResources {
@@ -21,7 +23,7 @@ export interface FixedBillResources {
   cardValidityDays: Record<number, number>;
 }
 
-export function FixedBillForm({
+export function ContaFixaAddForm({
   form,
   resources,
   serverError,

@@ -10,9 +10,9 @@ import {
 import { api } from "@/lib/api";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { formatDate, formatMoney } from "@/lib/format";
-import type { CardBillDetail } from "@/lib/types";
+import type { CardBillDetail } from "../../Models/transaction";
 
-export function FaturaDetailDialog({ id, onClose }: { id: number | null; onClose: () => void }) {
+export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose: () => void }) {
   const isMobile = useIsMobile();
   const [detail, setDetail] = useState<CardBillDetail | null>(null);
 

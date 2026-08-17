@@ -9,7 +9,8 @@ import { MoneyInput } from "@/components/forms/MoneyInput";
 import { FieldErrors } from "@/components/forms/FieldErrors";
 import { Spinner } from "@/components/ui/spinner";
 import { useStore } from "@/lib/forms";
-import type { LoanInput, PaymentMethod } from "@/lib/types";
+import type { LoanInput } from "../../Models/loan";
+import type { PaymentMethod } from "../../Models/payment-method";
 import type { CrudFormApi } from "@/lib/forms";
 
 function deriveRate(principal: number, installment: number, n: number): number {
@@ -25,7 +26,7 @@ function deriveRate(principal: number, installment: number, n: number): number {
   return (lo + hi) / 2;
 }
 
-export function LoanForm({
+export function FinanciamentoAddForm({
   form,
   resources,
   serverError,
@@ -49,7 +50,6 @@ export function LoanForm({
   );
   const differs = values.monthly_rate > 0 && Math.abs(values.monthly_rate - auto) > 1e-9;
 
-  // Pré-calcula a taxa da parcela; usuário que digitou taxa própria é preservado.
   useEffect(() => {
     if (differs) return;
     if (auto > 0) form.setFieldValue("monthly_rate", auto);

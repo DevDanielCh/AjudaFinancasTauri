@@ -8,10 +8,12 @@ import { DatePicker } from "@/components/DatePicker";
 import { FieldErrors } from "@/components/forms/FieldErrors";
 import { Spinner } from "@/components/ui/spinner";
 import { useStore } from "@/lib/forms";
-import type { Category, PaymentMethod, TransactionInput } from "@/lib/types";
+import type { Category } from "../../Models/category";
+import type { PaymentMethod } from "../../Models/payment-method";
+import type { TransactionInput } from "../../Models/transaction";
 import type { CrudFormApi } from "@/lib/forms";
 
-export function TransactionForm({
+export function TransacaoAddForm({
   form,
   resources,
   serverError,

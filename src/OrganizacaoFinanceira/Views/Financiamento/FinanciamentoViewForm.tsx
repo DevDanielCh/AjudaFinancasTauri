@@ -12,9 +12,9 @@ import { useIsMobile } from "@/lib/use-is-mobile";
 import { formatDate, formatMoney } from "@/lib/format";
 import { useMonth } from "@/lib/month-context";
 import { cn } from "@/lib/utils";
-import type { LoanDetail } from "@/lib/types";
+import type { LoanDetail } from "../../Models/loan";
 
-export function DetailDialog({ id, onClose }: { id: number | null; onClose: () => void }) {
+export function FinanciamentoViewForm({ id, onClose }: { id: number | null; onClose: () => void }) {
   const isMobile = useIsMobile();
   const { month } = useMonth();
   const [detail, setDetail] = useState<LoanDetail | null>(null);

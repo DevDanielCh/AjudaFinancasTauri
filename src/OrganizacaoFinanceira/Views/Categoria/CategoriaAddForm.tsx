@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FieldErrors } from "@/components/forms/FieldErrors";
-import type { CategoryInput } from "@/lib/types";
+import type { CategoryInput } from "../../Models/category";
 import type { CrudFormApi } from "@/lib/forms";
 
-export function CategoryForm({
+export function CategoriaAddForm({
   form,
   serverError,
 }: {

@@ -5,10 +5,10 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { DatePicker } from "@/components/DatePicker";
 import { FieldErrors } from "@/components/forms/FieldErrors";
-import type { ReservaInput } from "@/lib/types";
+import type { ReservaInput } from "../../Models/reserva";
 import type { CrudFormApi } from "@/lib/forms";
 
-export function ReservaForm({
+export function ReservaAddForm({
   form,
   serverError,
 }: {

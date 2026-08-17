@@ -4,10 +4,10 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { FieldErrors } from "@/components/forms/FieldErrors";
 import { useStore } from "@/lib/forms";
-import type { PaymentMethodInput } from "@/lib/types";
+import type { PaymentMethodInput } from "../../Models/payment-method";
 import type { CrudFormApi } from "@/lib/forms";
 
-export function PaymentMethodForm({
+export function FormaPagamentoAddForm({
   form,
   serverError,
 }: {

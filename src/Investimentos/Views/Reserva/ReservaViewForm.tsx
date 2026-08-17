@@ -1,0 +1,27 @@
+"use client";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { formatDate, formatMoney } from "@/lib/format";
+import type { ReservaRow } from "../../Models/reserva";
+
+export function ReservaViewForm({ row }: { row: ReservaRow }) {
+  return (
+    <FieldGroup>
+      <Field>
+        <FieldLabel>Descrição</FieldLabel>
+        <div className="text-sm">{row.description}</div>
+      </Field>
+      <Field>
+        <FieldLabel>Valor</FieldLabel>
+        <div className="text-sm font-mono">{formatMoney(row.amount)}</div>
+      </Field>
+      <Field>
+        <FieldLabel>Tipo</FieldLabel>
+        <div className="text-sm">{row.type === 4 ? "Adicionar à reserva" : "Remover da reserva"}</div>
+      </Field>
+      <Field>
+        <FieldLabel>Data</FieldLabel>
+        <div className="text-sm">{formatDate(row.date)}</div>
+      </Field>
+    </FieldGroup>
+  );
+}
