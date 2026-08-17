@@ -255,7 +255,7 @@ pub fn monthly_series(
             } else {
                 acc
             },
-            reserva: crate::domain::reserva_balance_at(conn, next)?,
+            reserva: crate::investimentos::repository::reserva_balance_at(conn, next)?,
         });
         m = next;
     }
@@ -386,7 +386,7 @@ fn build(conn: &rusqlite::Connection, month: &str) -> Result<DashboardData, Stri
 
     let next = ref_month.checked_add_months(Months::new(1)).unwrap();
     let settings = settings::get_settings_impl(conn)?;
-    let aportes = crate::domain::month_investments(conn, ref_month, next)?;
+    let aportes = crate::investimentos::service::month_investments(conn, ref_month, next)?;
     let (balance, prev_balance) = if settings.primeiro_mes.is_some() {
         (
             account_balance_at(conn, next)?,

@@ -1,1 +1,3 @@
-// preenchido nas tasks seguintes
+pub mod controller;
+pub mod repository;
+pub mod service;

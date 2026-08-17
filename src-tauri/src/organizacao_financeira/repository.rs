@@ -1,8 +1,180 @@
-use crate::organizacao_financeira::models::{Category, FixedBill, Loan, LoanInput, PaymentMethod};
-use crate::shared::util::{current_month, db_err, order_clause};
+use crate::domain;
+use crate::organizacao_financeira::models::{Category, FixedBill, Loan, LoanInput, PaymentMethod, TransactionRow};
+use crate::shared::card_bills;
+use crate::shared::util::{current_month, db_err, month_range, order_clause, parse_month};
 use rusqlite::{params, Connection, OptionalExtension};
 
 use super::service;
+
+pub(crate) fn list_transactions(
+    conn: &Connection,
+    month: Option<&str>,
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+) -> Result<Vec<TransactionRow>, String> {
+    let (start, end, ref_month) = match month {
+        Some(m) if !m.is_empty() => {
+            let (s, e) = month_range(m)?;
+            (Some(s), Some(e), Some(parse_month(m)?))
+        }
+        _ => (None, None, None),
+    };
+    if let Some(m) = ref_month {
+        card_bills::ensure_card_bills(conn, m)?;
+    }
+    let mut sql = String::from(
+        "SELECT t.id, t.description, t.amount, t.type, t.date,
+                t.category_id, c.name, t.payment_method_id, pm.name,
+                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
+         FROM transactions t
+         LEFT JOIN categories c ON c.id = t.category_id
+         LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id",
+    );
+    if start.is_some() {
+        sql.push_str(" WHERE t.date >= ?1 AND t.date < ?2");
+    }
+    sql.push_str(&format!(" {}", order_clause(
+        sort_by,
+        sort_dir,
+        &[
+            ("date", "t.date"),
+            ("type", "t.type"),
+            ("description", "t.description"),
+            ("category", "c.name"),
+            ("payment_method", "pm.name"),
+            ("amount", "t.amount"),
+        ],
+        "ORDER BY t.date DESC, t.id DESC",
+        "t.id DESC",
+    )));
+    let mut stmt = conn.prepare(&sql).map_err(db_err)?;
+    let start_s = start.map(|d| d.format("%Y-%m-%d").to_string());
+    let end_s = end.map(|d| d.format("%Y-%m-%d").to_string());
+    let params: &[&dyn rusqlite::ToSql] = if start_s.is_some() {
+        &[&start_s, &end_s]
+    } else {
+        &[]
+    };
+    let rows = stmt
+        .query_map(params, |r| {
+                Ok(TransactionRow {
+                    id: r.get(0)?,
+                    description: r.get(1)?,
+                    amount: r.get(2)?,
+                    type_: r.get(3)?,
+                    date: r.get(4)?,
+                    category_id: r.get(5)?,
+                    category_name: r.get(6)?,
+                    payment_method_id: r.get(7)?,
+                    payment_method_name: r.get(8)?,
+                    fixed_bill_id: r.get(9)?,
+                    loan_id: r.get(10)?,
+                    is_card_bill: r.get(11)?,
+                    card_mode: r.get(12)?,
+                    installment: None,
+                })
+            },
+        )
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+    let card_ids = card_bills::fatura_capable_card_ids(conn)?;
+    Ok(rows
+        .into_iter()
+        // Fatura substitui o crédito; débito aparece como despesa normal.
+        .filter(|r| {
+            r.is_card_bill
+                || r.payment_method_id.is_none_or(|id| !card_ids.contains(&id))
+                || r.card_mode == 1
+        })
+        .collect())
+}
+
+/// Compras de crédito que compõem a fatura (card_mode = 0) no período.
+pub fn card_bill_purchases(
+    conn: &Connection,
+    pm_id: i64,
+    bill_start: &str,
+    bill_end: &str,
+) -> Result<Vec<TransactionRow>, String> {
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT t.id, t.description, t.amount, t.type, t.date,
+                    t.category_id, cat.name, t.payment_method_id, pm.name,
+                    t.fixed_bill_id, t.loan_id, 0, t.card_mode,
+                    fb.installments, fb.start_month
+             FROM transactions t
+             LEFT JOIN categories cat ON cat.id = t.category_id
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
+             LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
+             WHERE t.payment_method_id = ?1 AND t.bill_start IS NULL
+               AND t.card_mode = 0
+               AND t.date >= ?2 AND t.date < ?3
+               AND ({})
+             ORDER BY t.date ASC, t.id ASC",
+            domain::FINISHED_GUARD_SQL
+        ))
+        .map_err(db_err)?;
+    let txs = stmt
+        .query_map(params![pm_id, bill_start, bill_end], |r| {
+            let date: String = r.get(4)?;
+            let installments: Option<i64> = r.get(13)?;
+            let start_month: Option<String> = r.get(14)?;
+            let installment = match (installments, start_month) {
+                (Some(total), Some(sm)) if total >= 1 => {
+                    Some(format!("{}/{}", crate::organizacao_financeira::service::installment_index(&sm, &date[..7]), total))
+                }
+                _ => None,
+            };
+            Ok(TransactionRow {
+                id: r.get(0)?,
+                description: r.get(1)?,
+                amount: r.get(2)?,
+                type_: r.get(3)?,
+                date,
+                category_id: r.get(5)?,
+                category_name: r.get(6)?,
+                payment_method_id: r.get(7)?,
+                payment_method_name: r.get(8)?,
+                fixed_bill_id: r.get(9)?,
+                loan_id: r.get(10)?,
+                is_card_bill: false,
+                card_mode: r.get(12)?,
+                installment,
+            })
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+    Ok(txs)
+}
+
+pub(crate) fn get_card_bill_query(
+    conn: &Connection,
+    id: i64,
+) -> Result<(i64, String, Option<String>, Option<String>, String, String), String> {
+    let row: Option<(i64, String, Option<String>, Option<String>, String, String)> = conn
+        .query_row(
+            "SELECT t.payment_method_id, pm.name, t.bill_start, t.bill_end, t.date, t.description
+             FROM transactions t
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
+             WHERE t.id = ?1",
+            params![id],
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(db_err)?;
+    row.ok_or_else(|| "fatura não encontrada".into())
+}
 
 pub(crate) fn list_categories(
     conn: &Connection,
@@ -365,5 +537,110 @@ mod tests {
         assert!(antigo.finished, "plano encerrado deve marcar finished");
         let novo = rows.iter().find(|b| b.description == "novo").expect("novo presente");
         assert!(!novo.finished, "plano corrente não está finished");
+    }
+
+    fn add_pm(conn: &Connection, name: &str, ty: i64, meta: Option<&str>) -> i64 {
+        conn.execute(
+            "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
+            params![name, ty, meta],
+        )
+        .unwrap();
+        conn.last_insert_rowid()
+    }
+
+    #[test]
+    fn list_mostra_debito_e_esconde_credito_do_cartao() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        let pix = add_pm(&conn, "PIX", 1, None);
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('debito', 3000, 2, '2026-06-15', ?1, 1)",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES ('credito', 5000, 2, '2026-06-05', ?1)",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES ('fatura', 5000, 3, '2026-06-20', ?1)",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "UPDATE transactions SET bill_start = '2026-05-10', bill_end = '2026-06-10' WHERE description = 'fatura'",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+             VALUES ('pix', 100, 2, '2026-06-05', ?1)",
+            params![pix],
+        )
+        .unwrap();
+
+        let rows = list_transactions(&conn, None, None, None).unwrap();
+
+        let debit = rows.iter().find(|r| r.description == "debito").expect("débito deve aparecer");
+        assert_eq!(debit.card_mode, 1);
+        assert!(rows.iter().all(|r| r.description != "credito"), "crédito deve sumir da listagem");
+        let fatura = rows.iter().find(|r| r.description == "fatura").expect("fatura deve aparecer");
+        assert!(fatura.is_card_bill);
+        assert!(rows.iter().any(|r| r.description == "pix"), "forma normal deve aparecer");
+    }
+
+    #[test]
+    fn fatura_detalhe_exclui_parcela_encerrada() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        conn.execute(
+            "INSERT INTO fixed_bills (description, amount, day, payment_method_id, start_month, end_month, installments)
+             VALUES ('parcela', 1000, 10, ?1, '2026-01', '2026-06', 3)",
+            params![card],
+        )
+        .unwrap();
+        let fb_id = conn.last_insert_rowid();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, fixed_bill_id, card_mode)
+             VALUES ('fantasma', 4000, 2, '2026-06-15', ?1, ?2, 0)",
+            params![card, fb_id],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('avulsa', 5000, 2, '2026-06-15', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+
+        let txs = card_bill_purchases(&conn, card, "2026-06-10", "2026-07-10").unwrap();
+
+        assert!(txs.iter().any(|t| t.description == "avulsa"));
+        assert!(
+            txs.iter().all(|t| t.description != "fantasma"),
+            "parcela além do total não pode aparecer no detalhe"
+        );
+        assert_eq!(txs.iter().map(|t| t.amount).sum::<i64>(), 5000);
+    }
+
+    #[test]
+    fn list_transactions_ordena_por_valor() {
+        let conn = test_db();
+        let pix = add_pm(&conn, "PIX", 1, None);
+        for (desc, amount) in [("a", 100), ("c", 300), ("b", 200)] {
+            conn.execute(
+                "INSERT INTO transactions (description, amount, type, date, payment_method_id)
+                 VALUES (?1, ?2, 2, '2026-06-05', ?3)",
+                params![desc, amount, pix],
+            )
+            .unwrap();
+        }
+        let rows = list_transactions(&conn, None, Some("amount"), Some("asc")).unwrap();
+        let amounts: Vec<i64> = rows.iter().map(|r| r.amount).collect();
+        assert_eq!(amounts, vec![100, 200, 300]);
     }
 }

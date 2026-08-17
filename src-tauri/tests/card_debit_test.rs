@@ -1,4 +1,4 @@
-use ajudafinancas_lib::commands::transactions::card_bill_purchases;
+use ajudafinancas_lib::organizacao_financeira::repository::card_bill_purchases;
 use ajudafinancas_lib::db::migrations;
 use rusqlite::Connection;
 

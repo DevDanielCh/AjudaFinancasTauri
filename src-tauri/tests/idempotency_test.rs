@@ -1,5 +1,4 @@
 use ajudafinancas_lib::organizacao_financeira::{repository, service};
-use ajudafinancas_lib::commands::transactions;
 use ajudafinancas_lib::db::migrations;
 use ajudafinancas_lib::organizacao_financeira::models::{
     CategoryInput, FixedBillInput, LoanInput, PaymentMethodInput, TransactionInput,
@@ -54,10 +53,10 @@ fn create_transacao_duplicada_rejeita_mas_difere_por_dia() {
         payment_method_id: None,
         card_mode: 0,
     };
-    transactions::create(&conn, &base).unwrap();
-    let err = transactions::create(&conn, &base).unwrap_err();
+    service::create(&conn, &base).unwrap();
+    let err = service::create(&conn, &base).unwrap_err();
     assert!(err.contains("já existe"));
-    transactions::create(
+    service::create(
         &conn,
         &TransactionInput { date: "2026-06-06".into(), ..base },
     )
@@ -98,7 +97,7 @@ fn transacao_gerada_por_conta_fixa_nao_vira_falso_duplicado() {
         payment_method_id: None,
         card_mode: 0,
     };
-    transactions::create(&conn, &input).unwrap();
+    service::create(&conn, &input).unwrap();
     assert_eq!(
         conn.query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get::<_, i64>(0))
             .unwrap(),

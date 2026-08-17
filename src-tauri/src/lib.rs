@@ -4,7 +4,6 @@ use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_log::{Target, TargetKind};
 
-pub mod commands;
 pub mod db;
 pub mod domain;
 pub mod investimentos;
@@ -68,12 +67,12 @@ pub fn run() {
             shared::report::get_dashboard,
             shared::report::sync_dashboard,
             shared::report::get_chart_data,
-            commands::transactions::list_transactions,
-            commands::transactions::list_reserva_movements,
-            commands::transactions::create_transaction,
-            commands::transactions::update_transaction,
-            commands::transactions::delete_transactions,
-            commands::transactions::get_card_bill,
+            organizacao_financeira::controller::list_transactions,
+            investimentos::controller::list_reserva_movements,
+            organizacao_financeira::controller::create_transaction,
+            organizacao_financeira::controller::update_transaction,
+            organizacao_financeira::controller::delete_transactions,
+            organizacao_financeira::controller::get_card_bill,
             organizacao_financeira::controller::list_categories,
             organizacao_financeira::controller::create_category,
             organizacao_financeira::controller::update_category,

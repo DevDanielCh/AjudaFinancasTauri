@@ -1,4 +1,4 @@
-use ajudafinancas_lib::commands::transactions::delete_ids;
+use ajudafinancas_lib::organizacao_financeira::service::delete_ids;
 use ajudafinancas_lib::db::migrations;
 use rusqlite::Connection;
 

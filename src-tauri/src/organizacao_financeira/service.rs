@@ -1,5 +1,5 @@
 use chrono::{Datelike, Months, NaiveDate};
-use crate::organizacao_financeira::models::{AmortizationRow, CategoryInput, FixedBillInput, PaymentMethodInput};
+use crate::organizacao_financeira::models::{AmortizationRow, CategoryInput, FixedBillInput, PaymentMethodInput, TransactionInput};
 use crate::shared::card_bills::{self, last_day_of, refresh_card_bills};
 use crate::shared::settings;
 use crate::shared::util::{db_err, month_diff, parse_month};
@@ -131,6 +131,92 @@ pub(crate) fn delete_payment_methods(conn: &Connection, ids: &[i64]) -> Result<(
         rusqlite::params_from_iter(ids.iter()),
     )
     .map_err(db_err)?;
+    Ok(())
+}
+
+// ---- transactions helpers ----
+
+pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String> {
+    let description = input.description.trim();
+    let dup = conn
+        .query_row(
+            "SELECT 1 FROM transactions
+             WHERE description = ?1 AND amount = ?2 AND type = ?3 AND date = ?4
+               AND category_id IS ?5 AND payment_method_id IS ?6 AND card_mode = ?7
+               AND fixed_bill_id IS NULL AND bill_start IS NULL
+             LIMIT 1",
+            params![
+                description,
+                input.amount,
+                input.type_,
+                input.date,
+                input.category_id,
+                input.payment_method_id,
+                input.card_mode
+            ],
+            |_| Ok(()),
+        )
+        .optional()
+        .map_err(db_err)?;
+    if dup.is_some() {
+        return Err("já existe transação idêntica nessa data".into());
+    }
+    conn.execute(
+        "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, card_mode)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            description,
+            input.amount,
+            input.type_,
+            input.date,
+            input.category_id,
+            input.payment_method_id,
+            input.card_mode
+        ],
+    )
+    .map_err(db_err)?;
+    refresh_card_bills(conn)?;
+    Ok(())
+}
+
+pub fn update(conn: &Connection, id: i64, input: &TransactionInput) -> Result<(), String> {
+    if card_bills::is_card_bill(conn, id)? {
+        return Err("fatura é gerada automaticamente e não pode ser editada".into());
+    }
+    let affected = conn
+        .execute(
+            "UPDATE transactions SET description = ?1, amount = ?2, type = ?3, date = ?4,
+                    category_id = ?5, payment_method_id = ?6, card_mode = ?7
+             WHERE id = ?8",
+            params![
+                input.description.trim(),
+                input.amount,
+                input.type_,
+                input.date,
+                input.category_id,
+                input.payment_method_id,
+                input.card_mode,
+                id
+            ],
+        )
+        .map_err(db_err)?;
+    if affected == 0 {
+        return Err("transação não encontrada".into());
+    }
+    refresh_card_bills(conn)?;
+    Ok(())
+}
+
+pub fn delete_ids(conn: &Connection, ids: &[i64]) -> Result<(), String> {
+    for id in ids {
+        if card_bills::is_card_bill(conn, *id)? {
+            return Err("fatura é gerada automaticamente e não pode ser excluída".into());
+        }
+    }
+    let placeholders = vec!["?"; ids.len()].join(",");
+    let sql = format!("DELETE FROM transactions WHERE id IN ({placeholders})");
+    conn.execute(&sql, rusqlite::params_from_iter(ids.iter()))
+        .map_err(db_err)?;
     Ok(())
 }
 

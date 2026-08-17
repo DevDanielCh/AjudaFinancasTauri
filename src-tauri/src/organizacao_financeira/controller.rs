@@ -1,6 +1,7 @@
 use crate::db::{with_db, AppState};
 use crate::organizacao_financeira::models::{
-    Category, CategoryInput, FixedBill, FixedBillInput, Loan, LoanDetail, LoanInput, PaymentMethod, PaymentMethodInput,
+    CardBillDetail, Category, CategoryInput, FixedBill, FixedBillInput, Loan, LoanDetail, LoanInput,
+    PaymentMethod, PaymentMethodInput, TransactionInput, TransactionRow,
 };
 use crate::organizacao_financeira::{repository, service};
 use crate::shared::card_bills;
@@ -75,6 +76,71 @@ pub async fn delete_payment_methods(state: State<'_, AppState>, ids: Vec<i64>) -
         return Err("ids requeridos".into());
     }
     with_db(&state, |c| service::delete_payment_methods(c, &ids))
+}
+
+// ---- transactions ----
+
+#[tauri::command]
+pub async fn list_transactions(
+    state: State<'_, AppState>,
+    month: Option<String>,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
+) -> Result<Vec<TransactionRow>, String> {
+    with_db(&state, |c| repository::list_transactions(c, month.as_deref(), sort_by.as_deref(), sort_dir.as_deref()))
+}
+
+#[tauri::command]
+pub async fn create_transaction(
+    state: State<'_, AppState>,
+    input: TransactionInput,
+) -> Result<(), String> {
+    input.validate()?;
+    with_db(&state, |c| service::create(c, &input))
+}
+
+#[tauri::command]
+pub async fn update_transaction(
+    state: State<'_, AppState>,
+    id: i64,
+    input: TransactionInput,
+) -> Result<(), String> {
+    input.validate()?;
+    with_db(&state, |c| service::update(c, id, &input))
+}
+
+#[tauri::command]
+pub async fn delete_transactions(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(), String> {
+    if ids.is_empty() {
+        return Err("ids requeridos".into());
+    }
+    with_db(&state, |c| {
+        service::delete_ids(c, &ids)?;
+        card_bills::refresh_card_bills(c)
+    })
+}
+
+#[tauri::command]
+pub async fn get_card_bill(state: State<'_, AppState>, id: i64) -> Result<CardBillDetail, String> {
+    with_db(&state, |c| {
+        let (pm_id, pm_name, bill_start, bill_end, due, description) =
+            repository::get_card_bill_query(c, id)?;
+        let (Some(bs), Some(be)) = (bill_start, bill_end) else {
+            return Err("transação não é uma fatura".into());
+        };
+        let txs = repository::card_bill_purchases(c, pm_id, &bs, &be)?;
+        let total: i64 = txs.iter().map(|t| t.amount).sum();
+        Ok(CardBillDetail {
+            id,
+            description,
+            payment_method_name: pm_name,
+            period_start: bs,
+            period_end: be,
+            due_date: due,
+            total,
+            transactions: txs,
+        })
+    })
 }
 
 // ---- fixed_bills ----

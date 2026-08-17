@@ -1,4 +1,3 @@
-use ajudafinancas_lib::domain;
 use ajudafinancas_lib::shared::report;
 use ajudafinancas_lib::shared::settings::{self, SettingsInput};
 use chrono::NaiveDate;
@@ -55,7 +54,7 @@ fn reserva_balance_soma_saldo_inicial_e_ignora_antes_do_piso() {
     set(&conn, Some("2026-06"), 0, 20000);
     let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
     assert_eq!(
-        domain::reserva_balance_at(&conn, jul).unwrap(),
+        ajudafinancas_lib::investimentos::repository::reserva_balance_at(&conn, jul).unwrap(),
         90000,
         "saldo inicial 20000 + aporte 100000 - resgate 30000; aporte antigo ignorado"
     );
