@@ -1,4 +1,5 @@
 "use client";
+import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,11 @@ import { cn } from "@/lib/utils";
 import { useDashboard, useChartData, useSyncDashboard } from "@/src/shared/services";
 import { ChartSection } from "@/components/dashboard/ChartSection";
 import { PullToRefresh } from "@/components/PullToRefresh";
+import { barY, group } from "@tanstack/charts";
+import { scaleLinear } from "@tanstack/charts/scales/linear";
+import { scalePoint } from "@tanstack/charts/scales/point";
+import { Chart } from "@tanstack/charts/react";
+import { defineChart } from "@tanstack/charts";
 
 export default function DashboardPage() {
   const { month } = useMonth();
@@ -122,6 +128,45 @@ function StatCard({ label, value, positive, negative, children }: { label: strin
 function MetaCard({ pct, income, aportes }: { pct: number; income: number; aportes: number }) {
   const metaValor = Math.round((income * pct) / 100);
   const atingiu = metaValor > 0 && aportes >= metaValor;
+
+  const chartData = React.useMemo(
+    () => [
+      { series: "Meta", value: metaValor },
+      { series: "Aportes", value: aportes },
+    ],
+    [metaValor, aportes],
+  );
+
+  const definition = React.useMemo(
+    () =>
+      defineChart({
+        marks: [
+          barY(chartData, {
+            x: "series",
+            y: "value",
+            color: "series",
+            layout: group({ padding: 0.4 }),
+            radius: 4,
+            inset: 8,
+          }),
+        ],
+        x: {
+          scale: () => scalePoint<string>().padding(0.4),
+        },
+        y: {
+          scale: scaleLinear,
+          nice: true,
+          grid: true,
+          axis: { ticks: { format: (v) => formatMoney(Number(v)) } },
+        },
+        color: {
+          domain: ["Meta", "Aportes"],
+          range: ["hsl(var(--muted-foreground) / 0.35)", "hsl(var(--chart-2))"],
+        },
+      }),
+    [chartData],
+  );
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -132,10 +177,8 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-1">
-        <div className={cn("text-2xl font-bold tabular-nums font-mono", atingiu ? "text-positive" : "text-negative")}>
-          {formatMoney(metaValor)}
-        </div>
+      <CardContent className="flex flex-col gap-2">
+        <Chart definition={definition} height={140} ariaLabel="Meta de investimento vs aportes" />
         <p className="text-sm text-muted-foreground">
           {pct.toLocaleString("pt-BR")}% da renda · aportado {formatMoney(aportes)} no mês
         </p>
