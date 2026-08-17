@@ -1,8 +1,7 @@
-use ajudafinancas_lib::commands::categories;
 use ajudafinancas_lib::commands::fixed_bills;
 use ajudafinancas_lib::commands::loans;
-use ajudafinancas_lib::commands::payment_methods;
 use ajudafinancas_lib::commands::transactions;
+use ajudafinancas_lib::organizacao_financeira::service;
 use ajudafinancas_lib::db::migrations;
 use ajudafinancas_lib::organizacao_financeira::models::{
     CategoryInput, FixedBillInput, LoanInput, PaymentMethodInput, TransactionInput,
@@ -24,10 +23,10 @@ fn create_categoria_duplicada_rejeita() {
         color: "#f00".into(),
         icon: None,
     };
-    categories::create(&conn, &input).unwrap();
-    let err = categories::create(&conn, &input).unwrap_err();
+    service::create_category(&conn, &input).unwrap();
+    let err = service::create_category(&conn, &input).unwrap_err();
     assert!(err.contains("já existe"));
-    let err = categories::create(&conn, &CategoryInput { type_: 1, ..input.clone() }).unwrap_err();
+    let err = service::create_category(&conn, &CategoryInput { type_: 1, ..input.clone() }).unwrap_err();
     assert!(err.contains("já existe"), "nome repetido em outro tipo também bloqueia");
 }
 
@@ -40,8 +39,8 @@ fn create_forma_pagamento_duplicada_rejeita() {
         close_day: Some(10),
         validity_day: Some(20),
     };
-    payment_methods::create(&conn, &input).unwrap();
-    let err = payment_methods::create(&conn, &input).unwrap_err();
+    service::create_payment_method(&conn, &input).unwrap();
+    let err = service::create_payment_method(&conn, &input).unwrap_err();
     assert!(err.contains("já existe"));
 }
 
