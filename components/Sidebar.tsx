@@ -118,9 +118,12 @@ function MonthStatusBadge({ month }: { month: string | null }) {
   const { data } = useDashboard(month);
   if (!data) return null;
   const balance = data.income - data.expenses;
+  const metaValor = Math.round((data.income * data.meta_investimento) / 100);
+  const bateuMeta = metaValor > 0 && data.aportes >= metaValor;
+  const sobrou = balance > 0;
   const abs = Math.abs(balance);
-  const variant = balance > 0 ? "positive" : balance < 0 ? "negative" : "yellow";
-  const label = balance > 0 ? `Sobrou ${formatMoney(abs)}` : balance < 0 ? `Faltou ${formatMoney(abs)}` : `Empatou ${formatMoney(abs)}`;
+  const variant = sobrou && bateuMeta ? "positive" : sobrou ? "yellow" : "negative";
+  const label = sobrou ? `Sobrou ${formatMoney(abs)}` : `Faltou ${formatMoney(abs)}`;
   return (
     <Badge
       className={cn(
