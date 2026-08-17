@@ -12,7 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useMonth } from "@/lib/month-context";
 import { getVersion } from "@/src/shared/repository";
+import { useDashboard } from "@/src/shared/services";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const MODULE_GROUPS = [
   {
@@ -47,9 +49,9 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col gap-2 border-r bg-muted/40 p-4 sm:flex">
-      <div className="px-2 pt-1 text-lg font-bold tracking-tight">Ajuda Finanças</div>
+    <aside className="hidden h-screen w-64 shrink-0 flex-col gap-2 border-r bg-muted/40 p-4 sm:flex">
       <MonthPicker value={month} onChange={setMonth} min={min} />
+      <MonthStatusBadge month={month} />
       <Separator className="my-1" />
       <Link
         href="/"
@@ -108,5 +110,25 @@ export function Sidebar() {
       <Separator className="my-1" />
       <p className="text-center text-xs text-muted-foreground">{version}</p>
     </aside>
+  );
+}
+
+function MonthStatusBadge({ month }: { month: string | null }) {
+  const { data } = useDashboard(month);
+  if (!data) return null;
+  const balance = data.income - data.expenses;
+  const variant = balance > 0 ? "positive" : balance < 0 ? "negative" : "yellow";
+  const label = balance > 0 ? "Verde" : balance < 0 ? "Vermelho" : "Amarelo";
+  return (
+    <Badge
+      className={cn(
+        "w-full text-xs",
+        variant === "positive" && "bg-positive text-positive-foreground",
+        variant === "negative" && "bg-negative text-negative-foreground",
+        variant === "yellow" && "bg-yellow-500 text-white",
+      )}
+    >
+      {label}
+    </Badge>
   );
 }

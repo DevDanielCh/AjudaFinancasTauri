@@ -38,9 +38,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Providers>
             <MonthProvider>
-              <div className="flex min-h-screen">
+              <div className="flex h-screen">
                 <Sidebar />
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
                   <MobileHeader />
                   <main className="flex-1 p-3 pb-24 sm:pb-3">
                     {children}
