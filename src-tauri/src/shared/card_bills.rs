@@ -1,7 +1,11 @@
 use chrono::{Datelike, Months, NaiveDate};
 use rusqlite::{params, Connection};
 
-use crate::domain::FINISHED_GUARD_SQL;
+pub(crate) const FINISHED_GUARD_SQL: &str = "fb.installments IS NULL OR \
+    ((CAST(strftime('%Y', t.date) AS INTEGER) * 12 + CAST(strftime('%m', t.date) AS INTEGER)) \
+    - (CAST(substr(fb.start_month, 1, 4) AS INTEGER) * 12 + CAST(substr(fb.start_month, 6, 2) AS INTEGER))) \
+    < fb.installments";
+
 use crate::shared::settings;
 use crate::shared::util::{db_err, parse_month};
 

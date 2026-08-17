@@ -1,4 +1,4 @@
-use crate::domain;
+use crate::shared::card_bills::FINISHED_GUARD_SQL;
 use crate::organizacao_financeira::models::{Category, FixedBill, Loan, LoanInput, PaymentMethod, TransactionRow};
 use crate::shared::card_bills;
 use crate::shared::util::{current_month, db_err, month_range, order_clause, parse_month};
@@ -112,7 +112,7 @@ pub fn card_bill_purchases(
                AND t.date >= ?2 AND t.date < ?3
                AND ({})
              ORDER BY t.date ASC, t.id ASC",
-            domain::FINISHED_GUARD_SQL
+            FINISHED_GUARD_SQL
         ))
         .map_err(db_err)?;
     let txs = stmt

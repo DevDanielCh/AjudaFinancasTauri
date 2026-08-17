@@ -5,7 +5,6 @@ use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_log::{Target, TargetKind};
 
 pub mod db;
-pub mod domain;
 pub mod investimentos;
 pub mod organizacao_financeira;
 pub mod shared;
