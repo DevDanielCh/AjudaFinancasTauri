@@ -67,6 +67,9 @@ jobs:
 
       - name: Build Android APK
         run: bun tauri android build --apk
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
       - name: Sign APK with debug keystore
         run: |
