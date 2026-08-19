@@ -5,7 +5,7 @@ import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon, CopyIcon, CheckIcon } from "lucide-react"
 
 const toast = ToastPrimitive.createToastManager()
 
@@ -179,6 +179,26 @@ function ToastIcon({ type }: { type: string | undefined }) {
   )
 }
 
+function CopyErrorButton({ text }: { text: React.ReactNode }) {
+  const [copied, setCopied] = React.useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(String(text))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="shrink-0 text-muted-foreground hover:text-foreground"
+      aria-label="Copiar erro"
+    >
+      {copied ? <CheckIcon className="size-4 text-green-500" /> : <CopyIcon className="size-4" />}
+    </button>
+  )
+}
+
 function ToastList() {
   const { toasts } = ToastPrimitive.useToastManager()
 
@@ -190,6 +210,9 @@ function ToastList() {
           <ToastTitle />
           <ToastDescription />
         </div>
+        {toastItem.type === "error" && toastItem.title && (
+          <CopyErrorButton text={toastItem.title} />
+        )}
         <ToastAction />
         <ToastClose />
       </ToastContent>

@@ -16,6 +16,7 @@ import { useDashboard } from "@/src/shared/services";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
+import { SyncStatusBadge } from "@/src/Sync/SyncStatus";
 
 const MODULE_GROUPS = [
   {
@@ -53,6 +54,7 @@ export function Sidebar() {
     <aside className="hidden h-screen w-64 shrink-0 flex-col gap-2 border-r bg-muted/40 p-4 sm:flex">
       <MonthPicker value={month} onChange={setMonth} min={min} />
       <MonthStatusBadge month={month} />
+      <SyncStatusBadge />
       <Separator className="my-1" />
       <Link
         href="/"

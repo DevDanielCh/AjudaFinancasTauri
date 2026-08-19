@@ -227,6 +227,10 @@ html.dark {
 html,
 body {
   height: 100%;
+  --safe-area-inset-top: 0px;
+  --safe-area-inset-bottom: 0px;
+  --safe-area-inset-left: 0px;
+  --safe-area-inset-right: 0px;
 }
 
 /* Hide native number-input step spinners (WebKit desktop). */

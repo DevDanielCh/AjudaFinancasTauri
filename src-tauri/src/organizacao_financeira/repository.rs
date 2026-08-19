@@ -27,11 +27,12 @@ pub(crate) fn list_transactions(
                 t.category_id, c.name, t.payment_method_id, pm.name,
                 t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
          FROM transactions t
-         LEFT JOIN categories c ON c.id = t.category_id
-         LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id",
+         LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
+         LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
+         WHERE t.deleted_at IS NULL",
     );
     if start.is_some() {
-        sql.push_str(" WHERE t.date >= ?1 AND t.date < ?2");
+        sql.push_str(" AND t.date >= ?1 AND t.date < ?2");
     }
     sql.push_str(&format!(" {}", order_clause(
         sort_by,
@@ -104,12 +105,13 @@ pub fn card_bill_purchases(
                     t.fixed_bill_id, t.loan_id, 0, t.card_mode,
                     fb.installments, fb.start_month
              FROM transactions t
-             LEFT JOIN categories cat ON cat.id = t.category_id
-             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
-             LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
+             LEFT JOIN categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
+             LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id AND fb.deleted_at IS NULL
              WHERE t.payment_method_id = ?1 AND t.bill_start IS NULL
                AND t.card_mode = 0
                AND t.date >= ?2 AND t.date < ?3
+               AND t.deleted_at IS NULL
                AND ({})
              ORDER BY t.date ASC, t.id ASC",
             FINISHED_GUARD_SQL
@@ -157,8 +159,8 @@ pub(crate) fn get_card_bill_query(
         .query_row(
             "SELECT t.payment_method_id, pm.name, t.bill_start, t.bill_end, t.date, t.description
              FROM transactions t
-             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
-             WHERE t.id = ?1",
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
+             WHERE t.id = ?1 AND t.deleted_at IS NULL",
             params![id],
             |r| {
                 Ok((
@@ -189,7 +191,9 @@ pub(crate) fn list_categories(
         "id DESC",
     );
     let mut stmt = conn
-        .prepare(&format!("SELECT id, name, type, color, icon FROM categories {order}"))
+        .prepare(&format!(
+            "SELECT id, name, type, color, icon FROM categories WHERE deleted_at IS NULL {order}"
+        ))
         .map_err(db_err)?;
     let rows = stmt
         .query_map([], |r| {
@@ -220,7 +224,9 @@ pub(crate) fn list_payment_methods(
         "id DESC",
     );
     let mut stmt = conn
-        .prepare(&format!("SELECT id, name, type, metadata FROM payment_methods {order}"))
+        .prepare(&format!(
+            "SELECT id, name, type, metadata FROM payment_methods WHERE deleted_at IS NULL {order}"
+        ))
         .map_err(db_err)?;
     let rows = stmt
         .query_map([], |r| {
@@ -266,9 +272,9 @@ pub(crate) fn list_fixed_bills(
         "SELECT b.id, b.description, b.amount, b.day, b.category_id, c.name,
                 b.payment_method_id, pm.name, b.start_month, b.end_month, b.installments, b.purchase_date
          FROM fixed_bills b
-         LEFT JOIN categories c ON c.id = b.category_id
-         JOIN payment_methods pm ON pm.id = b.payment_method_id
-         WHERE {cond}
+         LEFT JOIN categories c ON c.id = b.category_id AND c.deleted_at IS NULL
+         JOIN payment_methods pm ON pm.id = b.payment_method_id AND pm.deleted_at IS NULL
+         WHERE b.deleted_at IS NULL AND {cond}
          {order}"
     );
     let mut stmt = conn.prepare(&sql).map_err(db_err)?;
@@ -345,7 +351,8 @@ pub(crate) fn list_loans(
         .prepare(&format!(
             "SELECT l.id, l.type, l.description, l.principal, l.installment,
                     l.total_installments, l.day, l.start_month, l.payment_method_id, pm.name, l.monthly_rate
-             FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id
+             FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id AND pm.deleted_at IS NULL
+             WHERE l.deleted_at IS NULL
              {order}"
         ))
         .map_err(db_err)?;
@@ -421,8 +428,8 @@ pub(crate) fn get_loan_detail(
         .query_row(
             "SELECT l.id, l.type, l.description, l.principal, l.installment,
                     l.total_installments, l.day, l.start_month, l.payment_method_id, pm.name, l.monthly_rate
-             FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id
-             WHERE l.id = ?1",
+             FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id AND pm.deleted_at IS NULL
+             WHERE l.id = ?1 AND l.deleted_at IS NULL",
             params![id],
             |r| {
                 Ok((

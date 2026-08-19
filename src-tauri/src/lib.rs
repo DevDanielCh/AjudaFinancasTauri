@@ -1,14 +1,16 @@
 use crate::db::AppState;
+use crate::sync::controller::SyncState;
 use tauri::webview::PageLoadEvent;
 use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_log::{Target, TargetKind};
 
 pub mod db;
+pub mod google;
 pub mod investimentos;
 pub mod organizacao_financeira;
 pub mod shared;
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+pub mod sync;
 
 fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::<R>::new("external-navigation")
@@ -37,8 +39,19 @@ fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin
         .build()
 }
 
+fn google_credentials() -> (String, String) {
+    let _ = dotenvy::dotenv();
+    let id = std::env::var("GOOGLE_CLIENT_ID")
+        .expect("GOOGLE_CLIENT_ID not set in .env or environment");
+    let secret = std::env::var("GOOGLE_CLIENT_SECRET")
+        .expect("GOOGLE_CLIENT_SECRET not set in .env or environment");
+    (id, secret)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let (client_id, client_secret) = google_credentials();
+
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -53,10 +66,19 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(external_navigation_plugin())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
+            #[cfg(mobile)]
+            app.handle().plugin(tauri_plugin_safe_area_insets::init())?;
+
             let conn = db::open(app.handle()).expect("falha ao abrir o banco de dados");
             app.manage(AppState {
                 db: std::sync::Mutex::new(conn),
+            });
+            app.manage(SyncState {
+                client_id: client_id.clone(),
+                client_secret: client_secret.clone(),
+                pending_auth: std::sync::Mutex::new(None),
+                syncing: std::sync::atomic::AtomicBool::new(false),
             });
             Ok(())
         })
@@ -91,6 +113,16 @@ pub fn run() {
             organizacao_financeira::controller::delete_loans,
             shared::settings::get_settings,
             shared::settings::update_settings,
+            sync::controller::sync_connect_google,
+            sync::controller::sync_start_auth,
+            sync::controller::sync_complete_auth,
+            sync::controller::sync_open_url,
+            sync::controller::sync_disconnect,
+            sync::controller::sync_status,
+            sync::controller::sync_now,
+            sync::controller::sync_auto,
+            sync::controller::sync_is_connected,
+            sync::controller::sync_set_passphrase,
         ])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {

@@ -32,7 +32,7 @@ export function MobileHeader() {
   const title = TITLES[pathname] ?? "Ajuda Finanças";
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md sm:hidden">
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md sm:hidden" style={{ paddingTop: "var(--safe-area-inset-top)" }}>
       <div className="flex items-center justify-between gap-2 px-4 py-2.5">
         <h1 className="truncate text-base font-bold tracking-tight">{title}</h1>
         <div className="flex shrink-0 items-center gap-2">

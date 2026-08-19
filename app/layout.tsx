@@ -1,4 +1,5 @@
 import { Inter, JetBrains_Mono } from "next/font/google"
+import type { Viewport } from "next"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -9,7 +10,13 @@ import { Sidebar } from "@/components/Sidebar"
 import { MobileHeader } from "@/components/MobileHeader"
 import { BottomBar } from "@/components/BottomBar"
 import { UpdateDialog } from "@/components/UpdateDialog"
+import { SyncOverlay } from "@/src/Sync/SyncOverlay"
 import { cn } from "@/lib/utils"
+import { SafeAreaInit } from "@/components/SafeAreaInit"
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
+}
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,6 +42,7 @@ export default function RootLayout({
       className={cn("antialiased", inter.variable, jetbrainsMono.variable, "font-sans")}
     >
       <body>
+        <SafeAreaInit />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Providers>
             <MonthProvider>
@@ -49,6 +57,7 @@ export default function RootLayout({
                 <BottomBar />
               </div>
               <Toaster />
+              <SyncOverlay />
               <UpdateDialog />
             </MonthProvider>
           </Providers>

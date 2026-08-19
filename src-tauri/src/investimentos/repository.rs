@@ -13,13 +13,13 @@ pub fn list_reserva_movements_impl(conn: &Connection) -> Result<Vec<TransactionR
     };
     let mut stmt = conn
         .prepare(
-            "SELECT t.id, t.description, t.amount, t.type, t.date,
+             "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, c.name, t.payment_method_id, pm.name,
                     t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
              FROM transactions t
-             LEFT JOIN categories c ON c.id = t.category_id
-             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
-             WHERE t.type IN (4, 5) AND t.date >= ?1
+             LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
+             WHERE t.type IN (4, 5) AND t.date >= ?1 AND t.deleted_at IS NULL
              ORDER BY t.date DESC, t.id DESC",
         )
         .map_err(db_err)?;
@@ -58,7 +58,7 @@ pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, S
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(CASE WHEN type = 4 THEN amount WHEN type = 5 THEN -amount ELSE 0 END), 0)
-             FROM transactions WHERE date >= ?1 AND date < ?2",
+             FROM transactions WHERE date >= ?1 AND date < ?2 AND deleted_at IS NULL",
             rusqlite::params![piso, before.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )

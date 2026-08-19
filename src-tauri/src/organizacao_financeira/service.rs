@@ -51,9 +51,15 @@ pub(crate) fn update_category(conn: &Connection, id: i64, input: &CategoryInput)
 
 pub(crate) fn delete_categories(conn: &Connection, ids: &[i64]) -> Result<(), String> {
     let placeholders = vec!["?"; ids.len()].join(",");
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     conn.execute(
-        &format!("DELETE FROM categories WHERE id IN ({placeholders})"),
-        rusqlite::params_from_iter(ids.iter()),
+        &format!(
+            "UPDATE categories SET deleted_at = ?1, updated_at = ?1 WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+        ),
+        rusqlite::params_from_iter(
+            std::iter::once(Box::new(now.clone()) as Box<dyn rusqlite::types::ToSql>)
+                .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+        ),
     )
     .map_err(db_err)?;
     Ok(())
@@ -126,9 +132,15 @@ pub(crate) fn update_payment_method(
 
 pub(crate) fn delete_payment_methods(conn: &Connection, ids: &[i64]) -> Result<(), String> {
     let placeholders = vec!["?"; ids.len()].join(",");
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     conn.execute(
-        &format!("DELETE FROM payment_methods WHERE id IN ({placeholders})"),
-        rusqlite::params_from_iter(ids.iter()),
+        &format!(
+            "UPDATE payment_methods SET deleted_at = ?1, updated_at = ?1 WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+        ),
+        rusqlite::params_from_iter(
+            std::iter::once(Box::new(now.clone()) as Box<dyn rusqlite::types::ToSql>)
+                .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+        ),
     )
     .map_err(db_err)?;
     Ok(())
@@ -214,9 +226,18 @@ pub fn delete_ids(conn: &Connection, ids: &[i64]) -> Result<(), String> {
         }
     }
     let placeholders = vec!["?"; ids.len()].join(",");
-    let sql = format!("DELETE FROM transactions WHERE id IN ({placeholders})");
-    conn.execute(&sql, rusqlite::params_from_iter(ids.iter()))
-        .map_err(db_err)?;
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let sql = format!(
+        "UPDATE transactions SET deleted_at = ?1, updated_at = ?1 WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+    );
+    conn.execute(
+        &sql,
+        rusqlite::params_from_iter(
+            std::iter::once(Box::new(now) as Box<dyn rusqlite::types::ToSql>)
+                .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+        ),
+    )
+    .map_err(db_err)?;
     Ok(())
 }
 

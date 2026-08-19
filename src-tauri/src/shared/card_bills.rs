@@ -77,7 +77,7 @@ pub(crate) fn card_days(ty: i64, meta: Option<&str>) -> Option<(u32, u32)> {
 
 fn list_cards(conn: &Connection) -> Result<Vec<(i64, String, u32, u32)>, String> {
     let mut stmt = conn
-        .prepare("SELECT id, name, type, metadata FROM payment_methods")
+        .prepare("SELECT id, name, type, metadata FROM payment_methods WHERE deleted_at IS NULL")
         .map_err(db_err)?;
     let rows = stmt
         .query_map([], |r| {
@@ -139,12 +139,13 @@ fn card_bill(
     let amount = {
         let mut stmt = conn
             .prepare(&format!(
-                "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t
-                 LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
-                 WHERE t.type = 2 AND t.payment_method_id = ?1 AND t.bill_start IS NULL
-                   AND t.card_mode = 0
-                   AND t.date >= ?2 AND t.date < ?3
-                   AND ({FINISHED_GUARD_SQL})"
+            "SELECT COALESCE(SUM(t.amount), 0) FROM transactions t
+             LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id AND fb.deleted_at IS NULL
+             WHERE t.type = 2 AND t.payment_method_id = ?1 AND t.bill_start IS NULL
+               AND t.card_mode = 0
+               AND t.date >= ?2 AND t.date < ?3
+               AND t.deleted_at IS NULL
+               AND ({FINISHED_GUARD_SQL})"
             ))
             .map_err(db_err)?;
         stmt.query_row(
@@ -180,7 +181,7 @@ pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<
         let start_s = start.format("%Y-%m-%d").to_string();
         let exists: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = ?2",
+                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = ?2 AND deleted_at IS NULL",
                 rusqlite::params![id, start_s],
                 |r| r.get(0),
             )
@@ -208,12 +209,12 @@ pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<
 /// de transação (ou o mês corrente, o que for maior). Faturas de meses futuros
 /// contam compras a crédito já lançadas, mantendo o gráfico por forma de pagamento.
 pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
-    conn.execute("DELETE FROM transactions WHERE bill_start IS NOT NULL", [])
+    conn.execute("UPDATE transactions SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE bill_start IS NOT NULL AND deleted_at IS NULL", [])
         .map_err(db_err)?;
     let now = chrono::Local::now().date_naive();
     let mut m = parse_month(&settings::earliest_month(conn)?).map_err(db_err)?;
     let latest: Option<String> = conn
-        .query_row("SELECT MAX(date) FROM transactions", [], |r| r.get(0))
+        .query_row("SELECT MAX(date) FROM transactions WHERE deleted_at IS NULL", [], |r| r.get(0))
         .map_err(db_err)?;
     let end = latest
         .as_deref()

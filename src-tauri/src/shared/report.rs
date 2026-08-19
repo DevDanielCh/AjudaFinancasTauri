@@ -53,7 +53,7 @@ pub fn month_income(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Resu
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (1, 5) AND date >= ?1 AND date < ?2",
+             WHERE type IN (1, 5) AND date >= ?1 AND date < ?2 AND deleted_at IS NULL",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
@@ -70,7 +70,8 @@ pub fn pm_expenses(
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (2, 4) AND payment_method_id = ?1 AND date >= ?2 AND date < ?3",
+             WHERE type IN (2, 4) AND payment_method_id = ?1 AND date >= ?2 AND date < ?3
+               AND deleted_at IS NULL",
             rusqlite::params![
                 pm_id,
                 start.format("%Y-%m-%d").to_string(),
@@ -86,7 +87,8 @@ pub fn no_pm_expenses(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Re
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (2, 4) AND payment_method_id IS NULL AND date >= ?1 AND date < ?2",
+             WHERE type IN (2, 4) AND payment_method_id IS NULL AND date >= ?1 AND date < ?2
+               AND deleted_at IS NULL",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
@@ -139,7 +141,7 @@ pub fn month_expenses(conn: &Connection, ref_month: NaiveDate) -> Result<i64, St
     let bills: i64 = conn
         .query_row(
              "SELECT COALESCE(SUM(amount), 0) FROM transactions
-              WHERE type = 3 AND date >= ?1 AND date < ?2",
+              WHERE type = 3 AND date >= ?1 AND date < ?2 AND deleted_at IS NULL",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
             |r| r.get(0),
         )
@@ -155,8 +157,8 @@ pub fn income_by_category(
     let mut stmt = conn
         .prepare(
             "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
-             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.type IN (1, 5) AND t.date >= ?1 AND t.date < ?2
+             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
+             WHERE t.type IN (1, 5) AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
              GROUP BY c.name ORDER BY total DESC",
         )
         .map_err(db_err)?;
@@ -185,8 +187,8 @@ pub fn expenses_by_category(
     let mut stmt = conn
         .prepare(
             "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
-             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id
-             WHERE t.type IN (2, 4) AND t.date >= ?1 AND t.date < ?2
+             FROM transactions t LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
+             WHERE t.type IN (2, 4) AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL
              GROUP BY c.name ORDER BY total DESC",
         )
         .map_err(db_err)?;
@@ -292,7 +294,7 @@ pub fn expenses_by_pm(
                 .query_row(
                      "SELECT COALESCE(SUM(amount), 0) FROM transactions
                       WHERE type = 3 AND payment_method_id = ?1
-                        AND date >= ?2 AND date < ?3",
+                        AND date >= ?2 AND date < ?3 AND deleted_at IS NULL",
                     rusqlite::params![
                         id,
                         start.format("%Y-%m-%d").to_string(),
@@ -332,7 +334,7 @@ pub fn expenses_by_pm(
 
 /// Regera contas fixas e parcelas de todos os meses com movimento, do mais antigo ao atual.
 pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
-    let min = conn.query_row("SELECT MIN(date) FROM transactions", [], |r| {
+    let min = conn.query_row("SELECT MIN(date) FROM transactions WHERE deleted_at IS NULL", [], |r| {
         r.get::<_, Option<String>>(0)
     });
     let Some(min) = min.ok().flatten() else {
@@ -348,7 +350,7 @@ pub fn sync_generated(conn: &Connection, now: NaiveDate) -> Result<(), String> {
             .to_string();
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM transactions WHERE date >= ?1 AND date < ?2",
+                "SELECT COUNT(*) FROM transactions WHERE date >= ?1 AND date < ?2 AND deleted_at IS NULL",
                 rusqlite::params![start, end],
                 |r| r.get(0),
             )

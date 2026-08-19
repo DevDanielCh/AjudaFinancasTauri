@@ -210,15 +210,30 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
         return Err("ids requeridos".into());
     }
     with_db(&state, |c| {
+        let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
         let placeholders = vec!["?"; ids.len()].join(",");
+        // Soft delete transactions linked to these fixed_bills
         c.execute(
-            &format!("DELETE FROM transactions WHERE fixed_bill_id IN ({placeholders})"),
-            rusqlite::params_from_iter(ids.iter()),
+            &format!(
+                "UPDATE transactions SET deleted_at = ?1, updated_at = ?1
+                 WHERE fixed_bill_id IN ({placeholders}) AND deleted_at IS NULL"
+            ),
+            rusqlite::params_from_iter(
+                std::iter::once(Box::new(now.clone()) as Box<dyn rusqlite::types::ToSql>)
+                    .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+            ),
         )
         .map_err(crate::shared::util::db_err)?;
+        // Soft delete the fixed_bills
         c.execute(
-            &format!("DELETE FROM fixed_bills WHERE id IN ({placeholders})"),
-            rusqlite::params_from_iter(ids.iter()),
+            &format!(
+                "UPDATE fixed_bills SET deleted_at = ?1, updated_at = ?1
+                 WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+            ),
+            rusqlite::params_from_iter(
+                std::iter::once(Box::new(now) as Box<dyn rusqlite::types::ToSql>)
+                    .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+            ),
         )
         .map_err(crate::shared::util::db_err)?;
         card_bills::refresh_card_bills(c)
@@ -310,15 +325,30 @@ pub async fn delete_loans(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(
         return Err("ids requeridos".into());
     }
     with_db(&state, |c| {
+        let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
         let placeholders = vec!["?"; ids.len()].join(",");
+        // Soft delete transactions linked to these loans
         c.execute(
-            &format!("DELETE FROM transactions WHERE loan_id IN ({placeholders})"),
-            rusqlite::params_from_iter(ids.iter()),
+            &format!(
+                "UPDATE transactions SET deleted_at = ?1, updated_at = ?1
+                 WHERE loan_id IN ({placeholders}) AND deleted_at IS NULL"
+            ),
+            rusqlite::params_from_iter(
+                std::iter::once(Box::new(now.clone()) as Box<dyn rusqlite::types::ToSql>)
+                    .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+            ),
         )
         .map_err(crate::shared::util::db_err)?;
+        // Soft delete the loans
         c.execute(
-            &format!("DELETE FROM loans WHERE id IN ({placeholders})"),
-            rusqlite::params_from_iter(ids.iter()),
+            &format!(
+                "UPDATE loans SET deleted_at = ?1, updated_at = ?1
+                 WHERE id IN ({placeholders}) AND deleted_at IS NULL"
+            ),
+            rusqlite::params_from_iter(
+                std::iter::once(Box::new(now) as Box<dyn rusqlite::types::ToSql>)
+                    .chain(ids.iter().map(|id| Box::new(*id) as Box<dyn rusqlite::types::ToSql>)),
+            ),
         )
         .map_err(crate::shared::util::db_err)?;
         card_bills::refresh_card_bills(c)

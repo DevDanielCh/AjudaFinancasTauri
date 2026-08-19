@@ -48,6 +48,7 @@ export function BottomBar() {
       <nav
         aria-label="Navegação principal"
         className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-6 sm:hidden"
+        style={{ bottom: "calc(0.75rem + var(--safe-area-inset-bottom))" }}
       >
         <div className="flex w-full max-w-xs items-center justify-between gap-1 rounded-full border border-background/60 bg-background/70 px-2 py-1.5 shadow-lg backdrop-blur-xl">
           {TABS.map(({ href, label, icon: Icon }) => {

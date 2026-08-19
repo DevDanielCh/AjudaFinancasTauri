@@ -30,3 +30,37 @@ tauri-plugin-updater = "2"
 rusqlite = { version = "0.40.1", features = ["bundled"] }
 tauri-plugin-process = "2.3.1"
 
+# Sync engine
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "multipart"], default-features = false }
+base64 = "0.22"
+
+# Encryption
+chacha20poly1305 = "0.10"
+argon2 = "0.5"
+hkdf = "0.12"
+rand = "0.8"
+
+# Hashing
+sha2 = "0.10"
+
+# Secure credential storage
+keyring = { version = "3", features = ["apple-native", "sync-secret-service", "windows-native"] }
+
+# Async runtime (for sync network operations)
+tokio = { version = "1", features = ["sync", "time", "net", "io-util", "macros"] }
+
+# Compression
+flate2 = "1"
+
+# Device info
+hostname = "0.4"
+dirs = "6"
+
+# Async trait support
+async-trait = "0.1"
+dotenvy = "0.15.7"
+
+[target.'cfg(any(target_os = "android", target_os = "ios"))'.dependencies]
+tauri-plugin-safe-area-insets = "0.1"
+

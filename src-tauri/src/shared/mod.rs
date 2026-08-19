@@ -14,6 +14,8 @@ pub(crate) fn test_db() -> rusqlite::Connection {
         .unwrap();
     conn.execute_batch(include_str!("../../migrations/008_settings.sql"))
         .unwrap();
+    conn.execute_batch(include_str!("../../migrations/009_sync.sql"))
+        .unwrap();
     conn
 }
 

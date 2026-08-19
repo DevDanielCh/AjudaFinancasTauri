@@ -11,6 +11,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { useSettings, useUpdateSettings } from "@/src/shared/services";
 import { msg } from "@/src/shared/repository";
 import type { Settings } from "@/src/shared/models";
+import { SyncSettings } from "@/src/Sync/SyncSettings";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function ConfiguracoesPage() {
   const { data: settings, isLoading } = useSettings();
@@ -24,7 +26,18 @@ export default function ConfiguracoesPage() {
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
       <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-      <SettingsForm key={JSON.stringify(settings)} settings={settings} />
+      <Tabs defaultValue="geral">
+        <TabsList>
+          <TabsTrigger value="geral">Geral</TabsTrigger>
+          <TabsTrigger value="sincronizacao">Sincronização</TabsTrigger>
+        </TabsList>
+        <TabsContent value="geral">
+          <SettingsForm key={JSON.stringify(settings)} settings={settings} />
+        </TabsContent>
+        <TabsContent value="sincronizacao">
+          <SyncSettings />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

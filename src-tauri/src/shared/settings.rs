@@ -108,7 +108,7 @@ pub fn earliest_month(conn: &Connection) -> Result<String, String> {
 
 /// Mês da transação mais antiga sem considerar configurações.
 pub(crate) fn earliest_tx_month(conn: &Connection) -> Result<String, String> {
-    let min = conn.query_row("SELECT MIN(date) FROM transactions", [], |r| {
+    let min = conn.query_row("SELECT MIN(date) FROM transactions WHERE deleted_at IS NULL", [], |r| {
         r.get::<_, Option<String>>(0)
     });
     match min {
