@@ -40,11 +40,21 @@ fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin
 }
 
 fn google_credentials() -> (String, String) {
-    let _ = dotenvy::dotenv();
-    let id = std::env::var("GOOGLE_CLIENT_ID")
-        .expect("GOOGLE_CLIENT_ID not set in .env or environment");
-    let secret = std::env::var("GOOGLE_CLIENT_SECRET")
-        .expect("GOOGLE_CLIENT_SECRET not set in .env or environment");
+    let id = option_env!("GOOGLE_CLIENT_ID")
+        .map(String::from)
+        .or_else(|| {
+            let _ = dotenvy::dotenv();
+            std::env::var("GOOGLE_CLIENT_ID").ok()
+        })
+        .expect("GOOGLE_CLIENT_ID not set");
+
+    let secret = option_env!("GOOGLE_CLIENT_SECRET")
+        .map(String::from)
+        .or_else(|| {
+            std::env::var("GOOGLE_CLIENT_SECRET").ok()
+        })
+        .expect("GOOGLE_CLIENT_SECRET not set");
+
     (id, secret)
 }
 
