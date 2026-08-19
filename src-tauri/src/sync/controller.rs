@@ -1,6 +1,8 @@
 use std::sync::atomic::Ordering;
 use std::sync::Mutex;
+use tauri::AppHandle;
 use tauri::State;
+use tauri_plugin_opener::OpenerExt;
 
 use crate::db::{with_db, AppState};
 use crate::google::auth::PendingAuth;
@@ -57,15 +59,8 @@ pub async fn sync_complete_auth(
 }
 
 #[tauri::command]
-pub async fn sync_open_url(url: String) -> Result<(), String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        let _ = std::process::Command::new("xdg-open")
-            .arg(&url)
-            .status();
-    })
-    .await
-    .map_err(|e| e.to_string())?;
-    Ok(())
+pub async fn sync_open_url(handle: AppHandle, url: String) -> Result<(), String> {
+    handle.opener().open_url(&url, None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
