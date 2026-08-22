@@ -12,7 +12,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Empty, EmptyHeader, EmptyMedia, EmptyTitle,
 } from "@/components/ui/empty";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -26,7 +25,7 @@ const FEATURES = tableFeatures({
 });
 
 export function DataTable<T extends { id: number }>({
-  columns, rows, selected, onToggle, onRowDoubleClick, loading, rowClass, sort, onSort, onRowContextMenu,
+  columns, rows, selected, onToggle, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -34,7 +33,6 @@ export function DataTable<T extends { id: number }>({
   onToggle: (id: number) => void;
   onRowDoubleClick?: (row: T) => void;
   onRowContextMenu?: (row: T, e: React.MouseEvent) => void;
-  loading?: boolean;
   rowClass?: (row: T) => string;
   sort?: Sort | null;
   onSort: (sort: Sort | null) => void;
@@ -78,13 +76,6 @@ export function DataTable<T extends { id: number }>({
   const visibleRows = table.getRowModel().rows;
 
   if (rows.length === 0) {
-    if (loading) {
-      return (
-        <div className="flex justify-center py-12">
-          <Spinner className="size-6" />
-        </div>
-      );
-    }
     return (
       <Empty>
         <EmptyHeader>

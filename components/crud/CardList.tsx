@@ -2,29 +2,20 @@
 import { useRef } from "react";
 import { Inbox } from "lucide-react";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { MobileCorners } from "./types";
 
 export function CardList<T extends { id: number }>({
-  corners, rows, loading, onTap, onLongPress, rowClass,
+  corners, rows, onTap, onLongPress, rowClass,
 }: {
   corners: MobileCorners<T>;
   rows: T[];
-  loading?: boolean;
   onTap?: (row: T) => void;
   onLongPress?: (row: T) => void;
   rowClass?: (row: T) => string;
 }) {
   const suppressClick = useRef(false);
   if (rows.length === 0) {
-    if (loading) {
-      return (
-        <div className="flex justify-center py-12">
-          <Spinner className="size-6" />
-        </div>
-      );
-    }
     return (
       <Empty>
         <EmptyHeader>
