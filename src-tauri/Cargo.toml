@@ -1,6 +1,6 @@
 [package]
 name = "ajudafinancas"
-version = "0.1.6"
+version = "0.1.7"
 description = "Ajuda Finanças - gerenciador financeiro pessoal"
 authors = ["you"]
 edition = "2021"
