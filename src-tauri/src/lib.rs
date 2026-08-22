@@ -114,6 +114,7 @@ pub fn run() {
             shared::util::get_version,
             shared::report::get_dashboard,
             shared::report::sync_dashboard,
+            shared::report::revalidate_generated_transactions,
             shared::report::get_chart_data,
             organizacao_financeira::controller::list_transactions,
             investimentos::controller::list_reserva_movements,

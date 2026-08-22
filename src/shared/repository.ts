@@ -7,6 +7,7 @@ export const getSettings = () => invoke<Settings>("get_settings");
 export const updateSettings = (input: SettingsInput) => invoke<void>("update_settings", { input });
 export const getDashboard = (month: string) => invoke<DashboardData>("get_dashboard", { month });
 export const syncDashboard = (month: string) => invoke<DashboardData>("sync_dashboard", { month });
+export const revalidateGenerated = () => invoke<void>("revalidate_generated_transactions");
 export const getChartData = (month: string | null) => invoke<ChartData>("get_chart_data", { month });
 
 export function msg(e: unknown): string {
@@ -20,5 +21,6 @@ export const sharedApi = {
   updateSettings,
   getDashboard,
   syncDashboard,
+  revalidateGenerated,
   getChartData,
 };

@@ -28,11 +28,33 @@ export function UpdateDialog() {
       const update = await check();
       if (update?.available) {
         await update.downloadAndInstall();
-        await relaunch();
+        setAvailable(null);
+        try {
+          await relaunch();
+        } catch {
+          // Atualização já gravada em disco; só não conseguiu reiniciar sozinho.
+          toast.add({
+            title: "Atualização instalada. Feche e abra o aplicativo para concluir.",
+            type: "success",
+          });
+        }
       }
     } catch (e) {
       setDoing(false);
-      toast.add({ title: msg(e), type: "error" });
+      const raw = msg(e);
+      const isPermission =
+        /permission denied/i.test(raw) ||
+        /permiss/i.test(raw) ||
+        /os error 13/i.test(raw);
+      toast.add(
+        isPermission
+          ? {
+              title:
+                "Sem permissão para atualizar. Mova o AppImage para uma pasta do seu usuário (ex.: ~/Aplicativos) e abra o app de lá.",
+              type: "error",
+            }
+          : { title: raw, type: "error" }
+      );
     }
   };
 

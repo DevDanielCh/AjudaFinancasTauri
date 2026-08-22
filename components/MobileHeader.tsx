@@ -1,6 +1,7 @@
 "use client";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Moon, Sun } from "lucide-react";
+import { Moon, Settings, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -37,6 +38,13 @@ export function MobileHeader() {
         <h1 className="truncate text-base font-bold tracking-tight">{title}</h1>
         <div className="flex shrink-0 items-center gap-2">
           <MonthPicker value={month} onChange={setMonth} min={min} compact />
+          <Link
+            href="/configuracoes"
+            aria-label="Configurações"
+            className="flex size-8 items-center justify-center rounded-md hover:bg-accent"
+          >
+            <Settings className="size-5" />
+          </Link>
           <Button
             variant="ghost"
             size="icon"

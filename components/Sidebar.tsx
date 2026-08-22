@@ -92,24 +92,26 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-      <Link
-        href="/configuracoes"
-        className={cn(
-          "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
-          pathname.startsWith("/configuracoes") && "bg-accent"
-        )}
-      >
-        <Settings className="size-4" />
-        Configurações
-      </Link>
-      <Button
-        variant="ghost"
-        className="justify-start"
-        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      >
-        {!mounted ? <Sun data-icon="inline-start" /> : resolvedTheme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
-        Tema
-      </Button>
+      <div className="flex items-center gap-1">
+        <Link
+          href="/configuracoes"
+          aria-label="Configurações"
+          className={cn(
+            "flex size-8 items-center justify-center rounded-md hover:bg-accent",
+            pathname.startsWith("/configuracoes") && "bg-accent"
+          )}
+        >
+          <Settings className="size-4" />
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          aria-label="Alternar tema"
+        >
+          {!mounted ? <Sun className="size-4" /> : resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </Button>
+      </div>
       <Separator className="my-1" />
       <p className="text-center text-xs text-muted-foreground">{version}</p>
     </aside>

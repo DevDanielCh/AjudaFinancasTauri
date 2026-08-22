@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, CalendarClock, CreditCard, Landmark,
-  LayoutDashboard, Moon, PiggyBank, RefreshCw, Sun, Tags,
+  LayoutDashboard, Moon, PiggyBank, RefreshCw, Settings, Sun, Tags,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -95,14 +95,27 @@ export function ChannelsContent({ onNavigate }: ChannelsProps) {
       <Separator className="my-1" />
       <div className="flex items-center justify-between px-2 pb-2">
         <span className="truncate px-2 text-xs text-muted-foreground">{version}</span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Alternar tema"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        >
-          {!mounted ? <Sun className="size-4" /> : resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Link
+            href="/configuracoes"
+            onClick={onNavigate}
+            aria-label="Configurações"
+            className={cn(
+              "flex size-7 items-center justify-center rounded-[min(var(--radius-md),12px)] hover:bg-accent",
+              pathname.startsWith("/configuracoes") && "bg-accent"
+            )}
+          >
+            <Settings className="size-4" />
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Alternar tema"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+          >
+            {!mounted ? <Sun className="size-4" /> : resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </Button>
+        </div>
       </div>
       {active && (
         <p className="sr-only">Conta ativa: {active.name}</p>

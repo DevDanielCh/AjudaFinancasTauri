@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/toast";
 import { MonthPicker } from "@/components/MonthPicker";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { Spinner } from "@/components/ui/spinner";
-import { useSettings, useUpdateSettings } from "@/src/shared/services";
+import { useSettings, useUpdateSettings, useRevalidateGenerated } from "@/src/shared/services";
 import { msg } from "@/src/shared/repository";
 import type { Settings } from "@/src/shared/models";
 import { SyncSettings } from "@/src/Sync/SyncSettings";
@@ -32,7 +32,10 @@ export default function ConfiguracoesPage() {
           <TabsTrigger value="sincronizacao">Sincronização</TabsTrigger>
         </TabsList>
         <TabsContent value="geral">
-          <SettingsForm key={JSON.stringify(settings)} settings={settings} />
+          <div className="flex flex-col gap-4">
+            <SettingsForm key={JSON.stringify(settings)} settings={settings} />
+            <MaintenanceCard />
+          </div>
         </TabsContent>
         <TabsContent value="sincronizacao">
           <SyncSettings />
@@ -105,6 +108,37 @@ function SettingsForm({ settings }: { settings: Settings }) {
           </Field>
           <Button onClick={save} disabled={update.isPending} className="w-full">
             {update.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </FieldGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MaintenanceCard() {
+  const revalidate = useRevalidateGenerated();
+
+  const run = () =>
+    revalidate.mutate(undefined, {
+      onSuccess: () => toast.add({ title: "Transações revalidadas", type: "success" }),
+      onError: (e) => toast.add({ title: msg(e), type: "error" }),
+    });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">Manutenção</CardTitle></CardHeader>
+      <CardContent>
+        <FieldGroup>
+          <Field>
+            <p className="text-xs text-muted-foreground">
+              Recria as transações geradas por empréstimos e parcelamentos
+              (entradas, parcelas mensais) e atualiza as faturas de cartão,
+              de todos os meses até o atual. Movimentos da reserva não são
+              alterados.
+            </p>
+          </Field>
+          <Button onClick={run} disabled={revalidate.isPending} className="w-full">
+            {revalidate.isPending ? "Revalidando..." : "Revalidar transações"}
           </Button>
         </FieldGroup>
       </CardContent>

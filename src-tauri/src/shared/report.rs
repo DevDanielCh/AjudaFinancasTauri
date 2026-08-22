@@ -449,6 +449,49 @@ pub async fn sync_dashboard(state: State<'_, AppState>, month: String) -> Result
     })
 }
 
+/// Regera todas as transações derivadas (contas fixas/parcelamentos,
+/// parcelas de empréstimos e faturas de cartão) de todas as contas,
+/// do mês mais antigo com movimento até o mês atual.
+pub fn revalidate_generated(conn: &Connection) -> Result<(), String> {
+    let accounts: Vec<i64> = {
+        let mut stmt = conn
+            .prepare("SELECT id FROM accounts WHERE deleted_at IS NULL")
+            .map_err(db_err)?;
+        let rows = stmt
+            .query_map([], |r| r.get(0))
+            .map_err(db_err)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db_err)?;
+        rows
+    };
+    let now = chrono::Local::now().date_naive();
+    for account_id in accounts {
+        let min = conn.query_row(
+            "SELECT MIN(date) FROM transactions WHERE deleted_at IS NULL AND account_id = ?1",
+            rusqlite::params![account_id],
+            |r| r.get::<_, Option<String>>(0),
+        );
+        let Some(min) = min.ok().flatten() else {
+            continue;
+        };
+        let mut m = parse_month(&min[..7]).map_err(db_err)?;
+        while m <= now {
+            crate::organizacao_financeira::service::generate_fixed_bills(conn, account_id, m)
+                .map_err(|e| e.to_string())?;
+            crate::organizacao_financeira::service::generate_loan_installments(conn, account_id, m)
+                .map_err(|e| e.to_string())?;
+            m = m.checked_add_months(Months::new(1)).unwrap();
+        }
+        refresh_card_bills(conn, account_id).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn revalidate_generated_transactions(state: State<'_, AppState>) -> Result<(), String> {
+    with_db_active(&state, |c, _| revalidate_generated(c))
+}
+
 fn build_chart(conn: &rusqlite::Connection, account_id: i64, month: &str) -> Result<ChartData, String> {
     let ref_month = parse_month(month)?;
     crate::organizacao_financeira::service::generate_fixed_bills(conn, account_id, ref_month)?;

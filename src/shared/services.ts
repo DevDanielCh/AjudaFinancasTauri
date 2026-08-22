@@ -33,6 +33,16 @@ export function useSyncDashboard(month: string) {
   });
 }
 
+export function useRevalidateGenerated() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => sharedApi.revalidateGenerated(),
+    onSuccess: () => {
+      void client.invalidateQueries();
+    },
+  });
+}
+
 export function useSettings() {
   return useQuery({
     queryKey: settingsKeys,

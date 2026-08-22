@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, CalendarClock, CreditCard, Ellipsis,
-  Landmark, LayoutDashboard, PiggyBank, RefreshCw, Settings, Tags,
+  Landmark, LayoutDashboard, PiggyBank, RefreshCw, Tags,
 } from "lucide-react";
 import { useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -29,12 +29,6 @@ const MORE_GROUPS = [
     label: "Investimentos",
     items: [
       { href: "/reserva", label: "Reserva", icon: PiggyBank },
-    ],
-  },
-  {
-    label: "Sistema",
-    items: [
-      { href: "/configuracoes", label: "Configurações", icon: Settings },
     ],
   },
 ] as const;
