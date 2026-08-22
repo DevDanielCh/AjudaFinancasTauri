@@ -545,6 +545,25 @@ fn apply_operation(conn: &Connection, op: &operations::SyncOperation) -> Result<
     Ok(())
 }
 
+fn resolve_account_id(
+    conn: &Connection,
+    payload: &serde_json::Value,
+) -> Result<i64, String> {
+    if let Some(u) = payload.get("account_uuid").and_then(|v| v.as_str()) {
+        if !u.is_empty() {
+            if let Some(id) = payload::resolve_local_id(conn, "accounts", u)? {
+                return Ok(id);
+            }
+        }
+    }
+    conn.query_row(
+        "SELECT id FROM accounts WHERE deleted_at IS NULL ORDER BY id LIMIT 1",
+        [],
+        |r| r.get(0),
+    )
+    .map_err(|e| e.to_string())
+}
+
 fn apply_upsert(
     conn: &Connection,
     entity: &str,
@@ -558,6 +577,37 @@ fn apply_upsert(
     let uuid = get_str("uuid").unwrap_or_default();
 
     match entity {
+        "accounts" => {
+            let name = get_str("name").unwrap_or_default();
+            let color = get_str("color").unwrap_or_else(|| "#5865f2".into());
+            let created_at = get_str("created_at");
+            let updated_at = get_str("updated_at").unwrap_or_else(|| op_ts.to_string());
+            let deleted_at = get_str("deleted_at");
+
+            let existing: Option<i64> = conn
+                .query_row(
+                    "SELECT id FROM accounts WHERE uuid = ?1",
+                    rusqlite::params![uuid],
+                    |r| r.get(0),
+                )
+                .ok();
+
+            if let Some(id) = existing {
+                conn.execute(
+                    "UPDATE accounts SET name = ?1, color = ?2, updated_at = ?3, deleted_at = ?4
+                     WHERE id = ?5",
+                    rusqlite::params![name, color, updated_at, deleted_at, id],
+                )
+                .map_err(|e| e.to_string())?;
+            } else {
+                conn.execute(
+                    "INSERT INTO accounts (uuid, name, color, created_at, updated_at, deleted_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                    rusqlite::params![uuid, name, color, created_at, updated_at, deleted_at],
+                )
+                .map_err(|e| e.to_string())?;
+            }
+        }
         "payment_methods" => {
             let name = get_str("name").unwrap_or_default();
             let type_: i64 = payload.get("type").and_then(|v| v.as_i64()).unwrap_or(1);
@@ -583,10 +633,11 @@ fn apply_upsert(
                 )
                 .map_err(|e| e.to_string())?;
             } else {
+                let account_id = resolve_account_id(conn, payload)?;
                 conn.execute(
-                    "INSERT INTO payment_methods (uuid, name, type, metadata, created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                    rusqlite::params![uuid, name, type_, metadata, created_at, updated_at, deleted_at],
+                    "INSERT INTO payment_methods (uuid, account_id, name, type, metadata, created_at, updated_at, deleted_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+                    rusqlite::params![uuid, account_id, name, type_, metadata, created_at, updated_at, deleted_at],
                 )
                 .map_err(|e| e.to_string())?;
             }
@@ -617,10 +668,11 @@ fn apply_upsert(
                 )
                 .map_err(|e| e.to_string())?;
             } else {
+                let account_id = resolve_account_id(conn, payload)?;
                 conn.execute(
-                    "INSERT INTO categories (uuid, name, type, color, icon, created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                    rusqlite::params![uuid, name, type_, color, icon, created_at, updated_at, deleted_at],
+                    "INSERT INTO categories (uuid, account_id, name, type, color, icon, created_at, updated_at, deleted_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    rusqlite::params![uuid, account_id, name, type_, color, icon, created_at, updated_at, deleted_at],
                 )
                 .map_err(|e| e.to_string())?;
             }
@@ -669,13 +721,14 @@ fn apply_upsert(
                 .map_err(|e| e.to_string())?;
             } else {
                 let pm_id = pm_id.ok_or("payment_method_uuid não resolvido")?;
+                let account_id = resolve_account_id(conn, payload)?;
                 conn.execute(
-                    "INSERT INTO fixed_bills (uuid, description, amount, day, category_id,
+                    "INSERT INTO fixed_bills (uuid, account_id, description, amount, day, category_id,
                      payment_method_id, start_month, end_month, installments, purchase_date,
                      created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                     rusqlite::params![
-                        uuid, description, amount, day, category_id, pm_id, start_month,
+                        uuid, account_id, description, amount, day, category_id, pm_id, start_month,
                         end_month, installments, purchase_date, created_at, updated_at, deleted_at
                     ],
                 )
@@ -723,13 +776,14 @@ fn apply_upsert(
                 .map_err(|e| e.to_string())?;
             } else {
                 let pm_id = pm_id.ok_or("payment_method_uuid não resolvido")?;
+                let account_id = resolve_account_id(conn, payload)?;
                 conn.execute(
-                    "INSERT INTO loans (uuid, type, description, principal, installment,
+                    "INSERT INTO loans (uuid, account_id, type, description, principal, installment,
                      total_installments, day, start_month, payment_method_id, monthly_rate,
                      created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
                     rusqlite::params![
-                        uuid, type_, description, principal, installment, total_installments,
+                        uuid, account_id, type_, description, principal, installment, total_installments,
                         day, start_month, pm_id, monthly_rate, created_at, updated_at, deleted_at
                     ],
                 )
@@ -787,13 +841,14 @@ fn apply_upsert(
                 )
                 .map_err(|e| e.to_string())?;
             } else {
+                let account_id = resolve_account_id(conn, payload)?;
                 conn.execute(
-                    "INSERT INTO transactions (uuid, description, amount, type, date,
+                    "INSERT INTO transactions (uuid, account_id, description, amount, type, date,
                      category_id, payment_method_id, fixed_bill_id, loan_id,
                      bill_start, bill_end, card_mode, created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
                     rusqlite::params![
-                        uuid, description, amount, type_, date, category_id, pm_id, fb_id,
+                        uuid, account_id, description, amount, type_, date, category_id, pm_id, fb_id,
                         loan_id, bill_start, bill_end, card_mode, created_at, updated_at, deleted_at
                     ],
                 )
@@ -806,26 +861,28 @@ fn apply_upsert(
             let created_at = get_str("created_at");
             let updated_at = get_str("updated_at").unwrap_or_else(|| op_ts.to_string());
             let deleted_at = get_str("deleted_at");
+            let account_id = resolve_account_id(conn, payload)?;
 
             let existing = conn
                 .query_row(
-                    "SELECT 1 FROM settings WHERE key = ?1",
-                    rusqlite::params![key],
+                    "SELECT 1 FROM settings WHERE key = ?1 AND account_id = ?2",
+                    rusqlite::params![key, account_id],
                     |_| Ok(()),
                 )
                 .ok();
 
             if existing.is_some() {
                 conn.execute(
-                    "UPDATE settings SET value = ?1, updated_at = ?2, deleted_at = ?3 WHERE key = ?4",
-                    rusqlite::params![value, updated_at, deleted_at, key],
+                    "UPDATE settings SET value = ?1, updated_at = ?2, deleted_at = ?3
+                     WHERE key = ?4 AND account_id = ?5",
+                    rusqlite::params![value, updated_at, deleted_at, key, account_id],
                 )
                 .map_err(|e| e.to_string())?;
             } else {
                 conn.execute(
-                    "INSERT INTO settings (key, uuid, value, created_at, updated_at, deleted_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                    rusqlite::params![key, get_str("uuid").unwrap_or_default(), value, created_at, updated_at, deleted_at],
+                    "INSERT INTO settings (account_id, key, uuid, value, created_at, updated_at, deleted_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    rusqlite::params![account_id, key, get_str("uuid").unwrap_or_default(), value, created_at, updated_at, deleted_at],
                 )
                 .map_err(|e| e.to_string())?;
             }
@@ -841,24 +898,22 @@ fn apply_soft_delete(
     entity_uuid: &str,
     op_ts: &str,
 ) -> Result<(), String> {
-    let id_col = if entity == "settings" {
-        "key"
-    } else {
-        "uuid"
-    };
-
     let should = conflict::should_apply_remote(conn, entity, entity_uuid, op_ts)?;
     if !should {
         return Ok(());
     }
 
-    conn.execute(
-        &format!(
-            "UPDATE {entity} SET deleted_at = ?1, updated_at = ?1 WHERE {id_col} = ?2 AND deleted_at IS NULL"
-        ),
-        rusqlite::params![op_ts, entity_uuid],
-    )
-    .map_err(|e| e.to_string())?;
+    // PK composto do settings: deleta só pela linha com o uuid exato.
+    let sql = if entity == "settings" {
+        "UPDATE settings SET deleted_at = ?1, updated_at = ?1
+         WHERE uuid = ?2 AND uuid != '' AND deleted_at IS NULL"
+    } else {
+        "UPDATE {entity} SET deleted_at = ?1, updated_at = ?1 WHERE uuid = ?2 AND deleted_at IS NULL"
+    };
+    let sql = sql.replace("{entity}", entity);
+
+    conn.execute(&sql, rusqlite::params![op_ts, entity_uuid])
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -872,6 +927,10 @@ fn apply_snapshot(
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string();
 
+    for row in &data.accounts {
+        apply_snapshot_row(conn, "accounts", row, &now)?;
+        *count += 1;
+    }
     for row in &data.payment_methods {
         apply_snapshot_row(conn, "payment_methods", row, &now)?;
         *count += 1;
@@ -925,32 +984,48 @@ fn apply_snapshot_row(
 }
 
 fn regenerate_derived(conn: &Connection) -> Result<(), String> {
-    let min = conn
-        .query_row("SELECT MIN(date) FROM transactions", [], |r| {
-            r.get::<_, Option<String>>(0)
-        })
-        .map_err(|e| e.to_string())?;
+    let accounts: Vec<i64> = {
+        let mut stmt = conn
+            .prepare("SELECT id FROM accounts WHERE deleted_at IS NULL")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |r| r.get(0))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        rows
+    };
 
-    if let Some(min_date) = min {
-        if min_date.len() >= 7 {
-            let start_month = &min_date[..7];
-            let now = chrono::Local::now().date_naive();
-            let mut m = crate::shared::util::parse_month(start_month)
-                .map_err(|e| e.to_string())?;
+    for account_id in accounts {
+        let min = conn
+            .query_row(
+                "SELECT MIN(date) FROM transactions WHERE account_id = ?1",
+                rusqlite::params![account_id],
+                |r| r.get::<_, Option<String>>(0),
+            )
+            .map_err(|e| e.to_string())?;
 
-            while m <= now {
-                crate::organizacao_financeira::service::generate_fixed_bills(conn, m)
+        if let Some(min_date) = min {
+            if min_date.len() >= 7 {
+                let start_month = &min_date[..7];
+                let now = chrono::Local::now().date_naive();
+                let mut m = crate::shared::util::parse_month(start_month)
                     .map_err(|e| e.to_string())?;
-                crate::organizacao_financeira::service::generate_loan_installments(conn, m)
-                    .map_err(|e| e.to_string())?;
-                m = m
-                    .checked_add_months(chrono::Months::new(1))
-                    .unwrap();
+
+                while m <= now {
+                    crate::organizacao_financeira::service::generate_fixed_bills(conn, account_id, m)
+                        .map_err(|e| e.to_string())?;
+                    crate::organizacao_financeira::service::generate_loan_installments(conn, account_id, m)
+                        .map_err(|e| e.to_string())?;
+                    m = m
+                        .checked_add_months(chrono::Months::new(1))
+                        .unwrap();
+                }
             }
-
-            crate::shared::card_bills::refresh_card_bills(conn)
-                .map_err(|e| e.to_string())?;
         }
+
+        crate::shared::card_bills::refresh_card_bills(conn, account_id)
+            .map_err(|e| e.to_string())?;
     }
 
     Ok(())

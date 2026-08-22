@@ -44,7 +44,7 @@ fn gera_conta_fixa_no_dia_clampado_e_nao_duplica() {
     )
     .unwrap();
     let feb = chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap();
-    service::generate_fixed_bills(&c, feb).unwrap();
+    service::generate_fixed_bills(&c, 1, feb).unwrap();
 
     let n: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
@@ -57,7 +57,7 @@ fn gera_conta_fixa_no_dia_clampado_e_nao_duplica() {
     assert_eq!(amount, 150000);
 
     // rodar de novo no mesmo mês não duplica
-    service::generate_fixed_bills(&c, feb).unwrap();
+    service::generate_fixed_bills(&c, 1, feb).unwrap();
     let n2: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
         .unwrap();
@@ -74,7 +74,7 @@ fn ignora_conta_fixa_fora_do_periodo() {
     )
     .unwrap();
     let m = chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
-    service::generate_fixed_bills(&c, m).unwrap();
+    service::generate_fixed_bills(&c, 1, m).unwrap();
     let n: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
         .unwrap();
@@ -92,7 +92,7 @@ fn gera_parcelas_de_emprestimo() {
     .unwrap();
 
     // mês 1: entrada (receita) + 1ª parcela (despesa)
-    service::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).unwrap();
+    service::generate_loan_installments(&c, 1, chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()).unwrap();
     let (income, expense): (i64, i64) = c
         .query_row(
             "SELECT SUM(CASE WHEN type=1 THEN 1 ELSE 0 END), SUM(CASE WHEN type=2 THEN 1 ELSE 0 END) FROM transactions",
@@ -107,7 +107,7 @@ fn gera_parcelas_de_emprestimo() {
     assert!(desc.contains("(entrada)"));
 
     // mês 2: só parcela, sem duplicar a entrada
-    service::generate_loan_installments(&c, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
+    service::generate_loan_installments(&c, 1, chrono::NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()).unwrap();
     let total: i64 = c
         .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
         .unwrap();

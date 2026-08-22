@@ -33,7 +33,7 @@ export default function CategoriesPage() {
         create: categoryApi.create,
         update: (id, d) => categoryApi.update(id, d),
         remove: categoryApi.remove,
-        empty: (): CategoryInput => ({ name: "", type: 2, color: "#6b7280", icon: null }),
+        empty: (): CategoryInput => ({ name: "", type: 2, color: "#615d59", icon: null }),
         toInput: (r): CategoryInput => ({ name: r.name, type: r.type, color: r.color, icon: r.icon }),
         FormFields: CategoriaAddForm,
         queryKey: categoryKeys,

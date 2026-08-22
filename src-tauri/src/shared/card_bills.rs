@@ -75,12 +75,12 @@ pub(crate) fn card_days(ty: i64, meta: Option<&str>) -> Option<(u32, u32)> {
     Some((close as u32, validity as u32))
 }
 
-fn list_cards(conn: &Connection) -> Result<Vec<(i64, String, u32, u32)>, String> {
+fn list_cards(conn: &Connection, account_id: i64) -> Result<Vec<(i64, String, u32, u32)>, String> {
     let mut stmt = conn
-        .prepare("SELECT id, name, type, metadata FROM payment_methods WHERE deleted_at IS NULL")
+        .prepare("SELECT id, name, type, metadata FROM payment_methods WHERE deleted_at IS NULL AND account_id = ?1")
         .map_err(db_err)?;
     let rows = stmt
-        .query_map([], |r| {
+        .query_map([account_id], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
                 r.get::<_, String>(1)?,
@@ -99,8 +99,8 @@ fn list_cards(conn: &Connection) -> Result<Vec<(i64, String, u32, u32)>, String>
         .collect())
 }
 
-pub fn fatura_capable_card_ids(conn: &Connection) -> Result<Vec<i64>, String> {
-    Ok(list_cards(conn)?.into_iter().map(|(id, _, _, _)| id).collect())
+pub fn fatura_capable_card_ids(conn: &Connection, account_id: i64) -> Result<Vec<i64>, String> {
+    Ok(list_cards(conn, account_id)?.into_iter().map(|(id, _, _, _)| id).collect())
 }
 
 /// True se a transação é uma fatura de cartão (type 3, gerada automaticamente).
@@ -172,8 +172,8 @@ fn card_bill(
 
 /// Gera as transações "Fatura - {nome}" dos cartões com vencimento em `payment_month`.
 /// Não sobrescreve fatura já gerada (dedup por pm_id + bill_start).
-pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<(), String> {
-    for (id, name, close, validity) in list_cards(conn)? {
+pub fn ensure_card_bills(conn: &Connection, account_id: i64, payment_month: NaiveDate) -> Result<(), String> {
+    for (id, name, close, validity) in list_cards(conn, account_id)? {
         let Some((start, end, due, amount)) = card_bill(conn, id, close, validity, payment_month)?
         else {
             continue;
@@ -181,22 +181,23 @@ pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<
         let start_s = start.format("%Y-%m-%d").to_string();
         let exists: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = ?2 AND deleted_at IS NULL",
-                rusqlite::params![id, start_s],
+                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = ?2 AND deleted_at IS NULL AND account_id = ?3",
+                rusqlite::params![id, start_s, account_id],
                 |r| r.get(0),
             )
             .map_err(db_err)?;
         if exists == 0 {
             conn.execute(
-                "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end)
-                 VALUES (?1, ?2, 3, ?3, ?4, ?5, ?6)",
+                "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end, account_id)
+                 VALUES (?1, ?2, 3, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
                     format!("Fatura - {name}"),
                     amount,
                     due,
                     id,
                     start_s,
-                    end.format("%Y-%m-%d").to_string()
+                    end.format("%Y-%m-%d").to_string(),
+                    account_id
                 ],
             )
             .map_err(db_err)?;
@@ -208,13 +209,21 @@ pub fn ensure_card_bills(conn: &Connection, payment_month: NaiveDate) -> Result<
 /// Recalcula todas as faturas dos meses com movimento até o mês mais recente
 /// de transação (ou o mês corrente, o que for maior). Faturas de meses futuros
 /// contam compras a crédito já lançadas, mantendo o gráfico por forma de pagamento.
-pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
-    conn.execute("UPDATE transactions SET deleted_at = datetime('now'), updated_at = datetime('now') WHERE bill_start IS NOT NULL AND deleted_at IS NULL", [])
-        .map_err(db_err)?;
+pub fn refresh_card_bills(conn: &Connection, account_id: i64) -> Result<(), String> {
+    conn.execute(
+        "UPDATE transactions SET deleted_at = datetime('now'), updated_at = datetime('now')
+         WHERE bill_start IS NOT NULL AND deleted_at IS NULL AND account_id = ?1",
+        [account_id],
+    )
+    .map_err(db_err)?;
     let now = chrono::Local::now().date_naive();
-    let mut m = parse_month(&settings::earliest_month(conn)?).map_err(db_err)?;
+    let mut m = parse_month(&settings::earliest_month(conn, account_id)?).map_err(db_err)?;
     let latest: Option<String> = conn
-        .query_row("SELECT MAX(date) FROM transactions WHERE deleted_at IS NULL", [], |r| r.get(0))
+        .query_row(
+            "SELECT MAX(date) FROM transactions WHERE deleted_at IS NULL AND account_id = ?1",
+            [account_id],
+            |r| r.get(0),
+        )
         .map_err(db_err)?;
     let end = latest
         .as_deref()
@@ -222,7 +231,7 @@ pub fn refresh_card_bills(conn: &Connection) -> Result<(), String> {
         .map(|d| d.max(now))
         .unwrap_or(now);
     while m <= end {
-        ensure_card_bills(conn, m)?;
+        ensure_card_bills(conn, account_id, m)?;
         m = m.checked_add_months(Months::new(1)).unwrap();
     }
     Ok(())
@@ -244,8 +253,8 @@ mod tests {
             params![card],
         )
         .unwrap();
-        crate::organizacao_financeira::service::generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
-        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+        crate::organizacao_financeira::service::generate_fixed_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+        ensure_card_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
 
         let total: i64 = conn
             .query_row(
@@ -312,7 +321,7 @@ mod tests {
         )
         .unwrap();
 
-        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
+        ensure_card_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
 
         let amount: i64 = conn
             .query_row(
@@ -341,8 +350,8 @@ mod tests {
         add_tx(&conn, "fora do período", 2000, "2026-06-15", Some(card));
 
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        ensure_card_bills(&conn, jun).unwrap();
-        ensure_card_bills(&conn, jun).unwrap();
+        ensure_card_bills(&conn, 1, jun).unwrap();
+        ensure_card_bills(&conn, 1, jun).unwrap();
 
         let (amount, date, bs, be, ty): (i64, String, String, String, i64) = conn
             .query_row(
@@ -380,7 +389,7 @@ mod tests {
         )
         .unwrap();
 
-        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
+        ensure_card_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 6, 1).unwrap()).unwrap();
 
         let amount: i64 = conn
             .query_row(
@@ -406,7 +415,7 @@ mod tests {
         let conn = test_db();
         let card = add_pm(&conn, "Cred", 2, Some(r#"{"close_day":25,"validity_day":5}"#));
         add_tx(&conn, "compra", 4000, "2026-04-20", Some(card));
-        ensure_card_bills(&conn, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
+        ensure_card_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 5, 1).unwrap()).unwrap();
         let (amount, date): (i64, String) = conn
             .query_row(
                 "SELECT amount, date FROM transactions WHERE description = 'Fatura - Cred'",
@@ -424,7 +433,7 @@ mod tests {
         let card = add_pm(&conn, "Legado", 2, Some(r#"{"close_day":10}"#));
         add_tx(&conn, "compra", 7000, "2026-05-15", Some(card));
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        assert_eq!(crate::shared::report::month_expenses(&conn, jun).unwrap(), 7000);
+        assert_eq!(crate::shared::report::month_expenses(&conn, 1, jun).unwrap(), 7000);
     }
 
     #[test]
@@ -432,7 +441,7 @@ mod tests {
         let conn = test_db();
         let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
         add_tx(&conn, "credito", 5000, "2026-12-05", Some(card));
-        refresh_card_bills(&conn).unwrap();
+        refresh_card_bills(&conn, 1).unwrap();
 
         let rows: Vec<String> = conn
             .prepare("SELECT date FROM transactions WHERE description = 'Fatura - Nubank'")
@@ -444,7 +453,7 @@ mod tests {
         assert_eq!(rows, vec!["2026-12-20"]);
 
         let dez = NaiveDate::from_ymd_opt(2026, 12, 1).unwrap();
-        let rows = crate::shared::report::expenses_by_pm(&conn, dez).unwrap();
+        let rows = crate::shared::report::expenses_by_pm(&conn, 1, dez).unwrap();
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].name, "Nubank");
         assert_eq!(rows[0].total, 5000);

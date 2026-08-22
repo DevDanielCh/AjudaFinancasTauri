@@ -12,12 +12,13 @@ import type { BreakdownRow, ChartData } from "@/src/shared/models";
 import { formatMoney, formatMonth } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const TREND_COLORS = { income: "#22c55e", expenses: "#ef4444", balance: "#6366f1", reserva: "#f59e0b" };
+// Cores do design system (DESIGN.md): verde/vermelho semânticos, azul estrutural e paleta sticker.
+const TREND_COLORS = { income: "#1aae39", expenses: "#dc2626", balance: "#0075de", reserva: "#2a9d99" };
 const TREND_LABEL = { income: "Receitas", expenses: "Despesas", balance: "Saldo", reserva: "Reserva" } as const;
 // ponytail: backend não expõe cor por categoria; paleta fixa cicla por índice.
 const DONUT_COLORS = [
-  "#0ea5e9", "#6366f1", "#a855f7", "#ec4899", "#f97316", "#14b8a6",
-  "#84cc16", "#f43f5e", "#06b6d4", "#8b5cf6",
+  "#62aef0", "#d6b6f6", "#ff64c8", "#dd5b00", "#2a9d99",
+  "#1aae39", "#391c57", "#793400", "#0075de", "#523410",
 ];
 
 export function ChartSection({ data, month }: { data: ChartData; month: string }) {

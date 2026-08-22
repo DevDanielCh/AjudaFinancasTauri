@@ -5,12 +5,17 @@ use tauri::Manager;
 use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_log::{Target, TargetKind};
 
+pub mod accounts;
 pub mod db;
 pub mod google;
 pub mod investimentos;
 pub mod organizacao_financeira;
 pub mod shared;
 pub mod sync;
+
+fn install_rustls_provider() {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+}
 
 fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::<R>::new("external-navigation")
@@ -46,20 +51,23 @@ fn google_credentials() -> (String, String) {
             let _ = dotenvy::dotenv();
             std::env::var("GOOGLE_CLIENT_ID").ok()
         })
-        .expect("GOOGLE_CLIENT_ID not set");
+        .unwrap_or_default();
 
     let secret = option_env!("GOOGLE_CLIENT_SECRET")
         .map(String::from)
-        .or_else(|| {
-            std::env::var("GOOGLE_CLIENT_SECRET").ok()
-        })
-        .expect("GOOGLE_CLIENT_SECRET not set");
+        .or_else(|| std::env::var("GOOGLE_CLIENT_SECRET").ok())
+        .unwrap_or_default();
+
+    if id.is_empty() || secret.is_empty() {
+        log::warn!("Google OAuth credentials not configured — sync disabled");
+    }
 
     (id, secret)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_rustls_provider();
     let (client_id, client_secret) = google_credentials();
 
     tauri::Builder::default()
@@ -81,8 +89,11 @@ pub fn run() {
             app.handle().plugin(tauri_plugin_safe_area_insets::init())?;
 
             let conn = db::open(app.handle()).expect("falha ao abrir o banco de dados");
+            let active = accounts::service::active_id(&conn)
+                .expect("falha ao ler conta ativa");
             app.manage(AppState {
                 db: std::sync::Mutex::new(conn),
+                active_account: std::sync::Mutex::new(active),
             });
             app.manage(SyncState {
                 client_id: client_id.clone(),
@@ -93,6 +104,12 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            accounts::controller::list_accounts,
+            accounts::controller::get_active_account,
+            accounts::controller::create_account,
+            accounts::controller::update_account,
+            accounts::controller::delete_account,
+            accounts::controller::set_active_account,
             shared::util::get_earliest_month,
             shared::util::get_version,
             shared::report::get_dashboard,

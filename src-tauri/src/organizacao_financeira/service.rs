@@ -5,12 +5,12 @@ use crate::shared::settings;
 use crate::shared::util::{db_err, month_diff, parse_month};
 use rusqlite::{params, Connection, OptionalExtension};
 
-pub fn create_category(conn: &Connection, input: &CategoryInput) -> Result<(), String> {
+pub fn create_category(conn: &Connection, account_id: i64, input: &CategoryInput) -> Result<(), String> {
     let name = input.name.trim();
     let dup = conn
         .query_row(
-            "SELECT 1 FROM categories WHERE name = ?1 LIMIT 1",
-            params![name],
+            "SELECT 1 FROM categories WHERE name = ?1 AND account_id = ?2 LIMIT 1",
+            params![name, account_id],
             |_| Ok(()),
         )
         .optional()
@@ -19,8 +19,8 @@ pub fn create_category(conn: &Connection, input: &CategoryInput) -> Result<(), S
         return Err("já existe categoria com esse nome".into());
     }
     conn.execute(
-        "INSERT INTO categories (name, type, color, icon) VALUES (?1, ?2, ?3, ?4)",
-        params![name, input.type_, input.color, input.icon],
+        "INSERT INTO categories (account_id, name, type, color, icon) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![account_id, name, input.type_, input.color, input.icon],
     )
     .map_err(db_err)?;
     Ok(())
@@ -36,11 +36,11 @@ pub(crate) fn validate_category(input: &CategoryInput) -> Result<(), String> {
     Ok(())
 }
 
-pub(crate) fn update_category(conn: &Connection, id: i64, input: &CategoryInput) -> Result<(), String> {
+pub(crate) fn update_category(conn: &Connection, account_id: i64, id: i64, input: &CategoryInput) -> Result<(), String> {
     let affected = conn
         .execute(
-            "UPDATE categories SET name = ?1, type = ?2, color = ?3, icon = ?4 WHERE id = ?5",
-            params![input.name.trim(), input.type_, input.color, input.icon, id],
+            "UPDATE categories SET name = ?1, type = ?2, color = ?3, icon = ?4 WHERE id = ?5 AND account_id = ?6",
+            params![input.name.trim(), input.type_, input.color, input.icon, id, account_id],
         )
         .map_err(db_err)?;
     if affected == 0 {
@@ -65,12 +65,12 @@ pub(crate) fn delete_categories(conn: &Connection, ids: &[i64]) -> Result<(), St
     Ok(())
 }
 
-pub fn create_payment_method(conn: &Connection, input: &PaymentMethodInput) -> Result<(), String> {
+pub fn create_payment_method(conn: &Connection, account_id: i64, input: &PaymentMethodInput) -> Result<(), String> {
     let name = input.name.trim();
     let dup = conn
         .query_row(
-            "SELECT 1 FROM payment_methods WHERE name = ?1 LIMIT 1",
-            params![name],
+            "SELECT 1 FROM payment_methods WHERE name = ?1 AND account_id = ?2 LIMIT 1",
+            params![name, account_id],
             |_| Ok(()),
         )
         .optional()
@@ -79,8 +79,8 @@ pub fn create_payment_method(conn: &Connection, input: &PaymentMethodInput) -> R
         return Err("já existe forma de pagamento com esse nome".into());
     }
     conn.execute(
-        "INSERT INTO payment_methods (name, type, metadata) VALUES (?1, ?2, ?3)",
-        params![name, input.type_, metadata_for_payment_method(input)],
+        "INSERT INTO payment_methods (account_id, name, type, metadata) VALUES (?1, ?2, ?3, ?4)",
+        params![account_id, name, input.type_, metadata_for_payment_method(input)],
     )
     .map_err(db_err)?;
     Ok(())
@@ -114,19 +114,20 @@ pub(crate) fn validate_payment_method(input: &PaymentMethodInput) -> Result<(), 
 
 pub(crate) fn update_payment_method(
     conn: &Connection,
+    account_id: i64,
     id: i64,
     input: &PaymentMethodInput,
 ) -> Result<(), String> {
     let affected = conn
         .execute(
-            "UPDATE payment_methods SET name = ?1, type = ?2, metadata = ?3 WHERE id = ?4",
-            params![input.name.trim(), input.type_, metadata_for_payment_method(input), id],
+            "UPDATE payment_methods SET name = ?1, type = ?2, metadata = ?3 WHERE id = ?4 AND account_id = ?5",
+            params![input.name.trim(), input.type_, metadata_for_payment_method(input), id, account_id],
         )
         .map_err(db_err)?;
     if affected == 0 {
         return Err("forma de pagamento não encontrada".into());
     }
-    card_bills::refresh_card_bills(conn)?;
+    card_bills::refresh_card_bills(conn, account_id)?;
     Ok(())
 }
 
@@ -148,14 +149,14 @@ pub(crate) fn delete_payment_methods(conn: &Connection, ids: &[i64]) -> Result<(
 
 // ---- transactions helpers ----
 
-pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String> {
+pub fn create(conn: &Connection, account_id: i64, input: &TransactionInput) -> Result<(), String> {
     let description = input.description.trim();
     let dup = conn
         .query_row(
             "SELECT 1 FROM transactions
              WHERE description = ?1 AND amount = ?2 AND type = ?3 AND date = ?4
                AND category_id IS ?5 AND payment_method_id IS ?6 AND card_mode = ?7
-               AND fixed_bill_id IS NULL AND bill_start IS NULL
+               AND fixed_bill_id IS NULL AND bill_start IS NULL AND account_id = ?8
              LIMIT 1",
             params![
                 description,
@@ -164,7 +165,8 @@ pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String>
                 input.date,
                 input.category_id,
                 input.payment_method_id,
-                input.card_mode
+                input.card_mode,
+                account_id
             ],
             |_| Ok(()),
         )
@@ -174,9 +176,10 @@ pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String>
         return Err("já existe transação idêntica nessa data".into());
     }
     conn.execute(
-        "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, card_mode)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        "INSERT INTO transactions (account_id, description, amount, type, date, category_id, payment_method_id, card_mode)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
+            account_id,
             description,
             input.amount,
             input.type_,
@@ -187,7 +190,7 @@ pub fn create(conn: &Connection, input: &TransactionInput) -> Result<(), String>
         ],
     )
     .map_err(db_err)?;
-    refresh_card_bills(conn)?;
+    refresh_card_bills(conn, account_id)?;
     Ok(())
 }
 
@@ -215,7 +218,10 @@ pub fn update(conn: &Connection, id: i64, input: &TransactionInput) -> Result<()
     if affected == 0 {
         return Err("transação não encontrada".into());
     }
-    refresh_card_bills(conn)?;
+    let account_id: i64 = conn
+        .query_row("SELECT account_id FROM transactions WHERE id = ?1", params![id], |r| r.get(0))
+        .map_err(db_err)?;
+    refresh_card_bills(conn, account_id)?;
     Ok(())
 }
 
@@ -258,17 +264,17 @@ pub(crate) fn purchase_installment(purchase: &str) -> Result<(String, i64), Stri
 }
 
 /// Gera transações das contas fixas ativas no mês. Dia clampado ao último dia.
-pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), String> {
+pub fn generate_fixed_bills(conn: &Connection, account_id: i64, month: NaiveDate) -> Result<(), String> {
     let month_key = month.format("%Y-%m").to_string();
     let mut stmt = conn
         .prepare(
             "SELECT id, description, amount, day, category_id, payment_method_id, installments, start_month
              FROM fixed_bills
-             WHERE start_month <= ?1 AND (end_month IS NULL OR end_month >= ?1)",
+             WHERE start_month <= ?1 AND (end_month IS NULL OR end_month >= ?1) AND account_id = ?2",
         )
         .map_err(db_err)?;
     let bills = stmt
-        .query_map(rusqlite::params![month_key], |r| {
+        .query_map(rusqlite::params![month_key, account_id], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
                 r.get::<_, String>(1)?,
@@ -324,23 +330,23 @@ pub fn generate_fixed_bills(conn: &Connection, month: NaiveDate) -> Result<(), S
             .format("%Y-%m-%d")
             .to_string();
         conn.execute(
-            "INSERT INTO transactions (description, amount, type, date, category_id, payment_method_id, fixed_bill_id, loan_id)
-             VALUES (?1, ?2, 2, ?3, ?4, ?5, ?6, NULL)",
-            rusqlite::params![description, amount, due, category_id, payment_method_id, id],
+            "INSERT INTO transactions (account_id, description, amount, type, date, category_id, payment_method_id, fixed_bill_id, loan_id)
+             VALUES (?1, ?2, ?3, 2, ?4, ?5, ?6, ?7, NULL)",
+            rusqlite::params![account_id, description, amount, due, category_id, payment_method_id, id],
         )
         .map_err(db_err)?;
     }
     Ok(())
 }
 
-pub fn reconcile_fixed_bills(conn: &Connection, start_month: &str, now: NaiveDate) -> Result<(), String> {
-    let min = settings::earliest_month(conn)?.min(start_month.to_string());
+pub fn reconcile_fixed_bills(conn: &Connection, account_id: i64, start_month: &str, now: NaiveDate) -> Result<(), String> {
+    let min = settings::earliest_month(conn, account_id)?.min(start_month.to_string());
     let mut m = parse_month(&min)?;
     while m <= now {
-        generate_fixed_bills(conn, m)?;
+        generate_fixed_bills(conn, account_id, m)?;
         m = m.checked_add_months(Months::new(1)).unwrap();
     }
-    refresh_card_bills(conn)
+    refresh_card_bills(conn, account_id)
 }
 
 fn apply_card_day(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
@@ -389,7 +395,7 @@ pub(crate) fn finalize_installments(conn: &Connection, input: &mut FixedBillInpu
     Ok(())
 }
 
-pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Result<(), String> {
+pub fn create_fixed_bill(conn: &Connection, account_id: i64, input: &mut FixedBillInput) -> Result<(), String> {
     finalize_installments(conn, input)?;
     input.validate()?;
     let description = input.description.trim();
@@ -397,7 +403,7 @@ pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Resul
         .query_row(
             "SELECT 1 FROM fixed_bills
              WHERE description = ?1 AND amount = ?2 AND day = ?3 AND start_month = ?4
-               AND payment_method_id = ?5 AND installments IS ?6
+               AND payment_method_id = ?5 AND installments IS ?6 AND account_id = ?7
              LIMIT 1",
             params![
                 description,
@@ -405,7 +411,8 @@ pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Resul
                 input.day,
                 input.start_month,
                 input.payment_method_id,
-                input.installments
+                input.installments,
+                account_id
             ],
             |_| Ok(()),
         )
@@ -416,9 +423,10 @@ pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Resul
     }
     let end_month = input.end_month.clone();
     conn.execute(
-        "INSERT INTO fixed_bills (description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO fixed_bills (account_id, description, amount, day, category_id, payment_method_id, start_month, end_month, installments, purchase_date)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
+            account_id,
             description,
             input.amount,
             input.day,
@@ -431,7 +439,7 @@ pub fn create_fixed_bill(conn: &Connection, input: &mut FixedBillInput) -> Resul
         ],
     )
     .map_err(db_err)?;
-    reconcile_fixed_bills(conn, &input.start_month, chrono::Local::now().date_naive())?;
+    reconcile_fixed_bills(conn, account_id, &input.start_month, chrono::Local::now().date_naive())?;
     Ok(())
 }
 
@@ -516,7 +524,7 @@ pub fn loan_schedule(
 }
 
 /// Gera entrada (empréstimos) e parcelas mensais dos empréstimos ativos no mês.
-pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result<(), String> {
+pub fn generate_loan_installments(conn: &Connection, account_id: i64, month: NaiveDate) -> Result<(), String> {
     let month_key = month.format("%Y-%m").to_string();
     let start = month.with_day(1).unwrap().format("%Y-%m-%d").to_string();
     let end = month
@@ -528,11 +536,11 @@ pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result
     let mut stmt = conn
         .prepare(
             "SELECT id, type, description, principal, installment, total_installments, day, payment_method_id, start_month
-             FROM loans",
+             FROM loans WHERE account_id = ?1",
         )
         .map_err(db_err)?;
     let loans = stmt
-        .query_map([], |r| {
+        .query_map(params![account_id], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
                 r.get::<_, i64>(1)?,
@@ -571,9 +579,10 @@ pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result
                 .map_err(db_err)?;
             if exists == 0 {
                 conn.execute(
-                    "INSERT INTO transactions (description, amount, type, date, payment_method_id, loan_id)
-                     VALUES (?1, ?2, 1, ?3, ?4, ?5)",
+                    "INSERT INTO transactions (account_id, description, amount, type, date, payment_method_id, loan_id)
+                     VALUES (?1, ?2, ?3, 1, ?4, ?5, ?6)",
                     rusqlite::params![
+                        account_id,
                         format!("{description} (entrada)"),
                         principal,
                         loan_start.format("%Y-%m-%d").to_string(),
@@ -596,9 +605,9 @@ pub fn generate_loan_installments(conn: &Connection, month: NaiveDate) -> Result
             let due_day = day.min(crate::shared::card_bills::last_day_of(month) as i64) as u32;
             let due = month.with_day(due_day).unwrap().format("%Y-%m-%d").to_string();
             conn.execute(
-                "INSERT INTO transactions (description, amount, type, date, payment_method_id, loan_id)
-                 VALUES (?1, ?2, 2, ?3, ?4, ?5)",
-                rusqlite::params![description, installment, due, pm_id, id],
+                "INSERT INTO transactions (account_id, description, amount, type, date, payment_method_id, loan_id)
+                 VALUES (?1, ?2, ?3, 2, ?4, ?5, ?6)",
+                rusqlite::params![account_id, description, installment, due, pm_id, id],
             )
             .map_err(db_err)?;
         }
@@ -734,8 +743,8 @@ mod tests {
         )
         .unwrap();
 
-        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 3, 1).unwrap()).unwrap();
-        generate_fixed_bills(&conn, NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()).unwrap();
+        generate_fixed_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 3, 1).unwrap()).unwrap();
+        generate_fixed_bills(&conn, 1, NaiveDate::from_ymd_opt(2026, 4, 1).unwrap()).unwrap();
 
         let rows: i64 = conn
             .query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get(0))
@@ -755,7 +764,7 @@ mod tests {
         .unwrap();
         let bill_id = conn.last_insert_rowid();
 
-        reconcile_fixed_bills(&conn, "2026-05", NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
+        reconcile_fixed_bills(&conn, 1, "2026-05", NaiveDate::from_ymd_opt(2026, 7, 1).unwrap()).unwrap();
 
         let dates: Vec<String> = {
             let mut stmt = conn
@@ -783,7 +792,7 @@ mod tests {
         .unwrap();
         let bill_id = conn.last_insert_rowid();
 
-        reconcile_fixed_bills(&conn, "2026-06", NaiveDate::from_ymd_opt(2026, 8, 1).unwrap()).unwrap();
+        reconcile_fixed_bills(&conn, 1, "2026-06", NaiveDate::from_ymd_opt(2026, 8, 1).unwrap()).unwrap();
 
         let n: i64 = conn
             .query_row(

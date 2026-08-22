@@ -5,6 +5,7 @@ use crate::shared::util::db_err;
 
 /// Syncable entity names.
 pub const SYNCABLE_ENTITIES: &[&str] = &[
+    "accounts",
     "payment_methods",
     "categories",
     "fixed_bills",
@@ -29,6 +30,7 @@ pub struct SyncOperation {
 /// Columns to read for each entity (excludes local-only fields).
 pub fn entity_columns(entity: &str) -> &'static str {
     match entity {
+        "accounts" => "id, uuid, name, color, created_at, updated_at, deleted_at",
         "payment_methods" => "id, uuid, name, type, metadata, created_at, updated_at, deleted_at",
         "categories" => "id, uuid, name, type, color, icon, created_at, updated_at, deleted_at",
         "fixed_bills" => {
@@ -52,32 +54,48 @@ pub fn read_entity_row(
     row_id: &dyn rusqlite::types::ToSql,
 ) -> Result<serde_json::Value, String> {
     let sql = match entity {
+        "accounts" => {
+            "SELECT uuid, name, color, created_at, updated_at, deleted_at
+             FROM accounts WHERE id = ?1"
+        }
         "payment_methods" => {
-            "SELECT uuid, name, type, metadata, created_at, updated_at, deleted_at
-             FROM payment_methods WHERE id = ?1"
+            "SELECT pm.uuid, pm.name, pm.type, pm.metadata,
+                    COALESCE(a.uuid, '') as account_uuid,
+                    pm.created_at, pm.updated_at, pm.deleted_at
+             FROM payment_methods pm
+             LEFT JOIN accounts a ON a.id = pm.account_id
+             WHERE pm.id = ?1"
         }
         "categories" => {
-            "SELECT uuid, name, type, color, icon, created_at, updated_at, deleted_at
-             FROM categories WHERE id = ?1"
+            "SELECT c.uuid, c.name, c.type, c.color, c.icon,
+                    COALESCE(a.uuid, '') as account_uuid,
+                    c.created_at, c.updated_at, c.deleted_at
+             FROM categories c
+             LEFT JOIN accounts a ON a.id = c.account_id
+             WHERE c.id = ?1"
         }
         "fixed_bills" => {
             "SELECT fb.uuid, fb.description, fb.amount, fb.day,
                     COALESCE(c.uuid, '') as cat_uuid,
                     COALESCE(pm.uuid, '') as pm_uuid,
+                    COALESCE(a.uuid, '') as account_uuid,
                     fb.start_month, fb.end_month, fb.installments, fb.purchase_date,
                     fb.created_at, fb.updated_at, fb.deleted_at
              FROM fixed_bills fb
              LEFT JOIN categories c ON c.id = fb.category_id
              LEFT JOIN payment_methods pm ON pm.id = fb.payment_method_id
+             LEFT JOIN accounts a ON a.id = fb.account_id
              WHERE fb.id = ?1"
         }
         "loans" => {
             "SELECT l.uuid, l.type, l.description, l.principal, l.installment,
                     l.total_installments, l.day, l.start_month,
                     COALESCE(pm.uuid, '') as pm_uuid,
+                    COALESCE(a.uuid, '') as account_uuid,
                     l.monthly_rate, l.created_at, l.updated_at, l.deleted_at
              FROM loans l
              LEFT JOIN payment_methods pm ON pm.id = l.payment_method_id
+             LEFT JOIN accounts a ON a.id = l.account_id
              WHERE l.id = ?1"
         }
         "transactions" => {
@@ -86,6 +104,7 @@ pub fn read_entity_row(
                     COALESCE(pm.uuid, '') as pm_uuid,
                     COALESCE(fb.uuid, '') as fb_uuid,
                     COALESCE(l.uuid, '') as loan_uuid,
+                    COALESCE(a.uuid, '') as account_uuid,
                     t.bill_start, t.bill_end, t.card_mode,
                     t.created_at, t.updated_at, t.deleted_at
              FROM transactions t
@@ -93,11 +112,16 @@ pub fn read_entity_row(
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
              LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
              LEFT JOIN loans l ON l.id = t.loan_id
+             LEFT JOIN accounts a ON a.id = t.account_id
              WHERE t.id = ?1"
         }
         "settings" => {
-            "SELECT uuid, key, value, created_at, updated_at, deleted_at
-             FROM settings WHERE key = ?1"
+            "SELECT s.uuid, s.key, s.value,
+                    COALESCE(a.uuid, '') as account_uuid,
+                    s.created_at, s.updated_at, s.deleted_at
+             FROM settings s
+             LEFT JOIN accounts a ON a.id = s.account_id
+             WHERE s.key = ?1"
         }
         _ => return Err(format!("entidade desconhecida: {entity}")),
     };

@@ -2,7 +2,7 @@ use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::{with_db, AppState};
+use crate::db::{with_db_active, AppState};
 use crate::shared::util::{current_month, db_err, month_str_to_date};
 
 // ---- Configurações ----
@@ -49,13 +49,13 @@ impl SettingsInput {
     }
 }
 
-/// Lê as configurações; ausência = defaults (None, 0, 0).
-pub fn get_settings_impl(conn: &Connection) -> Result<Settings, String> {
+/// Lê as configurações da conta; ausência = defaults (None, 0, 0).
+pub fn get_settings_impl(conn: &Connection, account_id: i64) -> Result<Settings, String> {
     let mut stmt = conn
-        .prepare("SELECT key, value FROM settings")
+        .prepare("SELECT key, value FROM settings WHERE account_id = ?1")
         .map_err(db_err)?;
     let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+        .query_map([account_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
         .map_err(db_err)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(db_err)?;
@@ -73,14 +73,17 @@ pub fn get_settings_impl(conn: &Connection) -> Result<Settings, String> {
 }
 
 /// Persiste as configurações (primeiro_mes None remove a chave).
-pub fn set_settings(conn: &Connection, input: &SettingsInput) -> Result<(), String> {
-    conn.execute("DELETE FROM settings WHERE key = 'primeiro_mes'", [])
-        .map_err(db_err)?;
+pub fn set_settings(conn: &Connection, account_id: i64, input: &SettingsInput) -> Result<(), String> {
+    conn.execute(
+        "DELETE FROM settings WHERE key = 'primeiro_mes' AND account_id = ?1",
+        [account_id],
+    )
+    .map_err(db_err)?;
     if let Some(pm) = &input.primeiro_mes {
         conn.execute(
-            "INSERT INTO settings (key, value) VALUES ('primeiro_mes', ?1)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            [pm],
+            "INSERT INTO settings (account_id, key, value) VALUES (?1, 'primeiro_mes', ?2)
+             ON CONFLICT(account_id, key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![account_id, pm],
         )
         .map_err(db_err)?;
     }
@@ -90,27 +93,29 @@ pub fn set_settings(conn: &Connection, input: &SettingsInput) -> Result<(), Stri
         ("meta_investimento", input.meta_investimento.to_string()),
     ] {
         conn.execute(
-            "INSERT INTO settings (key, value) VALUES (?1, ?2)
-             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            rusqlite::params![key, v],
+            "INSERT INTO settings (account_id, key, value) VALUES (?1, ?2, ?3)
+             ON CONFLICT(account_id, key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![account_id, key, v],
         )
         .map_err(db_err)?;
     }
     Ok(())
 }
 
-/// Mês (YYYY-MM) da transação mais antiga, ou mês corrente.
+/// Mês (YYYY-MM) da transação mais antiga da conta, ou mês corrente.
 /// Com `primeiro_mes` configurado, o piso rígido o substitui.
-pub fn earliest_month(conn: &Connection) -> Result<String, String> {
-    let s = get_settings_impl(conn)?;
-    Ok(s.primeiro_mes.unwrap_or(earliest_tx_month(conn)?))
+pub fn earliest_month(conn: &Connection, account_id: i64) -> Result<String, String> {
+    let s = get_settings_impl(conn, account_id)?;
+    Ok(s.primeiro_mes.unwrap_or(earliest_tx_month(conn, account_id)?))
 }
 
 /// Mês da transação mais antiga sem considerar configurações.
-pub(crate) fn earliest_tx_month(conn: &Connection) -> Result<String, String> {
-    let min = conn.query_row("SELECT MIN(date) FROM transactions WHERE deleted_at IS NULL", [], |r| {
-        r.get::<_, Option<String>>(0)
-    });
+pub(crate) fn earliest_tx_month(conn: &Connection, account_id: i64) -> Result<String, String> {
+    let min = conn.query_row(
+        "SELECT MIN(date) FROM transactions WHERE deleted_at IS NULL AND account_id = ?1",
+        [account_id],
+        |r| r.get::<_, Option<String>>(0),
+    );
     match min {
         Ok(Some(d)) if d.len() >= 7 => Ok(d[..7].to_string()),
         _ => Ok(current_month()),
@@ -119,7 +124,7 @@ pub(crate) fn earliest_tx_month(conn: &Connection) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn get_settings(state: State<'_, AppState>) -> Result<Settings, String> {
-    with_db(&state, get_settings_impl)
+    with_db_active(&state, |c, a| get_settings_impl(c, a))
 }
 
 #[tauri::command]
@@ -128,34 +133,36 @@ pub async fn update_settings(
     input: SettingsInput,
 ) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| set_settings(c, &input))
+    with_db_active(&state, |c, a| set_settings(c, a, &input))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::accounts::repository as accounts_repo;
     use crate::shared::test_db;
 
-    #[test]
-    fn settings_roundtrip_inclui_meta_investimento() {
+    fn setup() -> (Connection, i64) {
         let conn = test_db();
-        let input = SettingsInput {
-            primeiro_mes: None,
-            saldo_inicial_conta: 0,
-            saldo_inicial_reserva: 0,
-            meta_investimento: 12.5,
-        };
-        assert!(input.validate().is_ok());
-        set_settings(&conn, &input).unwrap();
-        let s = get_settings_impl(&conn).unwrap();
-        assert_eq!(s.meta_investimento, 12.5);
+        let now = "2026-01-01T00:00:00Z";
+        let (id, _) = accounts_repo::insert(&conn, &accounts_repo::NewAccount { name: "T", color: "#000000" }, now).unwrap();
+        (conn, id)
+    }
 
-        let inv = SettingsInput {
-            primeiro_mes: None,
-            saldo_inicial_conta: 0,
-            saldo_inicial_reserva: 0,
-            meta_investimento: 150.0,
-        };
-        assert!(inv.validate().is_err(), "acima de 100 deve falhar");
+    #[test]
+    fn settings_sao_escopadas_por_conta() {
+        let (conn, a1) = setup();
+        let (a2, _) = accounts_repo::insert(&conn, &accounts_repo::NewAccount { name: "B", color: "#111111" }, "2026-01-01T00:00:00Z").unwrap();
+
+        let input = SettingsInput { primeiro_mes: None, saldo_inicial_conta: 500, saldo_inicial_reserva: 0, meta_investimento: 10.0 };
+        set_settings(&conn, a1, &input).unwrap();
+
+        let s1 = get_settings_impl(&conn, a1).unwrap();
+        let s2 = get_settings_impl(&conn, a2).unwrap();
+        assert_eq!(s1.saldo_inicial_conta, 500);
+        assert_eq!(s2.saldo_inicial_conta, 0);
+
+        assert!(SettingsInput { primeiro_mes: None, saldo_inicial_conta: -1, saldo_inicial_reserva: 0, meta_investimento: 0.0 }
+            .validate().is_err());
     }
 }

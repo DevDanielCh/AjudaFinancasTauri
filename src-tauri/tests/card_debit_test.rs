@@ -33,7 +33,8 @@ fn fatura_detail_ignora_compra_debito() {
 
     ajudafinancas_lib::shared::card_bills::ensure_card_bills(
         &conn,
-        ajudafinancas_lib::shared::util::parse_month("2026-06").unwrap(),
+        1,
+                ajudafinancas_lib::shared::util::parse_month("2026-06").unwrap(),
     )
     .unwrap();
 

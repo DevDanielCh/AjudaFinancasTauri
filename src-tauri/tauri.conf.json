@@ -5,7 +5,7 @@
   "version": "0.1.6",
   "identifier": "com.ajudafinancas.app",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "bun run dev -- -H 0.0.0.0",
     "devUrl": "http://localhost:3000",
     "beforeBuildCommand": "bun run build",
     "frontendDist": "../out"

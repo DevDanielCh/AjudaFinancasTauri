@@ -8,6 +8,7 @@ use crate::shared::util::db_err;
 /// Represents the full state of syncable data for snapshots.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnapshotData {
+    pub accounts: Vec<serde_json::Value>,
     pub payment_methods: Vec<serde_json::Value>,
     pub categories: Vec<serde_json::Value>,
     pub fixed_bills: Vec<serde_json::Value>,
@@ -19,6 +20,7 @@ pub struct SnapshotData {
 /// Serialize all syncable data from local DB into a snapshot.
 pub fn serialize_local_data(conn: &Connection) -> Result<SnapshotData, String> {
     Ok(SnapshotData {
+        accounts: read_all_syncable(conn, "accounts")?,
         payment_methods: read_all_syncable(conn, "payment_methods")?,
         categories: read_all_syncable(conn, "categories")?,
         fixed_bills: read_all_syncable(conn, "fixed_bills")?,
@@ -31,25 +33,40 @@ pub fn serialize_local_data(conn: &Connection) -> Result<SnapshotData, String> {
 /// Read all non-deleted rows from a syncable entity as JSON values.
 fn read_all_syncable(conn: &Connection, entity: &str) -> Result<Vec<serde_json::Value>, String> {
     let (sql, _id_col) = match entity {
+        "accounts" => (
+            "SELECT uuid, name, color, created_at, updated_at, deleted_at
+             FROM accounts WHERE deleted_at IS NULL",
+            "uuid",
+        ),
         "payment_methods" => (
-            "SELECT uuid, name, type, metadata, created_at, updated_at, deleted_at
-             FROM payment_methods WHERE deleted_at IS NULL",
+            "SELECT pm.uuid, pm.name, pm.type, pm.metadata,
+                    COALESCE(a.uuid, '') as account_uuid,
+                    pm.created_at, pm.updated_at, pm.deleted_at
+             FROM payment_methods pm
+             LEFT JOIN accounts a ON a.id = pm.account_id
+             WHERE pm.deleted_at IS NULL",
             "uuid",
         ),
         "categories" => (
-            "SELECT uuid, name, type, color, icon, created_at, updated_at, deleted_at
-             FROM categories WHERE deleted_at IS NULL",
+            "SELECT c.uuid, c.name, c.type, c.color, c.icon,
+                    COALESCE(a.uuid, '') as account_uuid,
+                    c.created_at, c.updated_at, c.deleted_at
+             FROM categories c
+             LEFT JOIN accounts a ON a.id = c.account_id
+             WHERE c.deleted_at IS NULL",
             "uuid",
         ),
         "fixed_bills" => (
             "SELECT fb.uuid, fb.description, fb.amount, fb.day,
                     COALESCE(c.uuid, '') as category_uuid,
                     COALESCE(pm.uuid, '') as payment_method_uuid,
+                    COALESCE(a.uuid, '') as account_uuid,
                     fb.start_month, fb.end_month, fb.installments, fb.purchase_date,
                     fb.created_at, fb.updated_at, fb.deleted_at
              FROM fixed_bills fb
              LEFT JOIN categories c ON c.id = fb.category_id
              LEFT JOIN payment_methods pm ON pm.id = fb.payment_method_id
+             LEFT JOIN accounts a ON a.id = fb.account_id
              WHERE fb.deleted_at IS NULL",
             "uuid",
         ),
@@ -57,9 +74,11 @@ fn read_all_syncable(conn: &Connection, entity: &str) -> Result<Vec<serde_json::
             "SELECT l.uuid, l.type, l.description, l.principal, l.installment,
                     l.total_installments, l.day, l.start_month,
                     COALESCE(pm.uuid, '') as payment_method_uuid,
+                    COALESCE(a.uuid, '') as account_uuid,
                     l.monthly_rate, l.created_at, l.updated_at, l.deleted_at
              FROM loans l
              LEFT JOIN payment_methods pm ON pm.id = l.payment_method_id
+             LEFT JOIN accounts a ON a.id = l.account_id
              WHERE l.deleted_at IS NULL",
             "uuid",
         ),
@@ -69,6 +88,7 @@ fn read_all_syncable(conn: &Connection, entity: &str) -> Result<Vec<serde_json::
                     COALESCE(pm.uuid, '') as payment_method_uuid,
                     COALESCE(fb.uuid, '') as fixed_bill_uuid,
                     COALESCE(l.uuid, '') as loan_uuid,
+                    COALESCE(a.uuid, '') as account_uuid,
                     t.bill_start, t.bill_end, t.card_mode,
                     t.created_at, t.updated_at, t.deleted_at
              FROM transactions t
@@ -76,6 +96,7 @@ fn read_all_syncable(conn: &Connection, entity: &str) -> Result<Vec<serde_json::
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id
              LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id
              LEFT JOIN loans l ON l.id = t.loan_id
+             LEFT JOIN accounts a ON a.id = t.account_id
              WHERE t.deleted_at IS NULL
                AND t.bill_start IS NULL
                AND t.fixed_bill_id IS NULL
@@ -83,9 +104,13 @@ fn read_all_syncable(conn: &Connection, entity: &str) -> Result<Vec<serde_json::
             "uuid",
         ),
         "settings" => (
-            "SELECT uuid, key, value, created_at, updated_at, deleted_at
-             FROM settings WHERE deleted_at IS NULL
-               AND key NOT LIKE '\\_' || '%' ESCAPE '\\'",
+            "SELECT s.uuid, s.key, s.value,
+                    COALESCE(a.uuid, '') as account_uuid,
+                    s.created_at, s.updated_at, s.deleted_at
+             FROM settings s
+             LEFT JOIN accounts a ON a.id = s.account_id
+             WHERE s.deleted_at IS NULL
+               AND s.key NOT LIKE '\\_' || '%' ESCAPE '\\'",
             "key",
         ),
         _ => return Err(format!("entidade desconhecida: {entity}")),
@@ -133,6 +158,7 @@ pub fn resolve_local_id(conn: &Connection, entity: &str, uuid: &str) -> Result<O
         return Ok(None);
     }
     let sql = match entity {
+        "accounts" => "SELECT id FROM accounts WHERE uuid = ?1 AND deleted_at IS NULL",
         "categories" => "SELECT id FROM categories WHERE uuid = ?1 AND deleted_at IS NULL",
         "payment_methods" => {
             "SELECT id FROM payment_methods WHERE uuid = ?1 AND deleted_at IS NULL"

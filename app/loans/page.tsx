@@ -20,8 +20,8 @@ export default function LoansPage() {
           columns: [
             { label: "Descrição", name: "description", render: (r) => r.description },
             { label: "Tipo", name: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
-            { label: "Valor", name: "principal", render: (r) => <span className="font-mono">{formatMoney(r.principal)}</span> },
-            { label: "Parcela", name: "installment", render: (r) => <span className="font-mono">{formatMoney(r.installment)}</span> },
+            { label: "Valor", name: "principal", render: (r) => <span className="tabular-nums">{formatMoney(r.principal)}</span> },
+            { label: "Parcela", name: "installment", render: (r) => <span className="tabular-nums">{formatMoney(r.installment)}</span> },
             { label: "Parcelas", name: "installments", render: (r) => `${r.paid_count}/${r.total_installments}` },
             { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
             { label: "Fim", render: (r) => formatMonth(r.end_month) },
@@ -30,7 +30,7 @@ export default function LoansPage() {
             topLeft: (r) => r.description,
             bottomLeft: (r) => `${r.type === 1 ? "Empréstimo" : "Financiamento"} · ${r.paid_count}/${r.total_installments}`,
             topRight: (r) => (
-              <span className="font-mono">{formatMoney(r.installment)}</span>
+              <span className="tabular-nums">{formatMoney(r.installment)}</span>
             ),
             bottomRight: (r) => `${formatMonth(r.start_month)} → ${formatMonth(r.end_month)}`,
           },

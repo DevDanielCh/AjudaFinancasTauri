@@ -1,4 +1,4 @@
-use crate::db::{with_db, AppState};
+use crate::db::{with_db_active, AppState};
 use crate::organizacao_financeira::models::{
     CardBillDetail, Category, CategoryInput, FixedBill, FixedBillInput, Loan, LoanDetail, LoanInput,
     PaymentMethod, PaymentMethodInput, TransactionInput, TransactionRow,
@@ -15,13 +15,13 @@ pub async fn list_categories(
     sort_by: Option<String>,
     sort_dir: Option<String>,
 ) -> Result<Vec<Category>, String> {
-    with_db(&state, |c| repository::list_categories(c, sort_by.as_deref(), sort_dir.as_deref()))
+    with_db_active(&state, |c, a| repository::list_categories(c, a, sort_by.as_deref(), sort_dir.as_deref()))
 }
 
 #[tauri::command]
 pub async fn create_category(state: State<'_, AppState>, input: CategoryInput) -> Result<(), String> {
     service::validate_category(&input)?;
-    with_db(&state, |c| service::create_category(c, &input))
+    with_db_active(&state, |c, a| service::create_category(c, a, &input))
 }
 
 #[tauri::command]
@@ -31,7 +31,7 @@ pub async fn update_category(
     input: CategoryInput,
 ) -> Result<(), String> {
     service::validate_category(&input)?;
-    with_db(&state, |c| service::update_category(c, id, &input))
+    with_db_active(&state, |c, a| service::update_category(c, a, id, &input))
 }
 
 #[tauri::command]
@@ -39,7 +39,7 @@ pub async fn delete_categories(state: State<'_, AppState>, ids: Vec<i64>) -> Res
     if ids.is_empty() {
         return Err("ids requeridos".into());
     }
-    with_db(&state, |c| service::delete_categories(c, &ids))
+    with_db_active(&state, |c, _a| service::delete_categories(c, &ids))
 }
 
 #[tauri::command]
@@ -48,7 +48,7 @@ pub async fn list_payment_methods(
     sort_by: Option<String>,
     sort_dir: Option<String>,
 ) -> Result<Vec<PaymentMethod>, String> {
-    with_db(&state, |c| repository::list_payment_methods(c, sort_by.as_deref(), sort_dir.as_deref()))
+    with_db_active(&state, |c, a| repository::list_payment_methods(c, a, sort_by.as_deref(), sort_dir.as_deref()))
 }
 
 #[tauri::command]
@@ -57,7 +57,7 @@ pub async fn create_payment_method(
     input: PaymentMethodInput,
 ) -> Result<(), String> {
     service::validate_payment_method(&input)?;
-    with_db(&state, |c| service::create_payment_method(c, &input))
+    with_db_active(&state, |c, a| service::create_payment_method(c, a, &input))
 }
 
 #[tauri::command]
@@ -67,7 +67,7 @@ pub async fn update_payment_method(
     input: PaymentMethodInput,
 ) -> Result<(), String> {
     service::validate_payment_method(&input)?;
-    with_db(&state, |c| service::update_payment_method(c, id, &input))
+    with_db_active(&state, |c, a| service::update_payment_method(c, a, id, &input))
 }
 
 #[tauri::command]
@@ -75,7 +75,7 @@ pub async fn delete_payment_methods(state: State<'_, AppState>, ids: Vec<i64>) -
     if ids.is_empty() {
         return Err("ids requeridos".into());
     }
-    with_db(&state, |c| service::delete_payment_methods(c, &ids))
+    with_db_active(&state, |c, _a| service::delete_payment_methods(c, &ids))
 }
 
 // ---- transactions ----
@@ -87,7 +87,9 @@ pub async fn list_transactions(
     sort_by: Option<String>,
     sort_dir: Option<String>,
 ) -> Result<Vec<TransactionRow>, String> {
-    with_db(&state, |c| repository::list_transactions(c, month.as_deref(), sort_by.as_deref(), sort_dir.as_deref()))
+    with_db_active(&state, |c, a| {
+        repository::list_transactions(c, a, month.as_deref(), sort_by.as_deref(), sort_dir.as_deref())
+    })
 }
 
 #[tauri::command]
@@ -96,7 +98,7 @@ pub async fn create_transaction(
     input: TransactionInput,
 ) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| service::create(c, &input))
+    with_db_active(&state, |c, a| service::create(c, a, &input))
 }
 
 #[tauri::command]
@@ -106,7 +108,7 @@ pub async fn update_transaction(
     input: TransactionInput,
 ) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| service::update(c, id, &input))
+    with_db_active(&state, |c, _a| service::update(c, id, &input))
 }
 
 #[tauri::command]
@@ -114,15 +116,15 @@ pub async fn delete_transactions(state: State<'_, AppState>, ids: Vec<i64>) -> R
     if ids.is_empty() {
         return Err("ids requeridos".into());
     }
-    with_db(&state, |c| {
+    with_db_active(&state, |c, a| {
         service::delete_ids(c, &ids)?;
-        card_bills::refresh_card_bills(c)
+        card_bills::refresh_card_bills(c, a)
     })
 }
 
 #[tauri::command]
 pub async fn get_card_bill(state: State<'_, AppState>, id: i64) -> Result<CardBillDetail, String> {
-    with_db(&state, |c| {
+    with_db_active(&state, |c, _a| {
         let (pm_id, pm_name, bill_start, bill_end, due, description) =
             repository::get_card_bill_query(c, id)?;
         let (Some(bs), Some(be)) = (bill_start, bill_end) else {
@@ -152,7 +154,9 @@ pub async fn list_fixed_bills(
     sort_by: Option<String>,
     sort_dir: Option<String>,
 ) -> Result<Vec<FixedBill>, String> {
-    with_db(&state, |c| repository::list_fixed_bills(c, only_installments, sort_by.as_deref(), sort_dir.as_deref()))
+    with_db_active(&state, |c, a| {
+        repository::list_fixed_bills(c, a, only_installments, sort_by.as_deref(), sort_dir.as_deref())
+    })
 }
 
 #[tauri::command]
@@ -160,7 +164,7 @@ pub async fn create_fixed_bill(
     state: State<'_, AppState>,
     mut input: FixedBillInput,
 ) -> Result<(), String> {
-    with_db(&state, |c| service::create_fixed_bill(c, &mut input))
+    with_db_active(&state, |c, a| service::create_fixed_bill(c, a, &mut input))
 }
 
 #[tauri::command]
@@ -169,7 +173,7 @@ pub async fn update_fixed_bill(
     id: i64,
     mut input: FixedBillInput,
 ) -> Result<(), String> {
-    with_db(&state, |c| {
+    with_db_active(&state, |c, a| {
         service::finalize_installments(c, &mut input)?;
         input.validate()?;
         let affected = c
@@ -199,7 +203,7 @@ pub async fn update_fixed_bill(
             params![id],
         )
         .map_err(crate::shared::util::db_err)?;
-        service::reconcile_fixed_bills(c, &input.start_month, chrono::Local::now().date_naive())?;
+        service::reconcile_fixed_bills(c, a, &input.start_month, chrono::Local::now().date_naive())?;
         Ok(())
     })
 }
@@ -209,7 +213,7 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
     if ids.is_empty() {
         return Err("ids requeridos".into());
     }
-    with_db(&state, |c| {
+    with_db_active(&state, |c, a| {
         let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
         let placeholders = vec!["?"; ids.len()].join(",");
         // Soft delete transactions linked to these fixed_bills
@@ -236,7 +240,7 @@ pub async fn delete_fixed_bills(state: State<'_, AppState>, ids: Vec<i64>) -> Re
             ),
         )
         .map_err(crate::shared::util::db_err)?;
-        card_bills::refresh_card_bills(c)
+        card_bills::refresh_card_bills(c, a)
     })
 }
 
@@ -248,12 +252,12 @@ pub async fn list_loans(
     sort_by: Option<String>,
     sort_dir: Option<String>,
 ) -> Result<Vec<Loan>, String> {
-    with_db(&state, |c| repository::list_loans(c, sort_by.as_deref(), sort_dir.as_deref()))
+    with_db_active(&state, |c, a| repository::list_loans(c, a, sort_by.as_deref(), sort_dir.as_deref()))
 }
 
 #[tauri::command]
 pub async fn get_loan_detail(state: State<'_, AppState>, id: i64) -> Result<LoanDetail, String> {
-    with_db(&state, |c| {
+    with_db_active(&state, |c, _a| {
         let loan = repository::get_loan_detail(c, id)?;
         let schedule = service::loan_schedule(
             loan.principal,
@@ -270,13 +274,13 @@ pub async fn get_loan_detail(state: State<'_, AppState>, id: i64) -> Result<Loan
 #[tauri::command]
 pub async fn create_loan(state: State<'_, AppState>, input: LoanInput) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| {
+    with_db_active(&state, |c, a| {
         let rate = if input.monthly_rate > 0.0 {
             input.monthly_rate
         } else {
             service::loan_monthly_rate(input.principal, input.installment, input.total_installments)
         };
-        repository::create_loan(c, &input, rate)
+        repository::create_loan(c, a, &input, rate)
     })
 }
 
@@ -287,7 +291,7 @@ pub async fn update_loan(
     input: LoanInput,
 ) -> Result<(), String> {
     input.validate()?;
-    with_db(&state, |c| {
+    with_db_active(&state, |c, _a| {
         let rate = if input.monthly_rate > 0.0 {
             input.monthly_rate
         } else {
@@ -324,7 +328,7 @@ pub async fn delete_loans(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(
     if ids.is_empty() {
         return Err("ids requeridos".into());
     }
-    with_db(&state, |c| {
+    with_db_active(&state, |c, a| {
         let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
         let placeholders = vec!["?"; ids.len()].join(",");
         // Soft delete transactions linked to these loans
@@ -351,6 +355,6 @@ pub async fn delete_loans(state: State<'_, AppState>, ids: Vec<i64>) -> Result<(
             ),
         )
         .map_err(crate::shared::util::db_err)?;
-        card_bills::refresh_card_bills(c)
+        card_bills::refresh_card_bills(c, a)
     })
 }

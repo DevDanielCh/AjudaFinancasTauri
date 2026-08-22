@@ -60,7 +60,7 @@ function DialogContent({
         <div
           data-slot="dialog-panel"
           className={cn(
-            "relative grid w-full max-w-sm gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 max-h-[90vh] overflow-y-auto sm:max-w-lg",
+            "relative grid w-full max-w-sm gap-4 rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-2xl max-h-[90vh] overflow-y-auto sm:max-w-lg",
             className
           )}
         >

@@ -31,9 +31,14 @@ export default function TransactionsPage() {
             {
               label: "Tipo",
               name: "type",
-              render: (r) => r.is_card_bill ? <Badge>Fatura</Badge>
-                : r.type === 1 || r.type === 5 ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
-                : <Badge className="bg-negative text-negative-foreground">Despesa</Badge>,
+              render: (r) => {
+                const isReserva = r.type === 4 || r.type === 5;
+                if (r.is_card_bill) return <Badge>Fatura</Badge>;
+                if (isReserva) return <Badge className="bg-sticker-teal text-white">Reserva</Badge>;
+                return r.type === 1
+                  ? <Badge className="bg-positive text-positive-foreground">Receita</Badge>
+                  : <Badge className="bg-negative text-negative-foreground">Despesa</Badge>;
+              },
             },
             { label: "Descrição", name: "description", render: (r) => r.description },
             { label: "Categoria", name: "category", render: (r) => r.category_name ?? "—" },
@@ -44,7 +49,7 @@ export default function TransactionsPage() {
               render: (r) => {
                 const positive = r.type === 1 || r.type === 5;
                 return (
-                  <span className={cn(positive ? "text-positive" : "text-negative", "font-mono")}>
+                  <span className={cn(positive ? "text-positive" : "text-negative", "tabular-nums")}>
                     {positive ? "+" : "−"} {formatMoney(r.amount)}
                   </span>
                 );
@@ -53,11 +58,12 @@ export default function TransactionsPage() {
           ],
           mobileCorners: {
             topLeft: (r) => r.description,
-            bottomLeft: (r) => r.category_name ?? "—",
+            bottomLeft: (r) =>
+              r.type === 4 || r.type === 5 ? "Reserva" : r.category_name ?? "—",
             topRight: (r) => {
               const positive = r.type === 1 || r.type === 5;
               return (
-                <span className={cn(positive ? "text-positive" : "text-negative", "font-mono")}>
+                <span className={cn(positive ? "text-positive" : "text-negative", "tabular-nums")}>
                   {positive ? "+" : "−"} {formatMoney(r.amount)}
                 </span>
               );

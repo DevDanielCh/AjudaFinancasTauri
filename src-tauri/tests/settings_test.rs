@@ -12,6 +12,7 @@ fn test_db() -> Connection {
 fn set(conn: &Connection, primeiro_mes: Option<&str>, conta: i64, reserva: i64) {
     settings::set_settings(
         conn,
+        1,
         &SettingsInput {
             primeiro_mes: primeiro_mes.map(String::from),
             saldo_inicial_conta: conta,
@@ -25,7 +26,7 @@ fn set(conn: &Connection, primeiro_mes: Option<&str>, conta: i64, reserva: i64) 
 #[test]
 fn get_settings_default_quando_vazio() {
     let conn = test_db();
-    let s = settings::get_settings_impl(&conn).unwrap();
+    let s = settings::get_settings_impl(&conn, 1).unwrap();
     assert_eq!(s.primeiro_mes, None);
     assert_eq!(s.saldo_inicial_conta, 0);
     assert_eq!(s.saldo_inicial_reserva, 0);
@@ -36,9 +37,9 @@ fn earliest_month_respeita_primeiro_mes() {
     let conn = test_db();
     conn.execute("INSERT INTO transactions (description, amount, type, date) VALUES ('x', 1, 2, '2025-01-10')", [])
         .unwrap();
-    assert_eq!(settings::earliest_month(&conn).unwrap(), "2025-01");
+    assert_eq!(settings::earliest_month(&conn, 1).unwrap(), "2025-01");
     set(&conn, Some("2026-03"), 0, 0);
-    assert_eq!(settings::earliest_month(&conn).unwrap(), "2026-03", "config sobrescreve transação antiga");
+    assert_eq!(settings::earliest_month(&conn, 1).unwrap(), "2026-03", "config sobrescreve transação antiga");
 }
 
 #[test]
@@ -54,7 +55,7 @@ fn reserva_balance_soma_saldo_inicial_e_ignora_antes_do_piso() {
     set(&conn, Some("2026-06"), 0, 20000);
     let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
     assert_eq!(
-        ajudafinancas_lib::investimentos::repository::reserva_balance_at(&conn, jul).unwrap(),
+        ajudafinancas_lib::investimentos::repository::reserva_balance_at(&conn, 1, jul).unwrap(),
         90000,
         "saldo inicial 20000 + aporte 100000 - resgate 30000; aporte antigo ignorado"
     );
@@ -73,7 +74,7 @@ fn account_balance_at_soma_fluxos_do_piso() {
     set(&conn, Some("2026-02"), 10000, 0);
     let mar = NaiveDate::from_ymd_opt(2026, 3, 1).unwrap();
     assert_eq!(
-        report::account_balance_at(&conn, mar).unwrap(),
+        report::account_balance_at(&conn, 1, mar).unwrap(),
         7000,
         "saldo 10000 + (0 - despesa 2000 - aporte 1000); receita de janeiro ignorada"
     );
@@ -89,7 +90,7 @@ fn monthly_series_mostra_ano_inteiro_e_usa_posicao_com_piso() {
     .unwrap();
     set(&conn, Some("2026-06"), 0, 10000);
     let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-    let pts = report::monthly_series(&conn, jun).unwrap();
+    let pts = report::monthly_series(&conn, 1, jun).unwrap();
     assert_eq!(pts.len(), 12, "ano inteiro mesmo com piso");
     assert_eq!(pts[0].month, "2026-01");
     assert_eq!(pts[0].reserva, 10000, "antes do piso: só o saldo inicial");
@@ -101,7 +102,7 @@ fn monthly_series_mostra_ano_inteiro_e_usa_posicao_com_piso() {
 fn monthly_series_sem_config_mostra_ano_inteiro() {
     let conn = test_db();
     let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-    let pts = report::monthly_series(&conn, jun).unwrap();
+    let pts = report::monthly_series(&conn, 1, jun).unwrap();
     assert_eq!(pts.len(), 12);
     assert_eq!(pts[0].month, "2026-01");
     assert_eq!(pts[11].month, "2026-12");

@@ -20,10 +20,10 @@ fn create_categoria_duplicada_rejeita() {
         color: "#f00".into(),
         icon: None,
     };
-    service::create_category(&conn, &input).unwrap();
-    let err = service::create_category(&conn, &input).unwrap_err();
+    service::create_category(&conn, 1, &input).unwrap();
+    let err = service::create_category(&conn, 1, &input).unwrap_err();
     assert!(err.contains("já existe"));
-    let err = service::create_category(&conn, &CategoryInput { type_: 1, ..input.clone() }).unwrap_err();
+    let err = service::create_category(&conn, 1, &CategoryInput { type_: 1, ..input.clone() }).unwrap_err();
     assert!(err.contains("já existe"), "nome repetido em outro tipo também bloqueia");
 }
 
@@ -36,8 +36,8 @@ fn create_forma_pagamento_duplicada_rejeita() {
         close_day: Some(10),
         validity_day: Some(20),
     };
-    service::create_payment_method(&conn, &input).unwrap();
-    let err = service::create_payment_method(&conn, &input).unwrap_err();
+    service::create_payment_method(&conn, 1, &input).unwrap();
+    let err = service::create_payment_method(&conn, 1, &input).unwrap_err();
     assert!(err.contains("já existe"));
 }
 
@@ -53,11 +53,12 @@ fn create_transacao_duplicada_rejeita_mas_difere_por_dia() {
         payment_method_id: None,
         card_mode: 0,
     };
-    service::create(&conn, &base).unwrap();
-    let err = service::create(&conn, &base).unwrap_err();
+    service::create(&conn, 1, &base).unwrap();
+    let err = service::create(&conn, 1, &base).unwrap_err();
     assert!(err.contains("já existe"));
     service::create(
         &conn,
+        1,
         &TransactionInput { date: "2026-06-06".into(), ..base },
     )
     .unwrap();
@@ -97,7 +98,7 @@ fn transacao_gerada_por_conta_fixa_nao_vira_falso_duplicado() {
         payment_method_id: None,
         card_mode: 0,
     };
-    service::create(&conn, &input).unwrap();
+    service::create(&conn, 1, &input).unwrap();
     assert_eq!(
         conn.query_row("SELECT COUNT(*) FROM transactions", [], |r| r.get::<_, i64>(0))
             .unwrap(),
@@ -123,8 +124,8 @@ fn create_conta_fixa_duplicada_rejeita() {
         installments: None,
         purchase_date: None,
     };
-    service::create_fixed_bill(&conn, &mut input.clone()).unwrap();
-    let err = service::create_fixed_bill(&conn, &mut input).unwrap_err();
+    service::create_fixed_bill(&conn, 1, &mut input.clone()).unwrap();
+    let err = service::create_fixed_bill(&conn, 1, &mut input).unwrap_err();
     assert!(err.contains("já existe"));
 }
 
@@ -146,7 +147,7 @@ fn create_emprestimo_duplicado_rejeita() {
         monthly_rate: 0.0,
     };
     let rate = service::loan_monthly_rate(input.principal, input.installment, input.total_installments);
-    repository::create_loan(&conn, &input, rate).unwrap();
-    let err = repository::create_loan(&conn, &input, rate).unwrap_err();
+    repository::create_loan(&conn, 1, &input, rate).unwrap();
+    let err = repository::create_loan(&conn, 1, &input, rate).unwrap_err();
     assert!(err.contains("já existe"));
 }

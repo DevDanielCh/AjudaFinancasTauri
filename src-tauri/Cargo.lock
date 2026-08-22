@@ -47,6 +47,7 @@ dependencies = [
  "reqwest 0.12.28",
  "rusqlite",
  "rusqlite_migration",
+ "rustls",
  "serde",
  "serde_json",
  "sha2",

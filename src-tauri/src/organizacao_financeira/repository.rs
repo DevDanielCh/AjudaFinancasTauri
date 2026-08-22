@@ -8,6 +8,7 @@ use super::service;
 
 pub(crate) fn list_transactions(
     conn: &Connection,
+    account_id: i64,
     month: Option<&str>,
     sort_by: Option<&str>,
     sort_dir: Option<&str>,
@@ -20,7 +21,7 @@ pub(crate) fn list_transactions(
         _ => (None, None, None),
     };
     if let Some(m) = ref_month {
-        card_bills::ensure_card_bills(conn, m)?;
+        card_bills::ensure_card_bills(conn, account_id, m)?;
     }
     let mut sql = String::from(
         "SELECT t.id, t.description, t.amount, t.type, t.date,
@@ -29,10 +30,10 @@ pub(crate) fn list_transactions(
          FROM transactions t
          LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
          LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
-         WHERE t.deleted_at IS NULL",
+         WHERE t.deleted_at IS NULL AND t.account_id = ?1",
     );
     if start.is_some() {
-        sql.push_str(" AND t.date >= ?1 AND t.date < ?2");
+        sql.push_str(" AND t.date >= ?2 AND t.date < ?3");
     }
     sql.push_str(&format!(" {}", order_clause(
         sort_by,
@@ -52,9 +53,9 @@ pub(crate) fn list_transactions(
     let start_s = start.map(|d| d.format("%Y-%m-%d").to_string());
     let end_s = end.map(|d| d.format("%Y-%m-%d").to_string());
     let params: &[&dyn rusqlite::ToSql] = if start_s.is_some() {
-        &[&start_s, &end_s]
+        &[&account_id, &start_s, &end_s]
     } else {
-        &[]
+        &[&account_id]
     };
     let rows = stmt
         .query_map(params, |r| {
@@ -79,7 +80,7 @@ pub(crate) fn list_transactions(
         .map_err(db_err)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(db_err)?;
-    let card_ids = card_bills::fatura_capable_card_ids(conn)?;
+    let card_ids = card_bills::fatura_capable_card_ids(conn, account_id)?;
     Ok(rows
         .into_iter()
         // Fatura substitui o crédito; débito aparece como despesa normal.
@@ -180,6 +181,7 @@ pub(crate) fn get_card_bill_query(
 
 pub(crate) fn list_categories(
     conn: &Connection,
+    account_id: i64,
     sort_by: Option<&str>,
     sort_dir: Option<&str>,
 ) -> Result<Vec<Category>, String> {
@@ -192,11 +194,11 @@ pub(crate) fn list_categories(
     );
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT id, name, type, color, icon FROM categories WHERE deleted_at IS NULL {order}"
+            "SELECT id, name, type, color, icon FROM categories WHERE deleted_at IS NULL AND account_id = ?1 {order}"
         ))
         .map_err(db_err)?;
     let rows = stmt
-        .query_map([], |r| {
+        .query_map(params![account_id], |r| {
             Ok(Category {
                 id: r.get(0)?,
                 name: r.get(1)?,
@@ -213,6 +215,7 @@ pub(crate) fn list_categories(
 
 pub(crate) fn list_payment_methods(
     conn: &Connection,
+    account_id: i64,
     sort_by: Option<&str>,
     sort_dir: Option<&str>,
 ) -> Result<Vec<PaymentMethod>, String> {
@@ -225,11 +228,11 @@ pub(crate) fn list_payment_methods(
     );
     let mut stmt = conn
         .prepare(&format!(
-            "SELECT id, name, type, metadata FROM payment_methods WHERE deleted_at IS NULL {order}"
+            "SELECT id, name, type, metadata FROM payment_methods WHERE deleted_at IS NULL AND account_id = ?1 {order}"
         ))
         .map_err(db_err)?;
     let rows = stmt
-        .query_map([], |r| {
+        .query_map(params![account_id], |r| {
             Ok(PaymentMethod {
                 id: r.get(0)?,
                 name: r.get(1)?,
@@ -245,6 +248,7 @@ pub(crate) fn list_payment_methods(
 
 pub(crate) fn list_fixed_bills(
     conn: &Connection,
+    account_id: i64,
     only_installments: bool,
     sort_by: Option<&str>,
     sort_dir: Option<&str>,
@@ -274,12 +278,12 @@ pub(crate) fn list_fixed_bills(
          FROM fixed_bills b
          LEFT JOIN categories c ON c.id = b.category_id AND c.deleted_at IS NULL
          JOIN payment_methods pm ON pm.id = b.payment_method_id AND pm.deleted_at IS NULL
-         WHERE b.deleted_at IS NULL AND {cond}
+         WHERE b.deleted_at IS NULL AND b.account_id = ?1 AND {cond}
          {order}"
     );
     let mut stmt = conn.prepare(&sql).map_err(db_err)?;
     let mut rows = stmt
-        .query_map([], |r| {
+        .query_map(params![account_id], |r| {
             Ok(FixedBill {
                 id: r.get(0)?,
                 description: r.get(1)?,
@@ -330,6 +334,7 @@ pub(crate) fn build_loan(input: &LoanInput) -> Loan {
 
 pub(crate) fn list_loans(
     conn: &Connection,
+    account_id: i64,
     sort_by: Option<&str>,
     sort_dir: Option<&str>,
 ) -> Result<Vec<Loan>, String> {
@@ -352,12 +357,12 @@ pub(crate) fn list_loans(
             "SELECT l.id, l.type, l.description, l.principal, l.installment,
                     l.total_installments, l.day, l.start_month, l.payment_method_id, pm.name, l.monthly_rate
              FROM loans l JOIN payment_methods pm ON pm.id = l.payment_method_id AND pm.deleted_at IS NULL
-             WHERE l.deleted_at IS NULL
+             WHERE l.deleted_at IS NULL AND l.account_id = ?1
              {order}"
         ))
         .map_err(db_err)?;
     let raw = stmt
-        .query_map([], |r| {
+        .query_map(params![account_id], |r| {
             Ok((
                 r.get::<_, i64>(0)?,
                 r.get::<_, i64>(1)?,
@@ -472,14 +477,14 @@ pub(crate) fn get_loan_detail(
     Ok(loan)
 }
 
-pub fn create_loan(conn: &Connection, input: &LoanInput, rate: f64) -> Result<(), String> {
+pub fn create_loan(conn: &Connection, account_id: i64, input: &LoanInput, rate: f64) -> Result<(), String> {
     let description = input.description.trim();
     let dup = conn
         .query_row(
             "SELECT 1 FROM loans
-             WHERE description = ?1 AND principal = ?2 AND start_month = ?3
+             WHERE description = ?1 AND principal = ?2 AND start_month = ?3 AND account_id = ?4
              LIMIT 1",
-            params![description, input.principal, input.start_month],
+            params![description, input.principal, input.start_month, account_id],
             |_| Ok(()),
         )
         .optional()
@@ -488,9 +493,10 @@ pub fn create_loan(conn: &Connection, input: &LoanInput, rate: f64) -> Result<()
         return Err("já existe empréstimo idêntico nesse mês".into());
     }
     conn.execute(
-        "INSERT INTO loans (type, description, principal, installment, total_installments, day, start_month, payment_method_id, monthly_rate)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        "INSERT INTO loans (account_id, type, description, principal, installment, total_installments, day, start_month, payment_method_id, monthly_rate)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
+            account_id,
             input.type_,
             description,
             input.principal,
@@ -538,7 +544,7 @@ mod tests {
         )
         .unwrap();
 
-        let rows = list_fixed_bills(&conn, true, None, None).unwrap();
+        let rows = list_fixed_bills(&conn, 1, true, None, None).unwrap();
 
         let antigo = rows.iter().find(|b| b.description == "antigo").expect("antigo presente");
         assert!(antigo.finished, "plano encerrado deve marcar finished");
@@ -590,7 +596,7 @@ mod tests {
         )
         .unwrap();
 
-        let rows = list_transactions(&conn, None, None, None).unwrap();
+        let rows = list_transactions(&conn, 1, None, None, None).unwrap();
 
         let debit = rows.iter().find(|r| r.description == "debito").expect("débito deve aparecer");
         assert_eq!(debit.card_mode, 1);
@@ -646,7 +652,7 @@ mod tests {
             )
             .unwrap();
         }
-        let rows = list_transactions(&conn, None, Some("amount"), Some("asc")).unwrap();
+        let rows = list_transactions(&conn, 1, None, Some("amount"), Some("asc")).unwrap();
         let amounts: Vec<i64> = rows.iter().map(|r| r.amount).collect();
         assert_eq!(amounts, vec![100, 200, 300]);
     }

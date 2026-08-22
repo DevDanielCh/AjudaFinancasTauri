@@ -3,22 +3,23 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   ArrowLeftRight, CalendarClock, CreditCard, Landmark,
-  LayoutDashboard, Moon, PiggyBank, RefreshCw, Settings, Sun, Tags,
+  LayoutDashboard, Moon, PiggyBank, RefreshCw, Sun, Tags,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { MonthPicker } from "@/components/MonthPicker";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useMonth } from "@/lib/month-context";
 import { getVersion } from "@/src/shared/repository";
 import { useDashboard } from "@/src/shared/services";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
 import { SyncStatusBadge } from "@/src/Sync/SyncStatus";
+import { useAccounts } from "./services";
 
-const MODULE_GROUPS = [
+export const MODULE_GROUPS = [
   {
     label: "Organização Financeira",
     items: [
@@ -38,10 +39,15 @@ const MODULE_GROUPS = [
   },
 ] as const;
 
-export function Sidebar() {
+interface ChannelsProps {
+  onNavigate?: () => void;
+}
+
+export function ChannelsContent({ onNavigate }: ChannelsProps) {
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const { month, setMonth, min } = useMonth();
+  const { active } = useAccounts();
   const [version, setVersion] = useState("");
   const [mounted, setMounted] = useState(false);
 
@@ -51,72 +57,82 @@ export function Sidebar() {
   }, []);
 
   return (
-    <aside className="hidden h-screen w-64 shrink-0 flex-col gap-2 border-r bg-muted/40 p-4 sm:flex">
-      <MonthPicker value={month} onChange={setMonth} min={min} />
-      <MonthStatusBadge month={month} />
-      <SyncStatusBadge />
+    <div className="flex h-full flex-col gap-1">
+      <div className="px-3 pt-3 pb-1">
+        <MonthPicker value={month} onChange={setMonth} min={min} />
+      </div>
+      <div className="flex flex-col items-center gap-1 px-3">
+        <MonthStatusBadge month={month} />
+        <SyncStatusBadge />
+      </div>
       <Separator className="my-1" />
-      <Link
-        href="/"
-        className={cn(
-          "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
-          pathname === "/" && "bg-accent"
-        )}
-      >
-        <LayoutDashboard className="size-4" />
-        Dashboard
-      </Link>
-      <Separator className="my-1" />
-      <nav className="flex flex-1 flex-col gap-3">
+      <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-2">
+        <ChannelLink
+          href="/"
+          label="Dashboard"
+          icon={<LayoutDashboard className="size-4 shrink-0" />}
+          active={pathname === "/"}
+          onClick={onNavigate}
+        />
         {MODULE_GROUPS.map((group) => (
-          <div key={group.label} className="flex flex-col gap-1">
-            <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <div key={group.label} className="flex flex-col gap-0.5">
+            <p className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {group.label}
             </p>
-            {group.items.map(({ href, label, icon: Icon }) => {
-              const active = pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
-                    active && "bg-accent"
-                  )}
-                >
-                  <Icon className="size-4" />
-                  {label}
-                </Link>
-              );
-            })}
+            {group.items.map(({ href, label, icon: Icon }) => (
+              <ChannelLink
+                key={href}
+                href={href}
+                label={label}
+                icon={<Icon className="size-4 shrink-0" />}
+                active={pathname.startsWith(href)}
+                onClick={onNavigate}
+              />
+            ))}
           </div>
         ))}
       </nav>
-      <Link
-        href="/configuracoes"
-        className={cn(
-          "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-accent",
-          pathname.startsWith("/configuracoes") && "bg-accent"
-        )}
-      >
-        <Settings className="size-4" />
-        Configurações
-      </Link>
-      <Button
-        variant="ghost"
-        className="justify-start"
-        onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      >
-        {!mounted ? <Sun data-icon="inline-start" /> : resolvedTheme === "dark" ? <Sun data-icon="inline-start" /> : <Moon data-icon="inline-start" />}
-        Tema
-      </Button>
       <Separator className="my-1" />
-      <p className="text-center text-xs text-muted-foreground">{version}</p>
-    </aside>
+      <div className="flex items-center justify-between px-2 pb-2">
+        <span className="truncate px-2 text-xs text-muted-foreground">{version}</span>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Alternar tema"
+          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+        >
+          {!mounted ? <Sun className="size-4" /> : resolvedTheme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </Button>
+      </div>
+      {active && (
+        <p className="sr-only">Conta ativa: {active.name}</p>
+      )}
+    </div>
   );
 }
 
-function MonthStatusBadge({ month }: { month: string | null }) {
+function ChannelLink({
+  href, label, icon, active, onClick,
+}: {
+  href: string; label: string; icon: React.ReactNode; active: boolean; onClick?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      data-slot="channel-link"
+      className={cn(
+        "flex select-none items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        active && "bg-sidebar-accent text-sidebar-accent-foreground"
+      )}
+    >
+      {icon}
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
+export function MonthStatusBadge({ month }: { month: string | null }) {
   const { data } = useDashboard(month);
   if (!data) return null;
   const balance = data.income - data.expenses;

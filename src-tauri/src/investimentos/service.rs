@@ -4,12 +4,12 @@ use rusqlite::Connection;
 use crate::shared::util::db_err;
 
 /// Soma dos aportes à reserva (type = 4) no período.
-pub fn month_investments(conn: &Connection, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
+pub fn month_investments(conn: &Connection, account_id: i64, start: NaiveDate, end: NaiveDate) -> Result<i64, String> {
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type = 4 AND date >= ?1 AND date < ?2",
-            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string()],
+             WHERE type = 4 AND date >= ?1 AND date < ?2 AND account_id = ?3",
+            rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string(), account_id],
             |r| r.get(0),
         )
         .map_err(db_err)?;
@@ -34,6 +34,6 @@ mod tests {
         .unwrap();
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
         let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
-        assert_eq!(month_investments(&conn, jun, jul).unwrap(), 1000, "só type 4 do mês");
+        assert_eq!(month_investments(&conn, 1, jun, jul).unwrap(), 1000, "só type 4 do mês");
     }
 }

@@ -212,7 +212,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
               className="pl-8"
             />
           </div>
-          <Button onClick={() => setDialog({ mode: "create" })}>
+          <Button className="rounded-md" onClick={() => setDialog({ mode: "create" })}>
             <Plus data-icon="inline-start" />
             Adicionar
           </Button>

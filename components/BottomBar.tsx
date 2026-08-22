@@ -60,7 +60,7 @@ export function BottomBar() {
                 aria-label={label}
                 className={cn(
                   "flex flex-1 items-center justify-center rounded-full py-2 text-muted-foreground transition-colors",
-                  active && "bg-foreground text-background"
+                  active && "bg-primary text-primary-foreground"
                 )}
               >
                 <Icon className="size-5" />

@@ -56,7 +56,7 @@ export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose:
                         <span className="ml-1 text-xs text-muted-foreground">{t.installment}</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-right font-mono">{formatMoney(t.amount)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatMoney(t.amount)}</TableCell>
                   </TableRow>
                 ))
               )}

@@ -9,15 +9,18 @@ pub fn should_apply_remote(
     entity_uuid: &str,
     op_timestamp: &str,
 ) -> Result<bool, String> {
-    let id_col = if entity == "settings" { "key" } else { "uuid" };
+    // Settings têm PK composto (account_id, key); usa uuid quando existir,
+    // cai para key como aproximação (o upsert real é por conta).
+    let sql = match entity {
+        "settings" => String::from(
+            "SELECT updated_at FROM settings
+             WHERE CASE WHEN ?1 != '' THEN uuid = ?1 ELSE key = ?1 END
+             ORDER BY updated_at DESC LIMIT 1",
+        ),
+        _ => format!("SELECT updated_at FROM {entity} WHERE uuid = ?1 AND deleted_at IS NULL"),
+    };
     let local_ts: Option<String> = conn
-        .query_row(
-            &format!(
-                "SELECT updated_at FROM {entity} WHERE {id_col} = ?1 AND deleted_at IS NULL"
-            ),
-            rusqlite::params![entity_uuid],
-            |r| r.get(0),
-        )
+        .query_row(&sql, rusqlite::params![entity_uuid], |r| r.get(0))
         .optional()
         .map_err(db_err)?;
 

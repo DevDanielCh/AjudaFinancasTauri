@@ -29,7 +29,7 @@ export default function ReservaPage() {
       return (
         <Card className="flex items-center justify-between px-4 py-3">
           <span className="text-sm text-muted-foreground">Saldo da reserva</span>
-          <span className={cn("text-lg font-semibold font-mono", saldo < 0 ? "text-negative" : "text-positive")}>
+          <span className={cn("text-lg font-semibold tabular-nums", saldo < 0 ? "text-negative" : "text-positive")}>
             {formatMoney(saldo)}
           </span>
         </Card>
@@ -58,7 +58,7 @@ export default function ReservaPage() {
             render: (r) => {
               const positive = r.type === 4;
               return (
-                <span className={cn(positive ? "text-positive" : "text-negative", "font-mono")}>
+                <span className={cn(positive ? "text-positive" : "text-negative", "tabular-nums")}>
                   {positive ? "+" : "−"} {formatMoney(r.amount)}
                 </span>
               );
@@ -71,7 +71,7 @@ export default function ReservaPage() {
           topRight: (r) => {
             const positive = r.type === 4;
             return (
-              <span className={cn(positive ? "text-positive" : "text-negative", "font-mono")}>
+              <span className={cn(positive ? "text-positive" : "text-negative", "tabular-nums")}>
                 {positive ? "+" : "−"} {formatMoney(r.amount)}
               </span>
             );

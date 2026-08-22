@@ -5,8 +5,8 @@ use crate::organizacao_financeira::models::TransactionRow;
 use crate::shared::settings;
 use crate::shared::util::{db_err, parse_month};
 
-pub fn list_reserva_movements_impl(conn: &Connection) -> Result<Vec<TransactionRow>, String> {
-    let s = settings::get_settings_impl(conn)?;
+pub fn list_reserva_movements_impl(conn: &Connection, account_id: i64) -> Result<Vec<TransactionRow>, String> {
+    let s = settings::get_settings_impl(conn, account_id)?;
     let piso = match &s.primeiro_mes {
         Some(m) => parse_month(m)?.format("%Y-%m-%d").to_string(),
         None => "0000-01-01".to_string(),
@@ -19,12 +19,12 @@ pub fn list_reserva_movements_impl(conn: &Connection) -> Result<Vec<TransactionR
              FROM transactions t
              LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
-             WHERE t.type IN (4, 5) AND t.date >= ?1 AND t.deleted_at IS NULL
+             WHERE t.type IN (4, 5) AND t.date >= ?1 AND t.deleted_at IS NULL AND t.account_id = ?2
              ORDER BY t.date DESC, t.id DESC",
         )
         .map_err(db_err)?;
     let rows = stmt
-        .query_map(rusqlite::params![piso], |r| {
+        .query_map(rusqlite::params![piso, account_id], |r| {
             Ok(TransactionRow {
                 id: r.get(0)?,
                 description: r.get(1)?,
@@ -49,8 +49,8 @@ pub fn list_reserva_movements_impl(conn: &Connection) -> Result<Vec<TransactionR
 }
 
 /// Saldo da reserva/investimentos acumulado até `before` (data exclusiva).
-pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, String> {
-    let s = settings::get_settings_impl(conn)?;
+pub fn reserva_balance_at(conn: &Connection, account_id: i64, before: NaiveDate) -> Result<i64, String> {
+    let s = settings::get_settings_impl(conn, account_id)?;
     let piso = match &s.primeiro_mes {
         Some(m) => parse_month(m)?.format("%Y-%m-%d").to_string(),
         None => "0000-01-01".to_string(),
@@ -58,8 +58,8 @@ pub fn reserva_balance_at(conn: &Connection, before: NaiveDate) -> Result<i64, S
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(CASE WHEN type = 4 THEN amount WHEN type = 5 THEN -amount ELSE 0 END), 0)
-             FROM transactions WHERE date >= ?1 AND date < ?2 AND deleted_at IS NULL",
-            rusqlite::params![piso, before.format("%Y-%m-%d").to_string()],
+             FROM transactions WHERE date >= ?1 AND date < ?2 AND deleted_at IS NULL AND account_id = ?3",
+            rusqlite::params![piso, before.format("%Y-%m-%d").to_string(), account_id],
             |r| r.get(0),
         )
         .map_err(db_err)?;
@@ -84,10 +84,10 @@ mod tests {
         .unwrap();
 
         let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
-        assert_eq!(reserva_balance_at(&conn, jun).unwrap(), 100000, "antes do resgate");
+        assert_eq!(reserva_balance_at(&conn, 1, jun).unwrap(), 100000, "antes do resgate");
         let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
-        assert_eq!(reserva_balance_at(&conn, jul).unwrap(), 70000, "após resgate e sem o 2º aporte");
+        assert_eq!(reserva_balance_at(&conn, 1, jul).unwrap(), 70000, "após resgate e sem o 2º aporte");
         let set = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap();
-        assert_eq!(reserva_balance_at(&conn, set).unwrap(), 90000, "transação normal ignorada");
+        assert_eq!(reserva_balance_at(&conn, 1, set).unwrap(), 90000, "transação normal ignorada");
     }
 }

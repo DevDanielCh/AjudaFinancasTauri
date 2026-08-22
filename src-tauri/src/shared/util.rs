@@ -1,6 +1,6 @@
 use chrono::{Datelike, Months, NaiveDate};
 
-use crate::db::{with_db, AppState};
+use crate::db::{with_db_active, AppState};
 use tauri::{AppHandle, State};
 
 pub fn parse_month(s: &str) -> Result<NaiveDate, String> {
@@ -65,7 +65,7 @@ pub fn add_months(s: &str, n: u32) -> String {
 
 #[tauri::command]
 pub fn get_earliest_month(state: State<'_, AppState>) -> Result<String, String> {
-    with_db(&state, crate::shared::settings::earliest_month)
+    with_db_active(&state, |c, a| crate::shared::settings::earliest_month(c, a))
 }
 
 #[tauri::command]

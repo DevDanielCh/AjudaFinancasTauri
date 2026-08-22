@@ -22,7 +22,7 @@ export function MonthPicker({
             variant="outline"
             className={cn(
               "font-normal",
-              compact ? "justify-center gap-2 rounded-full px-3" : "w-full justify-between"
+              compact ? "justify-center gap-2" : "w-full justify-between"
             )}
           >
             <span>{formatMonth(value)}</span>

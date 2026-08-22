@@ -6,9 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { Providers } from "@/components/providers"
 import { Toaster } from "@/components/ui/toast"
 import { MonthProvider } from "@/lib/month-context"
-import { Sidebar } from "@/components/Sidebar"
-import { MobileHeader } from "@/components/MobileHeader"
-import { BottomBar } from "@/components/BottomBar"
+import { AppShell } from "@/src/Accounts/AppShell"
 import { UpdateDialog } from "@/components/UpdateDialog"
 import { SyncOverlay } from "@/src/Sync/SyncOverlay"
 import { cn } from "@/lib/utils"
@@ -46,16 +44,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Providers>
             <MonthProvider>
-              <div className="flex h-screen">
-                <Sidebar />
-                <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-                  <MobileHeader />
-                  <main className="flex-1 p-3 pb-24 sm:pb-3">
-                    {children}
-                  </main>
-                </div>
-                <BottomBar />
-              </div>
+              <AppShell>
+                <main className="w-full">{children}</main>
+              </AppShell>
               <Toaster />
               <SyncOverlay />
               <UpdateDialog />

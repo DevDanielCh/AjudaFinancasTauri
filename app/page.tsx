@@ -112,7 +112,7 @@ function StatCard({ label, value, positive, negative, children }: { label: strin
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{label}</CardTitle></CardHeader>
       <CardContent>
-        <div className={cn("text-2xl font-bold tabular-nums font-mono", cls)}>{value}</div>
+        <div className={cn("text-2xl font-bold tabular-nums", cls)}>{value}</div>
         {children}
       </CardContent>
     </Card>
@@ -137,7 +137,7 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
       <CardContent className="flex flex-col gap-2">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>{formatMoney(aportes)} de {formatMoney(metaValor)}</span>
-          <span className="tabular-nums font-mono">{Math.round(progresso)}%</span>
+          <span className="tabular-nums">{Math.round(progresso)}%</span>
         </div>
         <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
           <div
