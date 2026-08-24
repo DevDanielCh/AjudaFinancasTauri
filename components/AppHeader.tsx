@@ -39,8 +39,8 @@ export function AppHeader() {
       className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md"
       style={{ paddingTop: "var(--safe-area-inset-top)" }}
     >
-      {/* Altura casa com o divider da rail: pt(8) + botão(36/40) + mt(4) + meia-altura(1). */}
-      <div className="flex h-[49px] items-center gap-2 px-3 sm:h-[53px] sm:px-4">
+      {/* h-14 fixo (56px). */}
+      <div className="flex h-14 items-center gap-2 px-3 sm:px-4">
         <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
