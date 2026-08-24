@@ -1,6 +1,7 @@
 "use client";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { CategoriaAddForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaAddForm";
+import { CategoriaViewForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaViewForm";
 import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
 import { categoryKeys } from "@/src/OrganizacaoFinanceira/Services/category";
 import { categorySchema } from "@/lib/schemas";
@@ -11,6 +12,8 @@ export default function CategoriesPage() {
     <CrudPage
       config={{
         title: "Categorias",
+        newTitle: "Nova Categoria",
+        editTitle: "Editar Categoria",
         columns: [
           {
             label: "Cor",
@@ -36,6 +39,7 @@ export default function CategoriesPage() {
         empty: (): CategoryInput => ({ name: "", type: 2, color: "#615d59", icon: null }),
         toInput: (r): CategoryInput => ({ name: r.name, type: r.type, color: r.color, icon: r.icon }),
         FormFields: CategoriaAddForm,
+        ViewFields: CategoriaViewForm,
         queryKey: categoryKeys,
         invalidate: [["transactions"], ["dashboard"], ["chart-data"]],
         schema: categorySchema,

@@ -1,10 +1,10 @@
 "use client";
-import { Cloud, CloudOff, Loader2, AlertCircle, CloudUpload, CloudDownload } from "lucide-react";
+import { Cloud, CloudOff, Loader2, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useSyncStatus, useSyncConnected, syncKeys } from "@/src/shared/sync-services";
+import { useSyncStatus, useSyncConnected } from "@/src/shared/sync-services";
 
-export function SyncStatusBadge() {
+export function SyncStatusBadge({ className }: { className?: string }) {
   const { data: connected } = useSyncConnected();
   const { data: status } = useSyncStatus();
 
@@ -46,7 +46,7 @@ export function SyncStatusBadge() {
   const Icon = s.icon;
 
   return (
-    <Badge className={cn("w-full gap-1.5 text-xs py-1", s.className)}>
+    <Badge className={cn("gap-1.5 text-xs py-1", className, s.className)}>
       <Icon className={cn("size-3.5", s.animate && "animate-spin")} />
       {s.label}
     </Badge>

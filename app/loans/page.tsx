@@ -17,6 +17,8 @@ export default function LoansPage() {
       <CrudPage
         config={{
           title: "Financiamentos/Empréstimos",
+          newTitle: "Novo Financiamento/Empréstimo",
+          editTitle: "Editar Financiamento/Empréstimo",
           columns: [
             { label: "Descrição", name: "description", render: (r) => r.description },
             { label: "Tipo", name: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },

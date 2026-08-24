@@ -25,7 +25,6 @@ export default function ConfiguracoesPage() {
   }
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">
-      <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
       <Tabs defaultValue="geral">
         <TabsList>
           <TabsTrigger value="geral">Geral</TabsTrigger>

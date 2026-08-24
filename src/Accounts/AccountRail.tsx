@@ -1,10 +1,11 @@
 "use client";
 import { House, Pencil, Plus, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ContextMenu } from "@base-ui/react/context-menu";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { getVersion } from "@/src/shared/repository";
 import { initials, type AccountInfo } from "./models";
 import { useAccounts } from "./services";
 import {
@@ -21,6 +22,11 @@ export function AccountRail() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<AccountInfo | null>(null);
   const [deleting, setDeleting] = useState<AccountInfo | null>(null);
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => {});
+  }, []);
 
   const homeActive = pathname === "/";
 
@@ -76,6 +82,16 @@ export function AccountRail() {
           <Plus className="size-5" />
         </RailButton>
       </div>
+
+      {version && (
+        <span
+          title={`Versão ${version}`}
+          className="pb-1 text-[10px] leading-none text-muted-foreground select-none"
+          style={{ paddingBottom: "max(0.25rem, var(--safe-area-inset-bottom))" }}
+        >
+          v{version}
+        </span>
+      )}
 
       <AccountCreateDialog open={creating} onOpenChange={setCreating} />
       <AccountEditDialog

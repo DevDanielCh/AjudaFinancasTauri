@@ -1,10 +1,21 @@
 "use client";
-import { Input } from "@/components/ui/input";
+import { Pipette } from "lucide-react";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Input } from "@/components/ui/input";
+import { CategoryIconPicker } from "./CategoryIconPicker";
 import { FieldErrors } from "@/components/forms/FieldErrors";
+import { cn } from "@/lib/utils";
 import type { CategoryInput } from "../../Models/category";
 import type { CrudFormApi } from "@/lib/forms";
+
+const PALETTE = [
+  "#ef4444", "#f97316", "#f59e0b",
+  "#84cc16", "#22c55e", "#10b981",
+  "#06b6d4", "#3b82f6", "#6366f1",
+  "#a855f7", "#ec4899", "#f43f5e",
+  "#78716c",
+];
 
 export function CategoriaAddForm({
   form,
@@ -19,7 +30,7 @@ export function CategoriaAddForm({
       <form.Field name="name">
         {(field) => (
           <Field>
-            <FieldLabel>Nome</FieldLabel>
+            <FieldLabel required>Nome</FieldLabel>
             <Input
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
@@ -32,13 +43,15 @@ export function CategoriaAddForm({
       <form.Field name="type">
         {(field) => (
           <Field>
-            <FieldLabel>Tipo</FieldLabel>
+            <FieldLabel required>Tipo</FieldLabel>
             <ToggleGroup
+              className="w-full"
+              orientation="vertical"
               value={[String(field.state.value)]}
               onValueChange={(v) => field.handleChange(v[0] === "2" ? 2 : 1)}
             >
-              <ToggleGroupItem value="1">Receita</ToggleGroupItem>
-              <ToggleGroupItem value="2">Despesa</ToggleGroupItem>
+              <ToggleGroupItem className="w-full" value="1">Receita</ToggleGroupItem>
+              <ToggleGroupItem className="w-full" value="2">Despesa</ToggleGroupItem>
             </ToggleGroup>
             <FieldErrors errors={field.state.meta.errors} />
           </Field>
@@ -47,19 +60,44 @@ export function CategoriaAddForm({
       <form.Field name="color">
         {(field) => (
           <Field>
-            <FieldLabel>Cor</FieldLabel>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-                className="h-10 w-14 rounded border border-input bg-background"
-              />
-              <Input
-                value={field.state.value}
-                onChange={(e) => field.handleChange(e.target.value)}
-                onBlur={field.handleBlur}
-              />
+            <FieldLabel required>Cor</FieldLabel>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {PALETTE.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={c}
+                  onClick={() => field.handleChange(c)}
+                  style={{ backgroundColor: c }}
+                  className={cn(
+                    "size-7 cursor-pointer rounded-full border border-black/10 transition-transform hover:scale-110",
+                    field.state.value.toLowerCase() === c &&
+                      "ring-2 ring-ring ring-offset-2 ring-offset-popover dark:ring-offset-popover"
+                  )}
+                />
+              ))}
+              <label
+                className={cn(
+                  "relative flex size-7 cursor-pointer items-center justify-center rounded-full border border-dashed border-muted-foreground/50 text-muted-foreground transition-transform hover:scale-110",
+                  !PALETTE.includes(field.state.value.toLowerCase()) &&
+                    "ring-2 ring-ring ring-offset-2 ring-offset-popover dark:ring-offset-popover"
+                )}
+                title="Cor personalizada"
+              >
+                {!PALETTE.includes(field.state.value.toLowerCase()) && (
+                  <span
+                    className="absolute inset-0 rounded-full"
+                    style={{ backgroundColor: field.state.value }}
+                  />
+                )}
+                <Pipette className="relative size-3.5 drop-shadow" />
+                <input
+                  type="color"
+                  value={field.state.value}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                />
+              </label>
             </div>
             <FieldErrors errors={field.state.meta.errors} />
           </Field>
@@ -69,10 +107,9 @@ export function CategoriaAddForm({
         {(field) => (
           <Field>
             <FieldLabel>Ícone</FieldLabel>
-            <Input
-              value={field.state.value ?? ""}
-              placeholder="ex.: lucide shopping-cart"
-              onChange={(e) => field.handleChange(e.target.value || null)}
+            <CategoryIconPicker
+              value={field.state.value}
+              onChange={(v) => field.handleChange(v)}
             />
             <FieldErrors errors={field.state.meta.errors} />
           </Field>

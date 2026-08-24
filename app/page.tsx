@@ -44,12 +44,11 @@ export default function DashboardPage() {
   return (
     <PullToRefresh onRefresh={() => doSync()}>
       <div className="flex flex-col gap-4 pb-4">
-        <div className="flex items-center justify-between">
-          <h1 className="hidden text-2xl font-semibold tracking-tight sm:block">Dashboard</h1>
-          <Button variant="outline" size="sm" disabled={dashboardQuery.isFetching} onClick={() => void doSync()}
+        <div className="flex items-center justify-end">
+          <Button variant="outline" disabled={dashboardQuery.isFetching} onClick={() => void doSync()}
             className="hidden sm:inline-flex">
             <RefreshCw data-icon="inline-start" className={cn(dashboardQuery.isFetching && "animate-spin")} />
-            {dashboardQuery.isFetching ? "Sincronizando..." : "Sincronizar"}
+            Atualizar
           </Button>
         </div>
 
@@ -73,9 +72,10 @@ function DashboardContent({
   chart: ChartData | undefined;
 }) {
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Receitas" value={formatMoney(data.income)} positive>
+        <StatCard label="Receitas" value={formatMoney(data.income)} positive
+          className="border-positive/25 bg-positive/5">
           {data.income_by_cat.length > 0 && (
             <>
               <Separator className="mt-2 mb-2" />
@@ -90,7 +90,8 @@ function DashboardContent({
             </>
           )}
         </StatCard>
-        <StatCard label="Despesas" value={formatMoney(data.expenses)} negative>
+        <StatCard label="Despesas" value={formatMoney(data.expenses)} negative
+          className="border-negative/25 bg-negative/5">
           {data.expenses_by_pm.length > 0 && (
             <>
               <Separator className="mt-2 mb-2" />
@@ -107,14 +108,13 @@ function DashboardContent({
         </StatCard>
         <StatCard label="Saldo do mês" value={formatMoney(data.income - data.expenses)}
           positive={data.income - data.expenses >= 0} />
-        <StatCard label="Saldo acumulado" value={formatMoney(data.balance)}
-          positive={data.balance >= 0} />
+        <StatCard label="Saldo acumulado" value={formatMoney(data.balance)} hero />
       </div>
       {data.meta_investimento > 0 && (
         <MetaCard pct={data.meta_investimento} income={data.income} aportes={data.aportes} />
       )}
       {chart && <ChartSection data={chart} month={month} />}
-    </>
+    </div>
   );
 }
 
@@ -158,12 +158,30 @@ const CHART_FIXTURE: ChartData = {
   ],
 };
 
-function StatCard({ label, value, positive, negative, children }: { label: string; value: string; positive?: boolean; negative?: boolean; children?: React.ReactNode }) {
-  const cls = positive ? "text-positive"
+function StatCard({
+  label, value, positive, negative, hero, className, children,
+}: {
+  label: string;
+  value: string;
+  positive?: boolean;
+  negative?: boolean;
+  hero?: boolean;
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const cls = hero ? "text-primary"
+    : positive ? "text-positive"
     : negative ? "text-negative" : "";
   return (
-    <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium">{label}</CardTitle></CardHeader>
+    <Card
+      className={cn(
+        hero && "border-primary/25 bg-primary/10",
+        !hero && className,
+      )}
+    >
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-medium">{label}</CardTitle>
+      </CardHeader>
       <CardContent>
         <div className={cn("text-2xl font-bold tabular-nums", cls)}>{value}</div>
         {children}
@@ -182,7 +200,12 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between gap-2 text-sm font-medium">
           Meta de investimento
-          <Badge className={cn(atingiu ? "bg-positive text-positive-foreground" : "bg-negative text-negative-foreground")}>
+          <Badge className={cn(
+            "border",
+            atingiu
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"
+              : "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400"
+          )}>
             {atingiu ? "Meta batida" : "Não bateu"}
           </Badge>
         </CardTitle>

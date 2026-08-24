@@ -332,8 +332,13 @@ input[type="number"]::-webkit-outer-spin-button {
   overscroll-behavior-y: none;
 }
 
-/* Scrollbars finos e discretos (WebKit/WebView); overlay não sobrepõe mais o conteúdo. */
-::-webkit-scrollbar {
+/* Grid dos gráficos (TanStack Charts): linhas pontilhadas discretas. */
+.ts-chart .ts-chart__grid line {
+  stroke-dasharray: 4 6;
+  stroke-opacity: 0.09;
+}
+
+/* Scrollbars finos e discretos (WebKit/WebView); overlay não sobrepõe mais o conteúdo. */::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }

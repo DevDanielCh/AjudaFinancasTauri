@@ -1,6 +1,7 @@
 "use client";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { FormaPagamentoAddForm } from "@/src/OrganizacaoFinanceira/Views/FormaPagamento/FormaPagamentoAddForm";
+import { FormaPagamentoViewForm } from "@/src/OrganizacaoFinanceira/Views/FormaPagamento/FormaPagamentoViewForm";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
 import { paymentMethodKeys } from "@/src/OrganizacaoFinanceira/Services/payment-method";
 import { paymentMethodSchema } from "@/lib/schemas";
@@ -11,6 +12,8 @@ export default function PaymentMethodsPage() {
     <CrudPage
       config={{
         title: "Formas de Pagamento",
+        newTitle: "Nova Forma de Pagamento",
+        editTitle: "Editar Forma de Pagamento",
         columns: [
           { label: "Nome", name: "name", render: (r) => r.name },
           { label: "Tipo", name: "type", render: (r) => (r.type === 2 ? "Cartão" : "Padrão") },
@@ -50,6 +53,7 @@ export default function PaymentMethodsPage() {
           };
         },
         FormFields: FormaPagamentoAddForm,
+        ViewFields: FormaPagamentoViewForm,
         queryKey: paymentMethodKeys,
         invalidate: [["transactions"], ["fixed-bills"], ["dashboard"]],
         schema: paymentMethodSchema,

@@ -22,7 +22,7 @@ export function FormaPagamentoAddForm({
       <form.Field name="name">
         {(field) => (
           <Field>
-            <FieldLabel>Nome</FieldLabel>
+            <FieldLabel required>Nome</FieldLabel>
             <Input
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
@@ -35,7 +35,7 @@ export function FormaPagamentoAddForm({
       <form.Field name="type">
         {(field) => (
           <Field>
-            <FieldLabel>Tipo</FieldLabel>
+            <FieldLabel required>Tipo</FieldLabel>
             <ToggleGroup
               value={[String(field.state.value)]}
               onValueChange={(v) => {
@@ -59,7 +59,7 @@ export function FormaPagamentoAddForm({
           <form.Field name="close_day">
             {(field) => (
               <Field>
-                <FieldLabel>Dia de fechamento</FieldLabel>
+                <FieldLabel required>Dia de fechamento</FieldLabel>
                 <Input
                   type="number" min="1" max="31"
                   value={field.state.value ?? ""}
@@ -73,7 +73,7 @@ export function FormaPagamentoAddForm({
           <form.Field name="validity_day">
             {(field) => (
               <Field>
-                <FieldLabel>Dia de vencimento</FieldLabel>
+                <FieldLabel required>Dia de vencimento</FieldLabel>
                 <Input
                   type="number" min="1" max="31"
                   value={field.state.value ?? ""}

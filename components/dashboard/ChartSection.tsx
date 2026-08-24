@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { defineChart, lineY, colorLegend } from "@tanstack/charts";
+import { defineChart, lineY } from "@tanstack/charts";
 import { fold } from "@tanstack/charts/transform/fold";
 import { scaleLinear } from "@tanstack/charts/scales/linear";
 import { scalePoint } from "@tanstack/charts/scales/point";
@@ -10,10 +10,12 @@ import { tooltip } from "@tanstack/charts/tooltip";
 import { pie, polar, radialArc } from "@tanstack/charts/polar";
 import type { BreakdownRow, ChartData } from "@/src/shared/models";
 import { formatMoney, formatMonth } from "@/lib/format";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card, CardAction, CardContent, CardHeader, CardTitle,
+} from "@/components/ui/card";
 
-// Cores do design system (DESIGN.md): verde/vermelho semânticos, azul estrutural e paleta sticker.
-const TREND_COLORS = { income: "#1aae39", expenses: "#dc2626", balance: "#0075de", reserva: "#2a9d99" };
+// Cores do design system (DESIGN.md): verde/vermelho semânticos, azul estrutural, reserva em gold.
+const TREND_COLORS = { income: "#1aae39", expenses: "#dc2626", balance: "#0075de", reserva: "#FFD700" };
 const TREND_LABEL = { income: "Receitas", expenses: "Despesas", balance: "Saldo", reserva: "Reserva" } as const;
 // ponytail: backend não expõe cor por categoria; paleta fixa cicla por índice.
 const DONUT_COLORS = [
@@ -63,7 +65,6 @@ export function ChartSection({ data, month }: { data: ChartData; month: string }
         color: {
           domain: Object.values(TREND_LABEL),
           range: Object.values(TREND_COLORS),
-          legend: colorLegend({ placement: "bottom" }),
         },
       }),
     [folded]
@@ -72,7 +73,22 @@ export function ChartSection({ data, month }: { data: ChartData; month: string }
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Card className="lg:col-span-2">
-        <CardHeader><CardTitle>Evolução</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Evolução</CardTitle>
+          <CardAction>
+            <ul className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-hidden>
+              {Object.entries(TREND_LABEL).map(([key, label]) => (
+                <li key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span
+                    className="size-2.5 rounded-full"
+                    style={{ backgroundColor: TREND_COLORS[key as keyof typeof TREND_COLORS] }}
+                  />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </CardAction>
+        </CardHeader>
         <CardContent>
           <Chart definition={trend} height={260} ariaLabel="Evolução mensal de receitas, despesas, saldo e reserva" />
         </CardContent>
@@ -125,17 +141,17 @@ function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[
         ) : (
           <>
             <Chart definition={definition} height={220} ariaLabel={title} />
-            <ul className="mt-3 space-y-1 text-sm">
+            <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
               {rows.map((r, i) => (
                 <li key={r.name} className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     <span
-                      className="size-2.5 rounded-full"
+                      className="size-2.5 shrink-0 rounded-full"
                       style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
                     />
-                    {r.name}
+                    <span className="truncate">{r.name}</span>
                   </span>
-                  <span className="text-muted-foreground">{formatMoney(r.total)}</span>
+                  <span className="shrink-0 text-muted-foreground">{formatMoney(r.total)}</span>
                 </li>
               ))}
             </ul>

@@ -60,7 +60,7 @@ function DialogContent({
         <div
           data-slot="dialog-panel"
           className={cn(
-            "relative grid w-full max-w-sm gap-4 rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-2xl max-h-[90vh] overflow-y-auto sm:max-w-lg",
+            "relative grid w-full max-w-sm gap-4 rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-2xl max-h-[90vh] overflow-x-hidden overflow-y-auto sm:max-w-lg",
             className
           )}
         >
@@ -91,7 +91,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex flex-col gap-2 pb-2", className)}
       {...props}
     />
   )
@@ -129,7 +129,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "font-heading text-lg leading-none font-medium",
         className
       )}
       {...props}

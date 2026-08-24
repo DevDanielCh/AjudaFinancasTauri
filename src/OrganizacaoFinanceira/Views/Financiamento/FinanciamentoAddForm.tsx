@@ -2,7 +2,7 @@
 import { useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { FormSelect } from "@/components/forms/FormSelect";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { MonthPicker } from "@/components/MonthPicker";
 import { MoneyInput } from "@/components/forms/MoneyInput";
@@ -73,7 +73,7 @@ export function FinanciamentoAddForm({
       <form.Field name="type">
         {(field) => (
           <Field>
-            <FieldLabel>Tipo</FieldLabel>
+            <FieldLabel required>Tipo</FieldLabel>
             <ToggleGroup
               value={[String(field.state.value)]}
               onValueChange={(v) => field.handleChange(v[0] === "2" ? 2 : 1)}
@@ -85,11 +85,11 @@ export function FinanciamentoAddForm({
           </Field>
         )}
       </form.Field>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid *:min-w-0 grid-cols-2 gap-4">
         <form.Field name="principal">
           {(field) => (
             <Field>
-              <FieldLabel>Valor (R$)</FieldLabel>
+              <FieldLabel required>Valor (R$)</FieldLabel>
               <MoneyInput value={field.state.value} onChange={(c) => field.handleChange(c)} />
               <FieldErrors errors={field.state.meta.errors} />
             </Field>
@@ -98,52 +98,54 @@ export function FinanciamentoAddForm({
         <form.Field name="installment">
           {(field) => (
             <Field>
-              <FieldLabel>Valor da parcela (R$)</FieldLabel>
+              <FieldLabel required>Valor da parcela (R$)</FieldLabel>
               <MoneyInput value={field.state.value} onChange={(c) => field.handleChange(c)} />
               <FieldErrors errors={field.state.meta.errors} />
             </Field>
           )}
         </form.Field>
       </div>
-      <form.Field name="total_installments">
-        {(field) => (
-          <Field>
-            <FieldLabel>Nº de parcelas</FieldLabel>
-            <Input
-              type="number" min="2"
-              value={field.state.value || ""}
-              onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : 0)}
-              onBlur={field.handleBlur}
-            />
-            <FieldErrors errors={field.state.meta.errors} />
-          </Field>
-        )}
-      </form.Field>
-      <form.Field name="monthly_rate">
-        {(field) => (
-          <Field>
-            <FieldLabel>Taxa de juros mensal (%)</FieldLabel>
-            <Input
-              type="number" step="0.0001" min="0" inputMode="decimal"
-              value={rateDisplay}
-              placeholder="0,0000"
-              onChange={(e) => {
-                field.handleChange(e.target.value ? Number(e.target.value) / 100 : 0);
-              }}
-            />
-            {!differs && values.monthly_rate > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Calculada automaticamente da parcela; ajuste se souber a taxa contratada
-              </p>
-            )}
-            <FieldErrors errors={field.state.meta.errors} />
-          </Field>
-        )}
-      </form.Field>
+      <div className="grid *:min-w-0 grid-cols-2 gap-4">
+        <form.Field name="total_installments">
+          {(field) => (
+            <Field>
+              <FieldLabel required>Nº de parcelas</FieldLabel>
+              <Input
+                type="number" min="2"
+                value={field.state.value || ""}
+                onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : 0)}
+                onBlur={field.handleBlur}
+              />
+              <FieldErrors errors={field.state.meta.errors} />
+            </Field>
+          )}
+        </form.Field>
+        <form.Field name="monthly_rate">
+          {(field) => (
+            <Field>
+              <FieldLabel required>Taxa de juros mensal (%)</FieldLabel>
+              <Input
+                type="number" step="0.0001" min="0" inputMode="decimal"
+                value={rateDisplay}
+                placeholder="0,0000"
+                onChange={(e) => {
+                  field.handleChange(e.target.value ? Number(e.target.value) / 100 : 0);
+                }}
+              />
+              {!differs && values.monthly_rate > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Calculada automaticamente da parcela
+                </p>
+              )}
+              <FieldErrors errors={field.state.meta.errors} />
+            </Field>
+          )}
+        </form.Field>
+      </div>
       <form.Field name="description">
         {(field) => (
           <Field>
-            <FieldLabel>Descrição</FieldLabel>
+            <FieldLabel required>Descrição</FieldLabel>
             <Input
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
@@ -153,49 +155,47 @@ export function FinanciamentoAddForm({
           </Field>
         )}
       </form.Field>
-      <form.Field name="start_month">
-        {(field) => (
-          <Field>
-            <FieldLabel>Início</FieldLabel>
-            <MonthPicker
-              value={field.state.value}
-              onChange={(m) => field.handleChange(m)}
-            />
-            <FieldErrors errors={field.state.meta.errors} />
-          </Field>
-        )}
-      </form.Field>
-      <form.Field name="day">
-        {(field) => (
-          <Field>
-            <FieldLabel>Dia do vencimento</FieldLabel>
-            <Input
-              type="number" min="1" max="31"
-              value={field.state.value || ""}
-              onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : 0)}
-              onBlur={field.handleBlur}
-            />
-            <FieldErrors errors={field.state.meta.errors} />
-          </Field>
-        )}
-      </form.Field>
-      <form.Field name="payment_method_id">
-        {(field) => (
-          <Field>
-            <FieldLabel>Forma de pagamento</FieldLabel>
-            <NativeSelect
-              className="w-full"
-              value={field.state.value.toString()}
-              onChange={(e) => field.handleChange(Number(e.target.value))}
-            >
-              {resources.paymentMethods.map((p) => (
-                <NativeSelectOption key={p.id} value={p.id.toString()}>{p.name}</NativeSelectOption>
-              ))}
-            </NativeSelect>
-            <FieldErrors errors={field.state.meta.errors} />
-          </Field>
-        )}
-      </form.Field>
+      <div className="grid *:min-w-0 gap-4 sm:grid-cols-3">
+        <form.Field name="start_month">
+          {(field) => (
+            <Field>
+              <FieldLabel required>Início</FieldLabel>
+              <MonthPicker
+                value={field.state.value}
+                onChange={(m) => field.handleChange(m)}
+              />
+              <FieldErrors errors={field.state.meta.errors} />
+            </Field>
+          )}
+        </form.Field>
+        <form.Field name="day">
+          {(field) => (
+            <Field>
+              <FieldLabel required>Dia do vencimento</FieldLabel>
+              <Input
+                type="number" min="1" max="31"
+                value={field.state.value || ""}
+                onChange={(e) => field.handleChange(e.target.value ? Number(e.target.value) : 0)}
+                onBlur={field.handleBlur}
+              />
+              <FieldErrors errors={field.state.meta.errors} />
+            </Field>
+          )}
+        </form.Field>
+        <form.Field name="payment_method_id">
+          {(field) => (
+            <Field>
+              <FieldLabel required>Forma de pagamento</FieldLabel>
+              <FormSelect
+                value={field.state.value.toString()}
+                onChange={(v) => field.handleChange(Number(v))}
+                options={resources.paymentMethods.map((p) => ({ value: p.id.toString(), label: p.name }))}
+              />
+              <FieldErrors errors={field.state.meta.errors} />
+            </Field>
+          )}
+        </form.Field>
+      </div>
     </FieldGroup>
   );
 }

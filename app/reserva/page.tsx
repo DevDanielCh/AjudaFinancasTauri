@@ -2,6 +2,7 @@
 import { useCallback } from "react";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { ReservaAddForm } from "@/src/Investimentos/Views/Reserva/ReservaAddForm";
+import { ReservaViewForm } from "@/src/Investimentos/Views/Reserva/ReservaViewForm";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { useMonth } from "@/lib/month-context";
@@ -42,15 +43,16 @@ export default function ReservaPage() {
     <CrudPage
       config={{
         title: "Reservas",
-        description: "Investimentos e reserva de emergência",
+        newTitle: "Novo Aporte/Resgate",
+        editTitle: "Editar Aporte/Resgate",
         columns: [
           { label: "Data", render: (r) => formatDate(r.date) },
           {
             label: "Tipo",
             render: (r) =>
               r.type === 5
-                ? <Badge className="bg-negative text-negative-foreground">Remoção</Badge>
-                : <Badge className="bg-positive text-positive-foreground">Adição</Badge>,
+                ? <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">Remoção</Badge>
+                : <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400">Adição</Badge>,
           },
           { label: "Descrição", render: (r) => r.description },
           {
@@ -90,7 +92,6 @@ export default function ReservaPage() {
         }),
         toInput: (r): ReservaInput => ({ description: r.description, amount: r.amount, type: r.type, date: r.date }),
         summary: balance,
-        protectedDeleteMessage: "Movimentações de reserva protegidas",
         queryKey: reservaKeys,
         invalidate: [
           dashboardKeys(month),
@@ -100,6 +101,7 @@ export default function ReservaPage() {
         ],
         schema: reservaSchema,
         FormFields: ReservaAddForm,
+        ViewFields: ReservaViewForm,
       }}
     />
   );

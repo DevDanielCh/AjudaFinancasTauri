@@ -41,7 +41,12 @@ export function FormDialog<T extends { id: number }, F, E>({
   const isMobile = useIsMobile();
 
   const form = useForm({
-    defaultValues: dialog.mode === "create" ? config.empty() : dialog.input,
+    defaultValues:
+      dialog.mode === "edit"
+        ? dialog.input
+        : "input" in dialog
+          ? dialog.input ?? config.empty()
+          : config.empty(),
     validators: { onChange: config.schema as unknown as FormValidateFn<F> },
     onSubmit: ({ value }) => mutation.mutate(value),
   });
@@ -75,6 +80,8 @@ export function FormDialog<T extends { id: number }, F, E>({
   const resourcesError =
     config.loadResources != null && resourcesQuery.isError ? msg(resourcesQuery.error) : null;
 
+  if (dialog.mode === "view") return null;
+
   const body = resourcesLoading ? (
     <div className="flex justify-center py-4">
       <Spinner />
@@ -96,7 +103,7 @@ export function FormDialog<T extends { id: number }, F, E>({
       </Button>
       <form.Subscribe selector={(s) => [s.isSubmitting, s.canSubmit, s.isPristine] as const}>
         {([isSubmitting, canSubmit, isPristine]) => (
-          <Button type="submit" disabled={!canSubmit || isPristine || isSubmitting}>
+          <Button type="submit" className="rounded-md" disabled={!canSubmit || isPristine || isSubmitting}>
             {isSubmitting ? "Salvando..." : "Salvar"}
           </Button>
         )}
@@ -111,7 +118,7 @@ export function FormDialog<T extends { id: number }, F, E>({
           <form onSubmit={form.handleSubmit}>
             <SheetHeader className="mb-4">
               <SheetTitle>
-                {dialog.mode === "edit" ? "Editar" : "Novo"} {config.title.slice(0, -1)}
+                {dialog.mode === "edit" ? config.editTitle ?? `Editar ${config.title.slice(0, -1)}` : config.newTitle ?? `Novo ${config.title.slice(0, -1)}`}
               </SheetTitle>
               <SheetDescription />
             </SheetHeader>
@@ -129,7 +136,7 @@ export function FormDialog<T extends { id: number }, F, E>({
         <form onSubmit={form.handleSubmit}>
           <DialogHeader>
             <DialogTitle>
-              {dialog.mode === "edit" ? "Editar" : "Novo"} {config.title.slice(0, -1)}
+              {dialog.mode === "edit" ? config.editTitle ?? `Editar ${config.title.slice(0, -1)}` : config.newTitle ?? `Novo ${config.title.slice(0, -1)}`}
             </DialogTitle>
             <DialogDescription />
           </DialogHeader>

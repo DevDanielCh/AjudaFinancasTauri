@@ -1,6 +1,7 @@
 "use client";
 import { CrudPage } from "@/components/crud/CrudPage";
 import { ContaFixaAddForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaAddForm";
+import { ContaFixaViewForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaViewForm";
 import { fixedBillApi } from "@/src/OrganizacaoFinanceira/Repositories/fixed-bill";
 import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
@@ -15,6 +16,8 @@ export default function FixedBillsPage() {
     <CrudPage
       config={{
         title: "Contas Fixas",
+        newTitle: "Nova Conta Fixa",
+        editTitle: "Editar Conta Fixa",
         columns: [
           { label: "Descrição", name: "description", render: (r) => r.description },
           { label: "Valor", name: "amount", render: (r) => <span className="tabular-nums">{formatMoney(r.amount)}</span> },
@@ -63,6 +66,7 @@ export default function FixedBillsPage() {
           return { categories, paymentMethods, cardCloseDays, cardValidityDays };
         },
         FormFields: (props) => <ContaFixaAddForm {...props} mode="recurring" />,
+        ViewFields: ContaFixaViewForm,
         queryKey: fixedBillKeys(false),
         invalidate: [["transactions"], ["dashboard"]],
         schema: fixedBillSchema,

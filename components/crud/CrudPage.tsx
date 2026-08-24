@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, Pencil, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Search } from "lucide-react";
 import type { ZodType } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { CardList } from "./CardList";
 import { CardOptionsSheet } from "./CardOptionsSheet";
 import { RowActionsMenu } from "./RowActionsMenu";
 import { FormDialog } from "./FormDialog";
+import { ViewDialog } from "./ViewDialog";
 import type { Column, MobileCorners } from "./types";
 import type { Sort } from "@/src/shared/models";
 import type { CrudFormApi } from "@/lib/forms";
@@ -25,9 +26,14 @@ import { PullToRefresh } from "@/components/PullToRefresh";
 
 export interface CrudConfig<T extends { id: number }, F, E> {
   title: string;
-  description?: string;
   columns: Column<T>[];
   pageSize?: number;
+  /** Rótulo do botão principal de criação (padrão: "Adicionar"). */
+  addLabel?: string;
+  /** Título do modal de criação (padrão: "Novo {title sem plural}"). */
+  newTitle?: string;
+  /** Título do modal de edição (padrão: "Editar {title sem plural}"). */
+  editTitle?: string;
   keepOpen?: boolean;
   load: (sort: Sort | null) => Promise<T[]>;
   create: (data: F) => Promise<void>;
@@ -41,11 +47,11 @@ export interface CrudConfig<T extends { id: number }, F, E> {
     resources: E | undefined;
     serverError: string | null;
   }>;
+  /** Componente de leitura usado no duplo clique da linha (modo "visualizar"). */
+  ViewFields?: React.ComponentType<{ row: T }>;
   onRowDoubleClick?: (row: T) => void;
   onView?: (row: T) => void;
   protected?: (row: T) => boolean;
-  /** Mensagem quando a seleção contém só linhas protegidas. */
-  protectedDeleteMessage?: string;
   /** Conteúdo exibido entre o título e a busca (ex.: card de saldo). */
   summary?: (rows: T[]) => React.ReactNode;
   mobileCorners?: MobileCorners<T>;
@@ -59,12 +65,14 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   schema: ZodType<F>;
 }
 
-export type DialogState<T, F> = { mode: "create" } | { mode: "edit"; row: T; input: F };
+export type DialogState<T, F> =
+  | { mode: "create"; input?: F }
+  | { mode: "edit"; row: T; input: F }
+  | { mode: "view"; row: T };
 
-export function CrudPage<T extends { id: number }, F, E>({ config }: { config: CrudConfig<T, F, E> }) {
+export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }: { config: CrudConfig<T, F, E>; autoCreate?: boolean }) {
   const client = useQueryClient();
-  const [selected, setSelected] = useState<Set<number>>(new Set());
-  const [dialog, setDialog] = useState<DialogState<T, F> | null>(null);
+  const [dialog, setDialog] = useState<DialogState<T, F> | null>(autoCreate ? { mode: "create" } : null);
   const [confirm, setConfirm] = useState<{ message: string; ids: number[] } | null>(null);
   const [query, setQuery] = useState("");
   const [optionsRow, setOptionsRow] = useState<T | null>(null);
@@ -95,7 +103,6 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
   const refresh = useCallback(async () => {
     setQuery("");
     setVisibleCount(pageSize);
-    setSelected(new Set());
     const res = await rowsQuery.refetch();
     if (res.error) toast.add({ title: msg(res.error), type: "error" });
   }, [pageSize, rowsQuery]);
@@ -127,47 +134,19 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
     return () => io.disconnect();
   }, [hasMore, pageSize]);
 
-  const toggle = (id: number) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
   const handleSort = (next: Sort | null) => {
     setSort(next);
     setVisibleCount(pageSize);
   };
 
   const handleRowContextMenu = (row: T, e: MouseEvent) => {
-    if (!selected.has(row.id)) setSelected(new Set([row.id]));
     const canEdit = !config.protected?.(row);
     if (config.onView || canEdit) setMenu({ row, x: e.clientX, y: e.clientY });
-  };
-
-  const askDelete = () => {
-    const ids = [...selected].filter((id) => {
-      const row = rows.find((r) => r.id === id);
-      return !(row && config.protected?.(row));
-    });
-    if (ids.length === 0) {
-      toast.add({
-        title: config.protectedDeleteMessage ?? "Faturas são geradas automaticamente e não podem ser excluídas",
-        type: "error",
-      });
-      return;
-    }
-    setConfirm({
-      ids,
-      message: ids.length === 1 ? "Excluir este registro?" : `Excluir ${ids.length} registros?`,
-    });
   };
 
   const removeMutation = useMutation({
     mutationFn: (ids: number[]) => config.remove(ids),
     onSuccess: () => {
-      setSelected(new Set());
       setConfirm(null);
       toast.add({ title: "Excluído com sucesso", type: "success" });
       invalidate();
@@ -186,20 +165,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
 
   return (
     <PullToRefresh onRefresh={() => refresh()}>
-      <div className="flex flex-col gap-4 sm:h-[calc(100vh-1.5rem)]">
-        <div className="hidden items-center justify-between sm:flex">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{config.title}</h1>
-            {config.description && (
-              <p className="text-sm text-muted-foreground">{config.description}</p>
-            )}
-          </div>
-          <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
-            <RefreshCw data-icon="inline-start" className={cn(loading && "animate-spin")} />
-            Atualizar
-          </Button>
-        </div>
-
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
         {config.summary?.(rows)}
 
         <div className="flex items-center gap-2">
@@ -213,47 +179,23 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
               className="pl-8"
             />
           </div>
+          {!isMobile && (
+            <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
+              <RefreshCw data-icon="inline-start" className={cn(loading && "animate-spin")} />
+              Atualizar
+            </Button>
+          )}
           <Button className="rounded-md" onClick={() => setDialog({ mode: "create" })}>
             <Plus data-icon="inline-start" />
-            Adicionar
+            {config.addLabel ?? "Adicionar"}
           </Button>
-          {!isMobile && (
-            <>
-              <Button
-                variant="outline"
-                disabled={selected.size !== 1 || (config.protected?.(rows.find((r) => r.id === [...selected][0])!) ?? false)}
-                onClick={() => {
-                  const row = rows.find((r) => r.id === [...selected][0])!;
-                  setDialog({ mode: "edit", row, input: config.toInput(row) });
-                }}
-              >
-                <Pencil data-icon="inline-start" />
-                Editar
-              </Button>
-              {config.onView && (
-                <Button
-                  variant="outline"
-                  disabled={selected.size !== 1}
-                  onClick={() => config.onView!(rows.find((r) => r.id === [...selected][0])!)}
-                >
-                  <Eye data-icon="inline-start" />
-                  Visualizar
-                </Button>
-              )}
-              <Button variant="destructive" disabled={selected.size === 0} onClick={askDelete}>
-                <Trash2 data-icon="inline-start" />
-                Excluir
-              </Button>
-            </>
-          )}
         </div>
 
-        <div className={cn("min-h-0 flex-1", isMobile ? "" : "overflow-auto rounded-md border")}>
+        <div>
           <Skeleton
             name="crud-list"
             loading={loading && rows.length === 0}
             fixture={<CrudListFixture />}
-            className={cn(!isMobile && "bg-card")}
           >
             {isMobile && config.mobileCorners ? (
               <CardList
@@ -267,29 +209,55 @@ export function CrudPage<T extends { id: number }, F, E>({ config }: { config: C
               <DataTable
                 columns={config.columns}
                 rows={pageRows}
-                selected={selected}
-                onToggle={toggle}
-                onRowDoubleClick={config.onRowDoubleClick}
+                onRowDoubleClick={
+                  config.onRowDoubleClick ??
+                  ((row) => {
+                    if (!config.protected?.(row)) {
+                      setDialog({ mode: "edit", row, input: config.toInput(row) });
+                    } else if (config.onView) {
+                      config.onView(row);
+                    } else if (config.ViewFields) {
+                      setDialog({ mode: "view", row });
+                    }
+                  })
+                }
+                headerRight={
+                  <span className="whitespace-nowrap">
+                    {filtered.length} registro{filtered.length === 1 ? "" : "s"}
+                    {q && ` (filtrado de ${rows.length})`}
+                  </span>
+                }
                 rowClass={config.rowClass}
                 sort={sort}
                 onSort={handleSort}
                 onRowContextMenu={handleRowContextMenu}
+                canEditRow={(row) => !config.protected?.(row)}
+                onViewRow={config.onView}
+                onEditRow={(row) => setDialog({ mode: "edit", row, input: config.toInput(row) })}
+                onDuplicateRow={(row) => setDialog({ mode: "create", input: config.toInput(row) })}
+                onDeleteRow={(row) =>
+                  setConfirm({ ids: [row.id], message: "Excluir este registro?" })
+                }
               />
             )}
           </Skeleton>
           {hasMore && <div ref={sentinelRef} className="h-2" />}
         </div>
 
-        <div className="text-sm text-muted-foreground">
-          {filtered.length} registro{filtered.length === 1 ? "" : "s"}
-          {q && ` (filtrado de ${rows.length})`}
-        </div>
-
-        {dialog && (
+        {dialog && dialog.mode !== "view" && (
           <FormDialog
             key={dialog.mode === "edit" ? dialog.row.id : "create"}
             config={config}
             dialog={dialog}
+            onClose={() => setDialog(null)}
+          />
+        )}
+
+        {dialog?.mode === "view" && (
+          <ViewDialog
+            key={dialog.row.id}
+            config={config}
+            row={dialog.row}
             onClose={() => setDialog(null)}
           />
         )}

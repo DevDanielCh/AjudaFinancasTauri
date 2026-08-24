@@ -11,6 +11,7 @@ import { AccountsProvider, useAccounts } from "./services";
 import { AccountRail } from "./AccountRail";
 import { AccountEditDialog, AccountDeleteDialog } from "./AccountDialogs";
 import { ChannelsContent } from "./ChannelsContent";
+import { AppHeader } from "@/components/AppHeader";
 import type { AccountInfo } from "./models";
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -30,8 +31,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         <ChannelsContent />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <main className="flex-1 p-3 pb-20 sm:p-4">{children}</main>
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <AppHeader />
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-20 sm:p-4">{children}</main>
       </div>
 
       {/* Drawer de canais no mobile */}
@@ -41,7 +43,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <SheetTitle>Navegação</SheetTitle>
             <SheetDescription>Menu principal do aplicativo</SheetDescription>
           </SheetHeader>
-          <ChannelsContent onNavigate={() => setChannelsOpen(false)} />
+          <ChannelsContent onNavigate={() => setChannelsOpen(false)} showStatus />
         </SheetContent>
       </Sheet>
 

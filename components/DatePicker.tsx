@@ -12,11 +12,12 @@ const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov
 const WEEKDAYS = ["D","S","T","Q","Q","S","S"];
 
 export function DatePicker({
-  value, onChange, placeholder = "Selecione a data",
+  value, onChange, placeholder = "Selecione a data", className,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
   placeholder?: string;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => {
@@ -40,7 +41,7 @@ export function DatePicker({
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" className="w-full justify-between font-normal">
+          <Button variant="outline" className={cn("w-full justify-between font-normal", className)}>
             <span className={cn(!value && "text-muted-foreground")}>
               {value ? formatDate(value) : placeholder}
             </span>

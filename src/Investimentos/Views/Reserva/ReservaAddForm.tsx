@@ -22,7 +22,7 @@ export function ReservaAddForm({
       <form.Field name="amount">
         {(field) => (
           <Field>
-            <FieldLabel>Valor (R$)</FieldLabel>
+            <FieldLabel required>Valor (R$)</FieldLabel>
             <MoneyInput value={field.state.value} onChange={(c) => field.handleChange(c)} />
             <FieldErrors errors={field.state.meta.errors} />
           </Field>
@@ -31,7 +31,7 @@ export function ReservaAddForm({
       <form.Field name="description">
         {(field) => (
           <Field>
-            <FieldLabel>Descrição</FieldLabel>
+            <FieldLabel required>Descrição</FieldLabel>
             <Input
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
@@ -44,7 +44,7 @@ export function ReservaAddForm({
       <form.Field name="type">
         {(field) => (
           <Field>
-            <FieldLabel>Tipo</FieldLabel>
+            <FieldLabel required>Tipo</FieldLabel>
             <ToggleGroup
               value={[String(field.state.value)]}
               onValueChange={(v) => field.handleChange(v[0] === "5" ? 5 : 4)}
@@ -59,7 +59,7 @@ export function ReservaAddForm({
       <form.Field name="date">
         {(field) => (
           <Field>
-            <FieldLabel>Data</FieldLabel>
+            <FieldLabel required>Data</FieldLabel>
             <DatePicker
               value={field.state.value}
               placeholder="Data da movimentação"

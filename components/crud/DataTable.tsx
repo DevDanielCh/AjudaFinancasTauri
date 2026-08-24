@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Inbox } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Eye, Inbox, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import {
   ColumnDef,
   createSortedRowModel,
@@ -8,7 +8,9 @@ import {
   tableFeatures,
   useTable,
 } from "@tanstack/react-table";
-import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty, EmptyHeader, EmptyMedia, EmptyTitle,
 } from "@/components/ui/empty";
@@ -25,40 +27,25 @@ const FEATURES = tableFeatures({
 });
 
 export function DataTable<T extends { id: number }>({
-  columns, rows, selected, onToggle, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
+  columns, rows, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
+  canEditRow, onViewRow, onEditRow, onDuplicateRow, onDeleteRow, headerRight,
 }: {
   columns: Column<T>[];
   rows: T[];
-  selected: Set<number>;
-  onToggle: (id: number) => void;
   onRowDoubleClick?: (row: T) => void;
   onRowContextMenu?: (row: T, e: React.MouseEvent) => void;
   rowClass?: (row: T) => string;
   sort?: Sort | null;
   onSort: (sort: Sort | null) => void;
+  canEditRow?: (row: T) => boolean;
+  onViewRow?: (row: T) => void;
+  onEditRow?: (row: T) => void;
+  onDuplicateRow?: (row: T) => void;
+  onDeleteRow?: (row: T) => void;
+  headerRight?: React.ReactNode;
 }) {
-  const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
-
   const columnDefs = React.useMemo<ColumnDef<typeof FEATURES, T, unknown>[]>(() => {
-    const defs: ColumnDef<typeof FEATURES, T, unknown>[] = [
-      {
-        id: "select",
-        enableSorting: false,
-        meta: { className: "w-12" },
-        header: () => (
-          <Checkbox
-            checked={allChecked}
-            onCheckedChange={() => rows.forEach((r) => onToggle(r.id))}
-          />
-        ),
-        cell: ({ row }) => (
-          <Checkbox
-            checked={selected.has(row.original.id)}
-            onCheckedChange={() => onToggle(row.original.id)}
-          />
-        ),
-      },
-    ];
+    const defs: ColumnDef<typeof FEATURES, T, unknown>[] = [];
     for (const c of columns) {
       defs.push({
         id: c.name ?? c.label,
@@ -69,8 +56,29 @@ export function DataTable<T extends { id: number }>({
         meta: { className: c.className },
       });
     }
+    defs.push({
+      id: "actions",
+      enableSorting: false,
+      header: () => (
+        <div className="flex items-center justify-end">
+          {headerRight ?? <span className="sr-only">Ações</span>}
+        </div>
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end">
+          <RowActions
+            row={row.original}
+            canEdit={canEditRow?.(row.original) ?? true}
+            onView={onViewRow}
+            onEdit={onEditRow}
+            onDuplicate={onDuplicateRow}
+            onDelete={onDeleteRow}
+          />
+        </div>
+      ),
+    });
     return defs;
-  }, [columns, rows, selected, onToggle, allChecked]);
+  }, [columns, headerRight, canEditRow, onViewRow, onEditRow, onDuplicateRow, onDeleteRow]);
 
   const table = useTable({ features: FEATURES, data: rows, columns: columnDefs });
   const visibleRows = table.getRowModel().rows;
@@ -89,13 +97,12 @@ export function DataTable<T extends { id: number }>({
   return (
     <Table>
       <TableHeader>
-        <TableRow>
+        <TableRow className="[&>th]:bg-card">
           {table.getFlatHeaders().map((header) => (
             <TableHead
               key={header.id}
               className={cn(
-                header.column.getCanSort() && "cursor-pointer select-none",
-                (header.column.columnDef.meta as { className?: string } | undefined)?.className
+                header.column.getCanSort() && "cursor-pointer select-none"
               )}
             >
               {header.column.getCanSort() ? (
@@ -135,7 +142,6 @@ export function DataTable<T extends { id: number }>({
           <TableRow
             key={row.original.id}
             className={cn("cursor-pointer", rowClass?.(row.original))}
-            onClick={() => onToggle(row.original.id)}
             onDoubleClick={() => onRowDoubleClick?.(row.original)}
             onContextMenu={(e) => {
               if (!onRowContextMenu) return;
@@ -158,5 +164,61 @@ export function DataTable<T extends { id: number }>({
         ))}
       </TableBody>
     </Table>
+  );
+}
+
+function RowActions<T extends { id: number }>({
+  row, canEdit, onView, onEdit, onDuplicate, onDelete,
+}: {
+  row: T;
+  canEdit: boolean;
+  onView?: (row: T) => void;
+  onEdit?: (row: T) => void;
+  onDuplicate?: (row: T) => void;
+  onDelete?: (row: T) => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            aria-label="Ações do registro"
+            title="Ações"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-accent hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 data-popup-open:bg-accent"
+          >
+            <MoreHorizontal className="size-4" />
+          </button>
+        }
+      />
+      <DropdownMenuContent align="end" className="w-40">
+        {onEdit && canEdit && (
+          <DropdownMenuItem onClick={() => onEdit(row)}>
+            <Pencil />
+            Editar
+          </DropdownMenuItem>
+        )}
+        {onDuplicate && canEdit && (
+          <DropdownMenuItem onClick={() => onDuplicate(row)}>
+            <Copy />
+            Duplicar
+          </DropdownMenuItem>
+        )}
+        {onView && (
+          <DropdownMenuItem onClick={() => onView(row)}>
+            <Eye />
+            Visualizar
+          </DropdownMenuItem>
+        )}
+        {onDelete && canEdit && (
+          <DropdownMenuItem variant="destructive" onClick={() => onDelete(row)}>
+            <Trash2 />
+            Excluir
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
