@@ -154,6 +154,88 @@ pub fn card_bill_purchases(
     Ok(txs)
 }
 
+/// Lista transações de uma fatura com ordenação dinâmica.
+pub(crate) fn list_card_bill_transactions(
+    conn: &Connection,
+    bill_id: i64,
+    sort_by: Option<&str>,
+    sort_dir: Option<&str>,
+) -> Result<(String, String, String, String, String, Vec<TransactionRow>, i64), String> {
+    let (pm_id, pm_name, bill_start, bill_end, due, description) =
+        get_card_bill_query(conn, bill_id)?;
+    let (Some(bs), Some(be)) = (bill_start, bill_end) else {
+        return Err("transação não é uma fatura".into());
+    };
+    let order = order_clause(
+        sort_by,
+        sort_dir,
+        &[
+            ("date", "t.date"),
+            ("description", "t.description"),
+            ("amount", "t.amount"),
+            ("category", "cat.name"),
+        ],
+        "ORDER BY t.date ASC, t.id ASC",
+        "t.id ASC",
+    );
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT t.id, t.description, t.amount, t.type, t.date,
+                    t.category_id, cat.name, t.payment_method_id, pm.name,
+                    t.fixed_bill_id, t.loan_id, 0, t.card_mode, t.in_principal,
+                    fb.installments, fb.start_month
+             FROM transactions t
+             LEFT JOIN categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
+             LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
+             LEFT JOIN fixed_bills fb ON fb.id = t.fixed_bill_id AND fb.deleted_at IS NULL
+             WHERE t.payment_method_id = ?1 AND t.bill_start IS NULL
+               AND t.card_mode = 0
+               AND t.date >= ?2 AND t.date < ?3
+               AND t.deleted_at IS NULL
+               AND ({})
+             {order}",
+            FINISHED_GUARD_SQL
+        ))
+        .map_err(db_err)?;
+    let txs = stmt
+        .query_map(params![pm_id, bs, be], |r| {
+            let date: String = r.get(4)?;
+            let installments: Option<i64> = r.get(14)?;
+            let start_month: Option<String> = r.get(15)?;
+            let installment = match (installments, start_month) {
+                (Some(total), Some(sm)) if total >= 1 => {
+                    Some(format!(
+                        "{}/{}",
+                        crate::organizacao_financeira::service::installment_index(&sm, &date[..7]),
+                        total
+                    ))
+                }
+                _ => None,
+            };
+            Ok(TransactionRow {
+                id: r.get(0)?,
+                description: r.get(1)?,
+                amount: r.get(2)?,
+                type_: r.get(3)?,
+                date,
+                category_id: r.get(5)?,
+                category_name: r.get(6)?,
+                payment_method_id: r.get(7)?,
+                payment_method_name: r.get(8)?,
+                fixed_bill_id: r.get(9)?,
+                loan_id: r.get(10)?,
+                is_card_bill: false,
+                card_mode: r.get(12)?,
+                in_principal: r.get(13)?,
+                installment,
+            })
+        })
+        .map_err(db_err)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(db_err)?;
+    Ok((description, pm_name, bs, be, due, txs, pm_id))
+}
+
 pub(crate) fn get_card_bill_query(
     conn: &Connection,
     id: i64,
@@ -640,6 +722,36 @@ mod tests {
             "parcela além do total não pode aparecer no detalhe"
         );
         assert_eq!(txs.iter().map(|t| t.amount).sum::<i64>(), 5000);
+    }
+
+    #[test]
+    fn fatura_list_inclui_compra_nova_no_periodo() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        // fatura cobrindo o período
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end)
+             VALUES ('Fatura', 0, 3, '2026-09-20', ?1, '2026-08-10', '2026-09-10')",
+            params![card],
+        )
+        .unwrap();
+        let bill_id = conn.last_insert_rowid();
+        // compra avulsa recém-criada dentro do período (card_mode = 0)
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('compra nova', 500, 2, '2026-09-02', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+
+        let (_, _, _, _, _, txs, _) =
+            list_card_bill_transactions(&conn, bill_id, None, None).unwrap();
+        let descs: Vec<String> = txs.iter().map(|t| t.description.clone()).collect();
+        assert!(
+            descs.contains(&"compra nova".into()),
+            "compra nova dentro do período deve aparecer na fatura, got {:?}",
+            descs
+        );
     }
 
     #[test]

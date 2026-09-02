@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/confirm";
-import { Skeleton } from "boneyard-js/react";
 import { DataTable } from "./DataTable";
 import { CardList } from "./CardList";
 import { CardOptionsSheet } from "./CardOptionsSheet";
@@ -35,6 +34,8 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   /** Título do modal de edição (padrão: "Editar {title sem plural}"). */
   editTitle?: string;
   keepOpen?: boolean;
+  /** Hook chamado após criar/editar com sucesso (além da invalidação padrão). */
+  onSaved?: () => void;
   load: (sort: Sort | null) => Promise<T[]>;
   create: (data: F) => Promise<void>;
   update: (id: number, data: F) => Promise<void>;
@@ -57,6 +58,8 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   mobileCorners?: MobileCorners<T>;
   /** Classe extra aplicada a cada linha/card (ex.: opacity para inativo). */
   rowClass?: (row: T) => string;
+  /** Classe extra aplicada à área de scroll da tabela (ex.: flex em dialogs). */
+  tableClassName?: string;
   /** Chave do react-query para esta página. */
   queryKey: readonly unknown[];
   /** Outras queries a invalidar após criar/editar/excluir. */
@@ -95,7 +98,10 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
 
   const invalidate = useCallback(() => {
     void client.invalidateQueries({ queryKey: effectiveKey, exact: true });
-  }, [client, effectiveKey]);
+    for (const k of config.invalidate ?? []) {
+      void client.invalidateQueries({ queryKey: [...k] });
+    }
+  }, [client, effectiveKey, config.invalidate]);
 
   const refresh = useCallback(async () => {
     const res = await rowsQuery.refetch();
@@ -198,12 +204,8 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
           </Button>
         </div>
 
-        <div>
-          <Skeleton
-            name="crud-list"
-            loading={loading && rows.length === 0}
-            fixture={<CrudListFixture />}
-          >
+        <div className={cn("flex min-h-0 flex-1 flex-col", isMobile && config.mobileCorners && "h-full overflow-y-auto")}>
+          <div className="flex min-h-0 flex-1 flex-col">
             {isMobile && config.mobileCorners ? (
               <CardList
                 corners={config.mobileCorners}
@@ -218,6 +220,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
                 columns={config.columns}
                 rows={pageRows}
                 emptySearch={!!q && filtered.length === 0}
+                tableClassName={config.tableClassName}
                 onRowDoubleClick={
                   config.onRowDoubleClick ??
                   ((row) => {
@@ -249,7 +252,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
                 }
               />
             )}
-          </Skeleton>
+          </div>
           {hasMore && <div ref={sentinelRef} className="h-2" />}
         </div>
 
@@ -259,7 +262,10 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
             config={config}
             dialog={dialog}
             onClose={() => setDialog(null)}
-            onSaved={() => invalidate()}
+            onSaved={() => {
+              invalidate();
+              config.onSaved?.();
+            }}
           />
         )}
 
@@ -314,45 +320,3 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
   );
 }
 
-/**
- * Fixture renderizado apenas durante `npx boneyard-js build` para capturar
- * a estrutura da lista em cada breakpoint (tabela no desktop, cards no mobile).
- */
-function CrudListFixture() {
-  return (
-    <div>
-      <div className="hidden sm:block">
-        <div className="flex items-center gap-4 border-b px-3 py-2.5">
-          <div className="size-3.5 rounded-[4px] border" />
-          {["Data", "Tipo", "Descrição", "Categoria", "Valor"].map((h) => (
-            <span key={h} className="text-sm font-medium text-muted-foreground">{h}</span>
-          ))}
-        </div>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4 border-b px-3 py-2.5">
-            <div className="size-3.5 shrink-0 rounded-[4px] border" />
-            <div className="h-4 w-20 rounded-sm bg-muted" />
-            <div className="h-4 w-14 rounded-sm bg-muted" />
-            <div className="h-4 flex-1 rounded-sm bg-muted" />
-            <div className="h-4 w-24 rounded-sm bg-muted" />
-            <div className="h-4 w-20 rounded-sm bg-muted" />
-          </div>
-        ))}
-      </div>
-      <div className="flex flex-col gap-2 p-2 sm:hidden">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="rounded-lg border bg-card p-3 select-none">
-            <div className="flex items-center justify-between gap-2">
-              <div className="h-4 w-40 rounded-sm bg-muted" />
-              <div className="h-4 w-16 rounded-sm bg-muted" />
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <div className="h-3.5 w-24 rounded-sm bg-muted" />
-              <div className="h-3.5 w-20 rounded-sm bg-muted" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

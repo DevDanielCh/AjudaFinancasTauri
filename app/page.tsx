@@ -6,7 +6,6 @@ import { Separator } from "@/components/ui/separator";
 import { RefreshCw } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
-import { Skeleton } from "boneyard-js/react";
 import { msg } from "@/src/shared/repository";
 import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -52,13 +51,7 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        <Skeleton
-          name="dashboard"
-          loading={!data}
-          fixture={<DashboardContent month={month} data={DASHBOARD_FIXTURE} chart={CHART_FIXTURE} />}
-        >
-          {data && <DashboardContent month={month} data={data} chart={chartQuery.data} />}
-        </Skeleton>
+        {data && <DashboardContent month={month} data={data} chart={chartQuery.data} />}
       </div>
     </PullToRefresh>
   );
@@ -117,46 +110,6 @@ function DashboardContent({
     </div>
   );
 }
-
-const DASHBOARD_FIXTURE: DashboardData = {
-  month: "2026-01",
-  income: 8500,
-  expenses: 4320.75,
-  balance: 15230.4,
-  prev_balance: 11050.15,
-  meta_investimento: 20,
-  aportes: 1700,
-  income_by_cat: [
-    { name: "Salário", total: 7000 },
-    { name: "Freelance", total: 1500 },
-  ],
-  expenses_by_pm: [
-    { name: "Cartão de crédito", total: 2450.5 },
-    { name: "Pix", total: 1120.25 },
-    { name: "Débito", total: 750 },
-  ],
-};
-
-const CHART_FIXTURE: ChartData = {
-  monthly: Array.from({ length: 6 }, (_, i) => ({
-    month: `2025-${String(i + 8).padStart(2, "0")}`,
-    income: 8000 + i * 250,
-    expenses: 4000 + i * 120,
-    balance: 9000 + i * 900,
-    reserva: 1000 + i * 300,
-  })),
-  expenses_by_cat: [
-    { name: "Moradia", total: 1800 },
-    { name: "Alimentação", total: 950 },
-    { name: "Transporte", total: 480 },
-    { name: "Lazer", total: 320 },
-  ],
-  expenses_by_pm: [
-    { name: "Cartão de crédito", total: 2450 },
-    { name: "Pix", total: 800 },
-    { name: "Débito", total: 300 },
-  ],
-};
 
 function StatCard({
   label, value, positive, negative, hero, className, children,

@@ -1,5 +1,5 @@
 use chrono::{Datelike, Months, NaiveDate};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 
 pub(crate) const FINISHED_GUARD_SQL: &str = "fb.installments IS NULL OR \
     ((CAST(strftime('%Y', t.date) AS INTEGER) * 12 + CAST(strftime('%m', t.date) AS INTEGER)) \
@@ -179,19 +179,48 @@ pub fn ensure_card_bills(conn: &Connection, account_id: i64, payment_month: Naiv
             continue;
         };
         let start_s = start.format("%Y-%m-%d").to_string();
-        let exists: i64 = conn
+        let desc = format!("Fatura - {name}");
+        // Garante exatamente UMA fatura por (pm + bill_start):
+        // 1. remove permanentemente as duplicatas do período, mantendo a de maior id;
+        // 2. reativa essa única (preservando o id que o frontend usa) com dados novos;
+        // 3. insere uma nova se ainda não existir nenhuma.
+        let keep: Option<Option<i64>> = conn
             .query_row(
-                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = ?2 AND deleted_at IS NULL AND account_id = ?3",
+                "SELECT MAX(id) FROM transactions
+                 WHERE payment_method_id = ?1 AND bill_start = ?2 AND account_id = ?3",
                 rusqlite::params![id, start_s, account_id],
                 |r| r.get(0),
             )
+            .optional()
             .map_err(db_err)?;
-        if exists == 0 {
+        let keep_id = keep.flatten();
+        if let Some(keep_id) = keep_id {
+            conn.execute(
+                "DELETE FROM transactions
+                 WHERE payment_method_id = ?1 AND bill_start = ?2 AND account_id = ?3 AND id != ?4",
+                rusqlite::params![id, start_s, account_id, keep_id],
+            )
+            .map_err(db_err)?;
+            conn.execute(
+                "UPDATE transactions
+                 SET deleted_at = NULL, updated_at = datetime('now'),
+                     description = ?1, amount = ?2, date = ?3, bill_end = ?4
+                 WHERE id = ?5",
+                rusqlite::params![
+                    desc,
+                    amount,
+                    due,
+                    end.format("%Y-%m-%d").to_string(),
+                    keep_id
+                ],
+            )
+            .map_err(db_err)?;
+        } else {
             conn.execute(
                 "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end, account_id)
                  VALUES (?1, ?2, 3, ?3, ?4, ?5, ?6, ?7)",
                 rusqlite::params![
-                    format!("Fatura - {name}"),
+                    desc,
                     amount,
                     due,
                     id,
@@ -457,5 +486,101 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].name, "Nubank");
         assert_eq!(rows[0].total, 5000);
+    }
+
+    #[test]
+    fn refresh_preserva_id_da_fatura() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('compra1', 1000, 2, '2026-06-05', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+        refresh_card_bills(&conn, 1).unwrap();
+        let id: i64 = conn
+            .query_row(
+                "SELECT id FROM transactions WHERE description = 'Fatura - Nubank'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        // nova compra no mesmo período → refresh deve preservar o id
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('compra2', 500, 2, '2026-06-07', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+        refresh_card_bills(&conn, 1).unwrap();
+        let id2: i64 = conn
+            .query_row(
+                "SELECT id FROM transactions WHERE description = 'Fatura - Nubank' AND deleted_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(id, id2, "fatura deve preservar o id entre refreshes");
+        let amount: i64 = conn
+            .query_row(
+                "SELECT amount FROM transactions WHERE id = ?1",
+                params![id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(amount, 1500);
+    }
+
+    #[test]
+    fn refresh_elimina_faturas_duplicadas_do_mesmo_periodo() {
+        let conn = test_db();
+        let card = add_pm(&conn, "Nubank", 2, Some(r#"{"close_day":10,"validity_day":20}"#));
+        // compra no período [2026-06-10, 2026-07-10) — indica que a fatura deve existir
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, card_mode)
+             VALUES ('compra', 1000, 2, '2026-06-15', ?1, 0)",
+            params![card],
+        )
+        .unwrap();
+        // simula histórico: várias linhas de fatura com o mesmo bill_start
+        // (uma ativa, demais deletadas), como acumulado por refreshes antigos
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end, account_id)
+             VALUES ('Fatura - Nubank', 1000, 3, '2026-06-20', ?1, '2026-06-10', '2026-07-10', 1)",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end, account_id, deleted_at)
+             VALUES ('Fatura - Nubank', 1000, 3, '2026-06-20', ?1, '2026-06-10', '2026-07-10', 1, '2026-06-01 00:00:00')",
+            params![card],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO transactions (description, amount, type, date, payment_method_id, bill_start, bill_end, account_id, deleted_at)
+             VALUES ('Fatura - Nubank', 1000, 3, '2026-06-20', ?1, '2026-06-10', '2026-07-10', 1, '2026-06-01 00:00:00')",
+            params![card],
+        )
+        .unwrap();
+
+        refresh_card_bills(&conn, 1).unwrap();
+
+        let ativas: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = '2026-06-10' AND deleted_at IS NULL",
+                params![card],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let todas: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM transactions WHERE payment_method_id = ?1 AND bill_start = '2026-06-10'",
+                params![card],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(ativas, 1, "deve restar exatamente 1 fatura ativa por período");
+        assert_eq!(todas, 1, "duplicatas devem ser removidas permanentemente");
     }
 }

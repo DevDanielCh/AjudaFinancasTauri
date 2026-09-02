@@ -33,8 +33,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-20 sm:p-6">
-          <div className="mx-auto flex w-full max-w-7xl flex-1">{children}</div>
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pb-20 sm:p-6">
+          <div className="mx-auto flex h-full w-full max-w-7xl min-h-0 flex-1 overflow-y-auto">{children}</div>
         </main>
       </div>
 

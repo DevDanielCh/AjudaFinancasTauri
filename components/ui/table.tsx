@@ -4,11 +4,32 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Table({ className, ...props }: React.ComponentProps<"table">) {
+function Table({ className, scrollable, children, ...props }: React.ComponentProps<"table"> & { scrollable?: boolean }) {
+  if (scrollable) {
+    return (
+      <div
+        data-slot="table-container"
+        className={cn("overflow-hidden rounded-md border", className)}
+      >
+        <div
+          data-slot="table-scroll"
+          className="overflow-y-auto"
+        >
+          <table
+            data-slot="table"
+            className="w-full caption-bottom border-separate border-spacing-x-0 border-spacing-y-0 text-sm"
+            {...props}
+          >
+            {children}
+          </table>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-hidden rounded-md border"
+      className={cn("relative w-full overflow-hidden rounded-md border", className)}
     >
       <table
         data-slot="table"
@@ -19,11 +40,15 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   )
 }
 
-function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
+function TableHeader({ className, scrollable, ...props }: React.ComponentProps<"thead"> & { scrollable?: boolean }) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn(
+        "[&_tr]:border-b",
+        scrollable && "sticky top-0 z-10 bg-card",
+        className
+      )}
       {...props}
     />
   )
@@ -65,12 +90,13 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   )
 }
 
-function TableHead({ className, ...props }: React.ComponentProps<"th">) {
+function TableHead({ className, scrollable, ...props }: React.ComponentProps<"th"> & { scrollable?: boolean }) {
   return (
     <th
       data-slot="table-head"
       className={cn(
         "h-10 px-3 text-sm text-left align-middle font-semibold whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0",
+        scrollable && "sticky top-0 z-10 bg-card",
         className
       )}
       {...props}

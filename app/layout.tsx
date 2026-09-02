@@ -2,7 +2,6 @@ import { Inter, JetBrains_Mono } from "next/font/google"
 import type { Viewport } from "next"
 
 import "./globals.css"
-import "@/src/bones/registry"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Providers } from "@/components/providers"
 import { Toaster } from "@/components/ui/toast"

@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
 import { XIcon } from "lucide-react"
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
@@ -42,11 +43,8 @@ function DialogOverlay({
 function DialogContent({
   className,
   children,
-  showCloseButton = true,
   ...props
-}: DialogPrimitive.Popup.Props & {
-  showCloseButton?: boolean
-}) {
+}: DialogPrimitive.Popup.Props) {
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -65,35 +63,44 @@ function DialogContent({
           )}
         >
           {children}
-          {showCloseButton && (
-            <DialogPrimitive.Close
-              data-slot="dialog-close"
-              render={
-                <Button
-                  variant="ghost"
-                  className="absolute top-2 right-2"
-                  size="icon-sm"
-                />
-              }
-            >
-              <XIcon
-              />
-              <span className="sr-only">Fechar</span>
-            </DialogPrimitive.Close>
-          )}
         </div>
       </DialogPrimitive.Popup>
     </DialogPortal>
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function DialogHeader({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<"div"> & { showCloseButton?: boolean }) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2 pb-2", className)}
+      className={cn("flex flex-col", className)}
       {...props}
-    />
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">{children}</div>
+        {showCloseButton && (
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="-mr-1 shrink-0"
+              />
+            }
+          >
+            <XIcon />
+            <span className="sr-only">Fechar</span>
+          </DialogPrimitive.Close>
+        )}
+      </div>
+      <Separator className="my-2" />
+    </div>
   )
 }
 

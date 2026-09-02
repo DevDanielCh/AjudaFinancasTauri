@@ -122,6 +122,7 @@ pub fn run() {
             organizacao_financeira::controller::update_transaction,
             organizacao_financeira::controller::delete_transactions,
             organizacao_financeira::controller::get_card_bill,
+            organizacao_financeira::controller::list_card_bill_transactions,
             organizacao_financeira::controller::list_categories,
             organizacao_financeira::controller::create_category,
             organizacao_financeira::controller::update_category,

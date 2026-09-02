@@ -18,6 +18,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/lib/use-is-mobile";
 import type { Sort } from "@/src/shared/models";
 import type { Column } from "./types";
 
@@ -29,7 +30,7 @@ const FEATURES = tableFeatures({
 export function DataTable<T extends { id: number }>({
   columns, rows, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
   canEditRow, onViewRow, onEditRow, onDuplicateRow, onDeleteRow, headerRight,
-  emptySearch,
+  emptySearch, tableClassName,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -46,6 +47,8 @@ export function DataTable<T extends { id: number }>({
   headerRight?: React.ReactNode;
   /** True quando há busca ativa e não há resultado (distingue de lista vazia). */
   emptySearch?: boolean;
+  /** Classe extra aplicada ao container da tabela. */
+  tableClassName?: string;
 }) {
   const columnDefs = React.useMemo<ColumnDef<typeof FEATURES, T, unknown>[]>(() => {
     const defs: ColumnDef<typeof FEATURES, T, unknown>[] = [];
@@ -85,6 +88,7 @@ export function DataTable<T extends { id: number }>({
 
   const table = useTable({ features: FEATURES, data: rows, columns: columnDefs });
   const visibleRows = table.getRowModel().rows;
+  const isMobile = useIsMobile();
 
   if (rows.length === 0) {
     return (
@@ -98,12 +102,20 @@ export function DataTable<T extends { id: number }>({
   }
 
   return (
-    <Table>
-      <TableHeader>
+    <Table
+      scrollable
+      className={cn(
+        tableClassName,
+        isMobile && "table-scroll-mobile",
+        !isMobile && "table-scroll-desktop"
+      )}
+    >
+      <TableHeader scrollable>
         <TableRow className="[&>th]:bg-card">
           {table.getFlatHeaders().map((header) => (
             <TableHead
               key={header.id}
+              scrollable
               className={cn(
                 header.column.getCanSort() && "cursor-pointer select-none"
               )}

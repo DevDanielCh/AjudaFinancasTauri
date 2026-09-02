@@ -243,6 +243,7 @@ pub struct CardBillDetail {
     pub id: i64,
     pub description: String,
     pub payment_method_name: String,
+    pub payment_method_id: i64,
     pub period_start: String,
     pub period_end: String,
     pub due_date: String,

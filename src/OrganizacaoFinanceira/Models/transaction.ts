@@ -23,6 +23,7 @@ export interface CardBillDetail {
   id: number;
   description: string;
   payment_method_name: string;
+  payment_method_id: number;
   period_start: string;
   period_end: string;
   due_date: string;

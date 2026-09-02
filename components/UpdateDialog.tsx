@@ -58,9 +58,9 @@ export function UpdateDialog() {
     }
   };
 
-  const body = (
+  const renderBody = (showHeaderClose: boolean) => (
     <>
-      <DialogHeader>
+      <DialogHeader showCloseButton={showHeaderClose}>
         <DialogTitle>Nova versão disponível</DialogTitle>
         <DialogDescription>
           Versão {available?.version} disponível. Atualizar agora?
@@ -79,7 +79,7 @@ export function UpdateDialog() {
     return (
       <Sheet open={!!available} onOpenChange={(o) => { if (!o) setAvailable(null); }}>
         <SheetContent side="bottom" showCloseButton>
-          <div className="px-4">{body}</div>
+          <div className="px-4">{renderBody(false)}</div>
         </SheetContent>
       </Sheet>
     );
@@ -88,7 +88,7 @@ export function UpdateDialog() {
   return (
     <Dialog open={!!available} onOpenChange={(o) => { if (!o) setAvailable(null); }}>
       <DialogContent>
-        {body}
+        {renderBody(true)}
       </DialogContent>
     </Dialog>
   );

@@ -14,4 +14,10 @@ export const transactionApi = {
     invoke<void>("update_transaction", { id, input }),
   remove: (ids: number[]) => invoke<void>("delete_transactions", { ids }),
   getCardBill: (id: number) => invoke<CardBillDetail>("get_card_bill", { id }),
+  listCardBillTransactions: (id: number, sort: Sort | null = null) =>
+    invoke<CardBillDetail>("list_card_bill_transactions", {
+      id,
+      sortBy: sort?.id,
+      sortDir: sort ? (sort.desc ? "desc" : "asc") : undefined,
+    }),
 };

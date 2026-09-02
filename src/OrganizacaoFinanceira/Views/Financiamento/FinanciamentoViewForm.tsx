@@ -38,9 +38,9 @@ export function FinanciamentoViewForm({ id, onClose }: { id: number | null; onCl
 
   const totalPaid = detail?.schedule.reduce((s, r) => s + r.installment, 0) ?? 0;
 
-  const body = (
+  const renderBody = (showHeaderClose: boolean) => (
     <>
-      <DialogHeader>
+      <DialogHeader showCloseButton={showHeaderClose}>
         <DialogTitle>
           {detail?.loan.description ?? "Carregando..."}
         </DialogTitle>
@@ -108,7 +108,7 @@ export function FinanciamentoViewForm({ id, onClose }: { id: number | null; onCl
     return (
       <Sheet open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent side="bottom" showCloseButton className="max-h-[90dvh] overflow-y-auto">
-          <div className="px-4">{body}</div>
+          <div className="px-4">{renderBody(false)}</div>
         </SheetContent>
       </Sheet>
     );
@@ -117,7 +117,7 @@ export function FinanciamentoViewForm({ id, onClose }: { id: number | null; onCl
   return (
     <Dialog open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {body}
+        {renderBody(true)}
       </DialogContent>
     </Dialog>
   );

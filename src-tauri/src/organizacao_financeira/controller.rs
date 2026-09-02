@@ -136,6 +136,32 @@ pub async fn get_card_bill(state: State<'_, AppState>, id: i64) -> Result<CardBi
             id,
             description,
             payment_method_name: pm_name,
+            payment_method_id: pm_id,
+            period_start: bs,
+            period_end: be,
+            due_date: due,
+            total,
+            transactions: txs,
+        })
+    })
+}
+
+#[tauri::command]
+pub async fn list_card_bill_transactions(
+    state: State<'_, AppState>,
+    id: i64,
+    sort_by: Option<String>,
+    sort_dir: Option<String>,
+) -> Result<CardBillDetail, String> {
+    with_db_active(&state, |c, _a| {
+        let (description, pm_name, bs, be, due, txs, pm_id) =
+            repository::list_card_bill_transactions(c, id, sort_by.as_deref(), sort_dir.as_deref())?;
+        let total: i64 = txs.iter().map(|t| t.amount).sum();
+        Ok(CardBillDetail {
+            id,
+            description,
+            payment_method_name: pm_name,
+            payment_method_id: pm_id,
             period_start: bs,
             period_end: be,
             due_date: due,

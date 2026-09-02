@@ -365,6 +365,13 @@ input[type="number"]::-webkit-outer-spin-button {
   background: transparent;
 }
 
+/* Scrollbar da tabela: track com a mesma cor do header (bg-card) para se
+   fundir com ele quando rola por baixo do thead sticky. Fora de @layer para
+   vencer o track transparente global acima. */
+[data-slot="table-scroll"]::-webkit-scrollbar-track {
+  background: var(--color-card);
+}
+
 @layer base {
   /* Desktop UIs often feel cleaner with accidental text selection disabled by default. */
   body {
@@ -385,5 +392,34 @@ input[type="number"]::-webkit-outer-spin-button {
   /* Opt back into selection for any generated UI surface that should behave like regular text. */
   .ui-selectable {
     @apply select-text;
+  }
+
+  /* Altura do scroll dos registros da tabela (header fixo). Calibrar conforme
+     AppHeader + busca + bottom nav. Desktop: sem bottom nav, com sidebar. */
+  [data-slot="table-container"].table-scroll-desktop [data-slot="table-scroll"] {
+    max-height: calc(100dvh - 13rem);
+  }
+  [data-slot="table-container"].table-scroll-mobile [data-slot="table-scroll"] {
+    max-height: calc(100dvh - 11rem);
+  }
+
+  /* Reserva espaço para o scrollbar para o header da tabela não "pular" quando
+     o scroll aparece/some ao navegar entre listas. */
+  [data-slot="table-scroll"] {
+    scrollbar-gutter: stable;
+  }
+
+  /* Modo flex (ex.: dialog da fatura): a tabela encolhe ao espaço disponível
+     em vez de usar max-height fixo em dvh. */
+  [data-slot="table-container"].table-scroll-flex {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+  }
+  [data-slot="table-container"].table-scroll-flex [data-slot="table-scroll"] {
+    max-height: none;
+    flex: 1;
+    min-height: 0;
   }
 }

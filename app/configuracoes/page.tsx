@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { MonthPicker } from "@/components/MonthPicker";
 import { MoneyInput } from "@/components/forms/MoneyInput";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings, useUpdateSettings, useRevalidateGenerated } from "@/src/shared/services";
 import { msg } from "@/src/shared/repository";
 import type { Settings } from "@/src/shared/models";
@@ -17,28 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 export default function ConfiguracoesPage() {
   const { data: settings, isLoading } = useSettings();
   if (isLoading || !settings) {
-    return (
-      <div className="mx-auto flex max-w-md flex-col gap-4">
-        <Skeleton className="h-9 w-full rounded-full" />
-        <Card>
-          <CardHeader><Skeleton className="h-5 w-28" /></CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-10 w-full rounded-md" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader><Skeleton className="h-5 w-24" /></CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <Skeleton className="h-6 w-full" />
-            <Skeleton className="h-10 w-full rounded-md" />
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return null;
   }
   return (
     <div className="mx-auto flex max-w-md flex-col gap-4">

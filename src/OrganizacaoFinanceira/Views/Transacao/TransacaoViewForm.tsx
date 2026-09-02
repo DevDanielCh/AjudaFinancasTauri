@@ -1,35 +1,58 @@
 "use client";
-import { useEffect, useState } from "react";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { useCallback, useEffect, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
+import { CrudPage } from "@/components/crud/CrudPage";
+import { TransacaoAddForm } from "./TransacaoAddForm";
 import { transactionApi } from "../../Repositories/transaction";
+import { categoryApi } from "../../Repositories/category";
+import { paymentMethodApi } from "../../Repositories/payment-method";
 import { msg } from "@/src/shared/repository";
+import { dashboardKeys } from "@/src/shared/services";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import { formatDate, formatMoney } from "@/lib/format";
-import type { CardBillDetail } from "../../Models/transaction";
+import { useMonth } from "@/lib/month-context";
+import { transactionKeys } from "../../Services/transaction";
+import { transactionSchema } from "@/lib/schemas";
+import { formatDate, formatMoney, todayISO } from "@/lib/format";
+import type { Sort } from "@/src/shared/models";
+import type { CardBillDetail, TransactionInput, TransactionRow } from "../../Models/transaction";
 
 export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose: () => void }) {
   const isMobile = useIsMobile();
+  const { month } = useMonth();
   const [detail, setDetail] = useState<CardBillDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (!id) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetail(null);
     setError(null);
-    transactionApi.getCardBill(id).then(setDetail).catch((e) => setError(msg(e)));
-  }, [id, onClose]);
+    transactionApi
+      .getCardBill(id)
+      .then(setDetail)
+      .catch((e) => setError(msg(e)));
+  }, [id, reload]);
 
-  const body = (
+  const load = useCallback(
+    (sort: Sort | null) => {
+      if (!id) return Promise.resolve<TransactionRow[]>([]);
+      return transactionApi
+        .listCardBillTransactions(id, sort)
+        .then((d) => {
+          setDetail((prev) => (prev ? { ...prev, ...d } : d));
+          return d.transactions;
+        });
+    },
+    [id],
+  );
+
+  const renderBody = (showHeaderClose: boolean) => (
     <>
-      <DialogHeader>
+      <DialogHeader showCloseButton={showHeaderClose}>
         <DialogTitle>{detail?.description ?? "Carregando..."}</DialogTitle>
       </DialogHeader>
       {error && (
@@ -38,40 +61,103 @@ export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose:
           <Button variant="outline" onClick={onClose}>Fechar</Button>
         </div>
       )}
-      {detail && (
-        <div className="flex flex-col gap-2 text-sm">
-          <div className="flex flex-wrap gap-4">
-            <span>Período: <b>{formatDate(detail.period_start)} a {formatDate(detail.period_end)}</b></span>
-            <span>Vencimento: <b>{formatDate(detail.due_date)}</b></span>
-            <span>Total: <b className="tabular-nums">{formatMoney(detail.total)}</b></span>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detail.transactions.length === 0 ? (
-                  <TableRow><TableCell colSpan={3}>Nenhuma compra no período</TableCell></TableRow>
-              ) : (
-                detail.transactions.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>{formatDate(t.date)}</TableCell>
-                    <TableCell>
-                      {t.description}
-                      {t.installment && (
-                        <span className="ml-1 text-xs text-muted-foreground">{t.installment}</span>
+      {!error && (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {detail && (
+            <div className="mb-3 grid grid-cols-3 gap-3">
+              <Card className="flex flex-col gap-0.5 px-4 py-3">
+                <span className="text-xs text-muted-foreground">Período</span>
+                <span className="text-sm font-bold">
+                  {formatDate(detail.period_start)} a {formatDate(detail.period_end)}
+                </span>
+              </Card>
+              <Card className="flex flex-col gap-0.5 px-4 py-3">
+                <span className="text-xs text-muted-foreground">Vencimento</span>
+                <span className="text-sm font-bold">{formatDate(detail.due_date)}</span>
+              </Card>
+              <Card className="flex flex-col gap-0.5 px-4 py-3">
+                <span className="text-xs text-muted-foreground">Total</span>
+                <span className="text-lg font-bold text-negative tabular-nums">
+                  {formatMoney(detail.total)}
+                </span>
+              </Card>
+            </div>
+          )}
+          <CrudPage
+            config={{
+              title: "Compras da Fatura",
+              addLabel: "Nova Compra",
+              newTitle: "Nova Compra",
+              editTitle: "Editar Compra",
+              columns: [
+                { label: "Data", name: "date", render: (r) => formatDate(r.date) },
+                {
+                  label: "Descrição",
+                  name: "description",
+                  render: (r) => (
+                    <span>
+                      {r.description}
+                      {r.installment && (
+                        <span className="ml-1 text-xs text-muted-foreground">{r.installment}</span>
                       )}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatMoney(t.amount)}</TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    </span>
+                  ),
+                },
+                {
+                  label: "Valor",
+                  name: "amount",
+                  render: (r) => (
+                    <span className="text-negative tabular-nums">− {formatMoney(r.amount)}</span>
+                  ),
+                },
+              ],
+              mobileCorners: {
+                topLeft: (r) => r.description,
+                bottomLeft: (r) => (r.installment ? `Parcela ${r.installment}` : r.category_name ?? "—"),
+                topRight: (r) => (
+                  <span className="text-negative tabular-nums">− {formatMoney(r.amount)}</span>
+                ),
+                bottomRight: (r) => formatDate(r.date),
+              },
+              keepOpen: false,
+              onSaved: () => setReload((n) => n + 1),
+              load,
+              create: transactionApi.create,
+              update: (bid, d) => transactionApi.update(bid, d),
+              remove: transactionApi.remove,
+              empty: (): TransactionInput => ({
+                description: "",
+                amount: 0,
+                type: 2,
+                date: todayISO(),
+                category_id: null,
+                payment_method_id: detail?.payment_method_id ?? null,
+                card_mode: 0,
+              }),
+              toInput: (r): TransactionInput => ({
+                description: r.description,
+                amount: r.amount,
+                type: r.type as 1 | 2 | 4 | 5,
+                date: r.date,
+                category_id: r.category_id,
+                payment_method_id: r.payment_method_id,
+                card_mode: r.card_mode,
+              }),
+              protected: () => false,
+              tableClassName: "table-scroll-flex",
+              loadResources: async () => {
+                const [categories, paymentMethods] = await Promise.all([
+                  categoryApi.list(),
+                  paymentMethodApi.list(),
+                ]);
+                return { categories, paymentMethods };
+              },
+              FormFields: TransacaoAddForm,
+              queryKey: ["card-bill", id, "transactions"],
+              invalidate: [["card-bill"], transactionKeys(month), dashboardKeys(month)],
+              schema: transactionSchema,
+            }}
+          />
         </div>
       )}
     </>
@@ -80,8 +166,8 @@ export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose:
   if (isMobile) {
     return (
       <Sheet open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="bottom" showCloseButton className="max-h-[90dvh] overflow-y-auto">
-          <div className="px-4">{body}</div>
+        <SheetContent side="bottom" showCloseButton className="flex h-[92dvh] flex-col overflow-hidden p-0">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 p-4">{renderBody(false)}</div>
         </SheetContent>
       </Sheet>
     );
@@ -89,8 +175,8 @@ export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose:
 
   return (
     <Dialog open={!!id} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        {body}
+      <DialogContent className="flex h-[90vh] flex-col overflow-hidden sm:max-w-3xl">
+        <div className="flex min-h-0 flex-1 flex-col px-6 pb-6">{renderBody(true)}</div>
       </DialogContent>
     </Dialog>
   );
