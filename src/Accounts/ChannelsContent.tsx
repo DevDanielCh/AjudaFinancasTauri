@@ -2,14 +2,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeftRight, CalendarClock, CreditCard, Landmark,
+  ArrowLeftRight, CalendarClock, ChevronLeft, ChevronRight, CreditCard, Landmark,
   LayoutDashboard, PiggyBank, RefreshCw, Tags,
 } from "lucide-react";
 import { MonthPicker } from "@/components/MonthPicker";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MonthStatusBadge } from "@/components/MonthStatusBadge";
 import { SyncStatusBadge } from "@/src/Sync/SyncStatus";
 import { useMonth } from "@/lib/month-context";
+import { shiftMonth } from "@/lib/format";
 import { useAccounts } from "./services";
 
 export const MODULE_GROUPS = [
@@ -48,10 +50,30 @@ export function ChannelsContent({ onNavigate, showStatus }: ChannelsProps) {
       {/* Filtro global de mês; altura/borda alinham com o header fixo
           e com o divider da rail (pt 8 + botão 36/40 + mt 4 + 1). */}
       <div
-        className="flex h-[calc(57px_+_var(--safe-area-inset-top))] shrink-0 items-center border-b px-3 sm:h-[calc(54px_+_var(--safe-area-inset-top))]"
+        className="flex h-[calc(57px_+_var(--safe-area-inset-top))] shrink-0 items-center border-b px-2"
         style={{ paddingTop: "var(--safe-area-inset-top)" }}
       >
-        <MonthPicker value={month} onChange={setMonth} min={min} />
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Mês anterior"
+          disabled={!month || month <= min}
+          onClick={() => setMonth(shiftMonth(month, -1))}
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+        <div className="flex min-w-0 flex-1 justify-center">
+          <MonthPicker value={month} onChange={setMonth} min={min} compact />
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Próximo mês"
+          disabled={!month}
+          onClick={() => setMonth(shiftMonth(month, 1))}
+        >
+          <ChevronRight className="size-4" />
+        </Button>
       </div>
       {/* Padding vertical alinhado ao layout entre o header e o conteúdo. */}
       <div className="flex min-h-0 flex-1 flex-col pt-[10px]">
@@ -106,7 +128,7 @@ function ChannelLink({
       onClick={onClick}
       data-slot="channel-link"
       className={cn(
-        "flex select-none items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        "flex select-none items-center gap-2 rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:bg-sidebar-accent focus-visible:text-sidebar-accent-foreground",
         active && "bg-sidebar-accent text-sidebar-accent-foreground"
       )}
     >

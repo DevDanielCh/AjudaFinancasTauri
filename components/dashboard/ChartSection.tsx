@@ -10,20 +10,50 @@ import { tooltip } from "@tanstack/charts/tooltip";
 import { pie, polar, radialArc } from "@tanstack/charts/polar";
 import type { BreakdownRow, ChartData } from "@/src/shared/models";
 import { formatMoney, formatMonth } from "@/lib/format";
+import { useTheme } from "next-themes";
 import {
   Card, CardAction, CardContent, CardHeader, CardTitle,
 } from "@/components/ui/card";
 
-// Cores do design system (DESIGN.md): verde/vermelho semânticos, azul estrutural, reserva em gold.
-const TREND_COLORS = { income: "#1aae39", expenses: "#dc2626", balance: "#0075de", reserva: "#FFD700" };
+// Cores do design system (DESIGN.md): resolvidas dos tokens CSS (adaptam ao dark mode).
+// Fallbacks sao os valores do tema claro, usados antes do tema montar.
+function token(name: string, fallback: string): string {
+  if (typeof document === "undefined") return fallback;
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
 const TREND_LABEL = { income: "Receitas", expenses: "Despesas", balance: "Saldo", reserva: "Reserva" } as const;
-// ponytail: backend não expõe cor por categoria; paleta fixa cicla por índice.
-const DONUT_COLORS = [
-  "#62aef0", "#d6b6f6", "#ff64c8", "#dd5b00", "#2a9d99",
-  "#1aae39", "#391c57", "#793400", "#0075de", "#523410",
-];
+
+function useChartColors() {
+  const { resolvedTheme } = useTheme();
+  return React.useMemo(() => {
+    void resolvedTheme;
+    // ler tokens de novo a cada troca de tema
+    const trend = {
+      income: token("--color-positive", "#1aae39"),
+      expenses: token("--color-negative", "#dc2626"),
+      balance: token("--color-primary", "#0075de"),
+      reserva: token("--color-sticker-purple-deep", "#391c57"),
+    };
+    const donut = [
+      token("--color-chart-1", "#62aef0"),
+      token("--color-chart-2", "#d6b6f6"),
+      token("--color-chart-3", "#ff64c8"),
+      token("--color-chart-4", "#dd5b00"),
+      token("--color-chart-5", "#2a9d99"),
+      token("--color-positive", "#1aae39"),
+      token("--color-sticker-purple-deep", "#391c57"),
+      token("--color-sticker-orange-deep", "#793400"),
+      token("--color-primary", "#0075de"),
+      token("--color-sticker-brown", "#523410"),
+    ];
+    return { trend, donut };
+  }, [resolvedTheme]);
+}
 
 export function ChartSection({ data, month }: { data: ChartData; month: string }) {
+  const colors = useChartColors();
   const folded = React.useMemo(() => {
     const f = fold(data.monthly, {
       fields: ["income", "expenses", "balance", "reserva"] as const,
@@ -64,10 +94,10 @@ export function ChartSection({ data, month }: { data: ChartData; month: string }
         },
         color: {
           domain: Object.values(TREND_LABEL),
-          range: Object.values(TREND_COLORS),
+          range: Object.values(colors.trend),
         },
       }),
-    [folded]
+    [folded, colors.trend]
   );
 
   return (
@@ -81,7 +111,7 @@ export function ChartSection({ data, month }: { data: ChartData; month: string }
                 <li key={key} className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span
                     className="size-2.5 rounded-full"
-                    style={{ backgroundColor: TREND_COLORS[key as keyof typeof TREND_COLORS] }}
+                    style={{ backgroundColor: colors.trend[key as keyof typeof colors.trend] }}
                   />
                   {label}
                 </li>
@@ -100,6 +130,7 @@ export function ChartSection({ data, month }: { data: ChartData; month: string }
 }
 
 function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[]; income: number }) {
+  const colors = useChartColors();
   const definition = React.useMemo(() => {
     const slices = pie(rows, { value: "total" });
     return defineChart({
@@ -119,7 +150,7 @@ function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[
       ],
       color: {
         domain: rows.map((r) => r.name),
-        range: rows.map((_, i) => DONUT_COLORS[i % DONUT_COLORS.length]),
+        range: rows.map((_, i) => colors.donut[i % colors.donut.length]),
       },
       tooltip: {
         use: tooltip,
@@ -130,7 +161,7 @@ function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[
         },
       },
     });
-  }, [rows, income]);
+  }, [rows, income, colors.donut]);
 
   return (
     <Card>
@@ -147,7 +178,7 @@ function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[
                   <span className="flex min-w-0 items-center gap-2">
                     <span
                       className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }}
+                      style={{ backgroundColor: colors.donut[i % colors.donut.length] }}
                     />
                     <span className="truncate">{r.name}</span>
                   </span>

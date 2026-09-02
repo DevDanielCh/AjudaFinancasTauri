@@ -44,7 +44,7 @@ export function BottomBar() {
         className="fixed inset-x-0 bottom-3 z-40 flex justify-center px-6 sm:hidden"
         style={{ bottom: "calc(0.75rem + var(--safe-area-inset-bottom))" }}
       >
-        <div className="flex w-full max-w-xs items-center justify-between gap-1 rounded-full border border-background/60 bg-background/70 px-2 py-1.5 shadow-lg backdrop-blur-xl">
+        <div className="flex w-full max-w-xs items-center justify-between gap-1 rounded-full border border-background/60 bg-background/70 px-2 py-1.5 shadow-sm backdrop-blur-xl">
           {TABS.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
@@ -52,9 +52,10 @@ export function BottomBar() {
                 key={href}
                 href={href}
                 aria-label={label}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex flex-1 items-center justify-center rounded-full py-2 text-muted-foreground transition-colors",
-                  active && "bg-primary text-primary-foreground"
+                  "flex flex-1 items-center justify-center rounded-full py-2 text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+                  active && "bg-primary text-primary-foreground hover:text-primary-foreground"
                 )}
               >
                 <Icon className="size-5" />
@@ -65,7 +66,7 @@ export function BottomBar() {
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Mais"
-            className="flex flex-1 items-center justify-center rounded-full py-2 text-muted-foreground"
+            className="flex flex-1 items-center justify-center rounded-full py-2 text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Ellipsis className="size-5" />
           </button>

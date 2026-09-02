@@ -309,11 +309,20 @@ html.dark {
 /* Disable page-level overscroll and rubber-band scrolling so the UI feels more desktop-native. */
 html,
 body {
-  height: 100%;
+  box-sizing: border-box;
+  height: 100dvh;
   --safe-area-inset-top: 0px;
   --safe-area-inset-bottom: 0px;
   --safe-area-inset-left: 0px;
   --safe-area-inset-right: 0px;
+}
+
+/* Uma única camada de offset (body) para o notch/status bar; os componentes
+   fixos (header, rail, bottom bar) reaplicam o inset só no seu próprio chrome. */
+body {
+  padding-top: var(--safe-area-inset-top);
+  padding-left: var(--safe-area-inset-left);
+  padding-right: var(--safe-area-inset-right);
 }
 
 /* Hide native number-input step spinners (WebKit desktop). */

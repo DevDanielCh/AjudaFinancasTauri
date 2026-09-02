@@ -1,6 +1,6 @@
 "use client";
 import * as React from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Eye, Inbox, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, Eye, Inbox, MoreHorizontal, Pencil, SearchX, Trash2 } from "lucide-react";
 import {
   ColumnDef,
   createSortedRowModel,
@@ -29,6 +29,7 @@ const FEATURES = tableFeatures({
 export function DataTable<T extends { id: number }>({
   columns, rows, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
   canEditRow, onViewRow, onEditRow, onDuplicateRow, onDeleteRow, headerRight,
+  emptySearch,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -43,6 +44,8 @@ export function DataTable<T extends { id: number }>({
   onDuplicateRow?: (row: T) => void;
   onDeleteRow?: (row: T) => void;
   headerRight?: React.ReactNode;
+  /** True quando há busca ativa e não há resultado (distingue de lista vazia). */
+  emptySearch?: boolean;
 }) {
   const columnDefs = React.useMemo<ColumnDef<typeof FEATURES, T, unknown>[]>(() => {
     const defs: ColumnDef<typeof FEATURES, T, unknown>[] = [];
@@ -87,8 +90,8 @@ export function DataTable<T extends { id: number }>({
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon"><Inbox /></EmptyMedia>
-          <EmptyTitle>Nenhum registro</EmptyTitle>
+          <EmptyMedia variant="icon">{emptySearch ? <SearchX /> : <Inbox />}</EmptyMedia>
+          <EmptyTitle>{emptySearch ? "Nenhum resultado para a busca" : "Nenhum registro"}</EmptyTitle>
         </EmptyHeader>
       </Empty>
     );

@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -11,13 +10,17 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import type { CrudConfig } from "./CrudPage";
+
+/** Singular genérico: remove apenas o "s" final (título irregular vem via config). */
+function singular(title: string): string {
+  return title.endsWith("s") ? title.slice(0, -1) : title;
+}
 
 export function ViewDialog<T extends { id: number }, F, E>({
   config,
@@ -43,8 +46,7 @@ export function ViewDialog<T extends { id: number }, F, E>({
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent>
           <SheetHeader className="mb-4">
-            <SheetTitle>Visualizar {config.title.slice(0, -1)}</SheetTitle>
-            <SheetDescription />
+            <SheetTitle>Visualizar {singular(config.title)}</SheetTitle>
           </SheetHeader>
           <ViewFields row={row} />
           <SheetFooter className="mt-6">{actions}</SheetFooter>
@@ -57,8 +59,7 @@ export function ViewDialog<T extends { id: number }, F, E>({
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Visualizar {config.title.slice(0, -1)}</DialogTitle>
-          <DialogDescription />
+          <DialogTitle>Visualizar {singular(config.title)}</DialogTitle>
         </DialogHeader>
         <ViewFields row={row} />
         <DialogFooter className="mt-6">{actions}</DialogFooter>

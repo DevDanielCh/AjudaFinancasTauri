@@ -7,7 +7,7 @@ import { loanApi } from "@/src/OrganizacaoFinanceira/Repositories/loan";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
 import { loanKeys } from "@/src/OrganizacaoFinanceira/Services/loan";
 import { loanSchema } from "@/lib/schemas";
-import { formatMonth, formatMoney } from "@/lib/format";
+import { currentMonthISO, formatMonth, formatMoney } from "@/lib/format";
 import type { Loan, LoanInput } from "@/src/OrganizacaoFinanceira/Models/loan";
 
 export default function LoansPage() {
@@ -26,8 +26,7 @@ export default function LoansPage() {
             { label: "Parcela", name: "installment", render: (r) => <span className="tabular-nums">{formatMoney(r.installment)}</span> },
             { label: "Parcelas", name: "installments", render: (r) => `${r.paid_count}/${r.total_installments}` },
             { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
-            { label: "Fim", render: (r) => formatMonth(r.end_month) },
-          ],
+            { label: "Fim", render: (r) => formatMonth(r.end_month) },          ],
           mobileCorners: {
             topLeft: (r) => r.description,
             bottomLeft: (r) => `${r.type === 1 ? "Empréstimo" : "Financiamento"} · ${r.paid_count}/${r.total_installments}`,
@@ -43,7 +42,7 @@ export default function LoansPage() {
           empty: (): LoanInput => ({
             type: 1, description: "", principal: 0, installment: 0,
             total_installments: 0, day: 1,
-            start_month: new Date().toISOString().slice(0, 7),
+            start_month: currentMonthISO(),
             payment_method_id: 0, monthly_rate: 0,
           }),
           toInput: (r: Loan): LoanInput => ({

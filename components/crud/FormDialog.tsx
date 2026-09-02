@@ -1,5 +1,5 @@
 "use client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { skipToken } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
 import type { FormValidateFn } from "@tanstack/react-form";
@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -15,7 +14,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -28,16 +26,22 @@ import { msg } from "@/src/shared/repository";
 import type { CrudConfig, DialogState } from "./CrudPage";
 import type { CrudFormApi } from "@/lib/forms";
 
+/** Singular genérico: remove apenas o "s" final (título irregular vem via config). */
+function singular(title: string): string {
+  return title.endsWith("s") ? title.slice(0, -1) : title;
+}
+
 export function FormDialog<T extends { id: number }, F, E>({
   config,
   dialog,
   onClose,
+  onSaved,
 }: {
   config: CrudConfig<T, F, E>;
   dialog: DialogState<T, F>;
   onClose: () => void;
+  onSaved?: () => void;
 }) {
-  const client = useQueryClient();
   const isMobile = useIsMobile();
 
   const form = useForm({
@@ -56,10 +60,7 @@ export function FormDialog<T extends { id: number }, F, E>({
       dialog.mode === "edit" ? config.update(dialog.row.id, value) : config.create(value),
     onSuccess: () => {
       toast.add({ title: "Salvo", type: "success" });
-      void client.invalidateQueries({ queryKey: config.queryKey, exact: true });
-      for (const key of config.invalidate ?? []) {
-        void client.invalidateQueries({ queryKey: key });
-      }
+      onSaved?.();
       if (dialog.mode === "create" && config.keepOpen) {
         form.reset(config.empty());
       } else {
@@ -115,12 +116,16 @@ export function FormDialog<T extends { id: number }, F, E>({
     return (
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
         <SheetContent>
-          <form onSubmit={form.handleSubmit}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void form.handleSubmit();
+            }}
+          >
             <SheetHeader className="mb-4">
               <SheetTitle>
-                {dialog.mode === "edit" ? config.editTitle ?? `Editar ${config.title.slice(0, -1)}` : config.newTitle ?? `Novo ${config.title.slice(0, -1)}`}
+                {dialog.mode === "edit" ? config.editTitle ?? `Editar ${singular(config.title)}` : config.newTitle ?? `Novo ${singular(config.title)}`}
               </SheetTitle>
-              <SheetDescription />
             </SheetHeader>
             {body}
             <SheetFooter className="mt-6">{actions}</SheetFooter>
@@ -133,12 +138,16 @@ export function FormDialog<T extends { id: number }, F, E>({
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
-        <form onSubmit={form.handleSubmit}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void form.handleSubmit();
+          }}
+        >
           <DialogHeader>
             <DialogTitle>
-              {dialog.mode === "edit" ? config.editTitle ?? `Editar ${config.title.slice(0, -1)}` : config.newTitle ?? `Novo ${config.title.slice(0, -1)}`}
+              {dialog.mode === "edit" ? config.editTitle ?? `Editar ${singular(config.title)}` : config.newTitle ?? `Novo ${singular(config.title)}`}
             </DialogTitle>
-            <DialogDescription />
           </DialogHeader>
           {body}
           <DialogFooter className="mt-6">{actions}</DialogFooter>

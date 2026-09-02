@@ -4,10 +4,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { transactionApi } from "../../Repositories/transaction";
+import { msg } from "@/src/shared/repository";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { formatDate, formatMoney } from "@/lib/format";
 import type { CardBillDetail } from "../../Models/transaction";
@@ -15,12 +17,14 @@ import type { CardBillDetail } from "../../Models/transaction";
 export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose: () => void }) {
   const isMobile = useIsMobile();
   const [detail, setDetail] = useState<CardBillDetail | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetail(null);
-    transactionApi.getCardBill(id).then(setDetail).catch(() => onClose());
+    setError(null);
+    transactionApi.getCardBill(id).then(setDetail).catch((e) => setError(msg(e)));
   }, [id, onClose]);
 
   const body = (
@@ -28,12 +32,18 @@ export function TransacaoViewForm({ id, onClose }: { id: number | null; onClose:
       <DialogHeader>
         <DialogTitle>{detail?.description ?? "Carregando..."}</DialogTitle>
       </DialogHeader>
+      {error && (
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" onClick={onClose}>Fechar</Button>
+        </div>
+      )}
       {detail && (
         <div className="flex flex-col gap-2 text-sm">
           <div className="flex flex-wrap gap-4">
             <span>Período: <b>{formatDate(detail.period_start)} a {formatDate(detail.period_end)}</b></span>
             <span>Vencimento: <b>{formatDate(detail.due_date)}</b></span>
-            <span>Total: <b>{formatMoney(detail.total)}</b></span>
+            <span>Total: <b className="tabular-nums">{formatMoney(detail.total)}</b></span>
           </div>
           <Table>
             <TableHeader>

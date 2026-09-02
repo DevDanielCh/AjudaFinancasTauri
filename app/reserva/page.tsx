@@ -13,7 +13,7 @@ import { reservaKeys } from "@/src/Investimentos/Services/reserva";
 import { transactionKeys } from "@/src/OrganizacaoFinanceira/Services/transaction";
 import { dashboardKeys, chartKeys } from "@/src/shared/services";
 import { reservaSchema } from "@/lib/schemas";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ReservaInput } from "@/src/Investimentos/Models/reserva";
 import type { TransactionRow } from "@/src/OrganizacaoFinanceira/Models/transaction";
@@ -51,8 +51,8 @@ export default function ReservaPage() {
             label: "Tipo",
             render: (r) =>
               r.type === 5
-                ? <Badge className="border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400">Remoção</Badge>
-                : <Badge className="border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400">Adição</Badge>,
+                ? <Badge variant="negative">Remoção</Badge>
+                : <Badge variant="positive">Adição</Badge>,
           },
           { label: "Descrição", render: (r) => r.description },
           {
@@ -88,7 +88,7 @@ export default function ReservaPage() {
           transactionApi.update(id, { ...d, category_id: null, payment_method_id: null, card_mode: 0 }),
         remove: transactionApi.remove,
         empty: (): ReservaInput => ({
-          description: "", amount: 0, type: 4, date: new Date().toISOString().slice(0, 10),
+          description: "", amount: 0, type: 4, date: todayISO(),
         }),
         toInput: (r): ReservaInput => ({ description: r.description, amount: r.amount, type: r.type, date: r.date }),
         summary: balance,

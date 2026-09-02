@@ -20,20 +20,22 @@ function Shell({ children }: { children: React.ReactNode }) {
   const [deleting, setDeleting] = useState<AccountInfo | null>(null);
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-full">
       <AccountRail />
 
       {/* Sidebar fixa no desktop */}
       <aside
         data-slot="channels-sidebar"
-        className="hidden h-screen w-60 shrink-0 flex-col border-r bg-sidebar md:flex"
+        className="hidden h-full w-60 shrink-0 flex-col border-r bg-sidebar md:flex"
       >
         <ChannelsContent />
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-20 sm:p-4">{children}</main>
+        <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-20 sm:p-6">
+          <div className="mx-auto flex w-full max-w-7xl flex-1">{children}</div>
+        </main>
       </div>
 
       {/* Drawer de canais no mobile */}

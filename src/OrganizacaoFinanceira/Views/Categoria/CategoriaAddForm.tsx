@@ -10,11 +10,10 @@ import type { CategoryInput } from "../../Models/category";
 import type { CrudFormApi } from "@/lib/forms";
 
 const PALETTE = [
-  "#ef4444", "#f97316", "#f59e0b",
-  "#84cc16", "#22c55e", "#10b981",
-  "#06b6d4", "#3b82f6", "#6366f1",
-  "#a855f7", "#ec4899", "#f43f5e",
-  "#78716c",
+  "#62aef0", "#2a9d99", "#1aae39",
+  "#dd5b00", "#a855f7", "#ec4899",
+  "#0ea5e9", "#6366f1", "#f43f5e",
+  "#523410", "#111827", "#6b7280",
 ];
 
 export function CategoriaAddForm({

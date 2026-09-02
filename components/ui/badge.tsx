@@ -15,6 +15,12 @@ const badgeVariants = cva(
           "border-transparent bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+        positive:
+          "border-border bg-positive/10 text-positive dark:bg-positive/15 [a]:hover:bg-positive/20",
+        negative:
+          "border-border bg-negative/10 text-negative dark:bg-negative/15 [a]:hover:bg-negative/20",
+        warning:
+          "border-border bg-sticker-orange/10 text-sticker-orange dark:bg-sticker-orange/15 [a]:hover:bg-sticker-orange/20",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

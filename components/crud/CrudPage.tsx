@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RefreshCw, Search } from "lucide-react";
+import { FilterX, Plus, RefreshCw, Search } from "lucide-react";
 import type { ZodType } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,24 +88,25 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
     queryKey: effectiveKey,
     queryFn: () => config.load(sort),
     staleTime: 15_000,
-    placeholderData: sort ? keepPreviousData : undefined,
+    placeholderData: keepPreviousData,
   });
   const rows = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
   const loading = rowsQuery.isFetching;
 
   const invalidate = useCallback(() => {
     void client.invalidateQueries({ queryKey: effectiveKey, exact: true });
-    for (const key of config.invalidate ?? []) {
-      void client.invalidateQueries({ queryKey: key });
-    }
-  }, [client, effectiveKey, config.invalidate]);
+  }, [client, effectiveKey]);
 
   const refresh = useCallback(async () => {
-    setQuery("");
-    setVisibleCount(pageSize);
     const res = await rowsQuery.refetch();
     if (res.error) toast.add({ title: msg(res.error), type: "error" });
-  }, [pageSize, rowsQuery]);
+  }, [rowsQuery]);
+
+  const clearFilters = useCallback(() => {
+    setQuery("");
+    setSort(null);
+    setVisibleCount(pageSize);
+  }, [pageSize]);
 
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -179,6 +180,12 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
               className="pl-8"
             />
           </div>
+          {(query.trim() || sort) && (
+            <Button variant="outline" onClick={clearFilters}>
+              <FilterX data-icon="inline-start" />
+              Limpar Filtros
+            </Button>
+          )}
           {!isMobile && (
             <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
               <RefreshCw data-icon="inline-start" className={cn(loading && "animate-spin")} />
@@ -204,11 +211,13 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
                 onTap={(row) => config.onView?.(row)}
                 onLongPress={(row) => setOptionsRow(row)}
                 rowClass={config.rowClass}
+                emptySearch={!!q && filtered.length === 0}
               />
             ) : (
               <DataTable
                 columns={config.columns}
                 rows={pageRows}
+                emptySearch={!!q && filtered.length === 0}
                 onRowDoubleClick={
                   config.onRowDoubleClick ??
                   ((row) => {
@@ -250,6 +259,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
             config={config}
             dialog={dialog}
             onClose={() => setDialog(null)}
+            onSaved={() => invalidate()}
           />
         )}
 

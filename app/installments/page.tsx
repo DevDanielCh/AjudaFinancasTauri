@@ -6,7 +6,7 @@ import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
 import { fixedBillKeys } from "@/src/OrganizacaoFinanceira/Services/fixed-bill";
 import { fixedBillSchema } from "@/lib/schemas";
-import { formatMonth, formatMoney } from "@/lib/format";
+import { currentMonthISO, formatMonth, formatMoney } from "@/lib/format";
 import type { FixedBillInput } from "@/src/OrganizacaoFinanceira/Models/fixed-bill";
 import type { Sort } from "@/src/shared/models";
 
@@ -38,7 +38,7 @@ export default function InstallmentsPage() {
         rowClass: (r) => (r.finished ? "opacity-50" : ""),
         empty: (): FixedBillInput => ({
           description: "", amount: 0, day: 1, category_id: null,
-          payment_method_id: 0, start_month: new Date().toISOString().slice(0, 7),
+          payment_method_id: 0, start_month: currentMonthISO(),
           end_month: null, installments: 2, purchase_date: null,
         }),
         toInput: (r): FixedBillInput => ({

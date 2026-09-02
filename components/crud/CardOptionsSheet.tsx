@@ -1,6 +1,6 @@
 "use client";
 import { Eye, Pencil, Trash2 } from "lucide-react";
-import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 export function CardOptionsSheet<T extends { id: number }>({
   open, onOpenChange, row, title, canEdit, onView, onEdit, onDelete,
@@ -20,7 +20,6 @@ export function CardOptionsSheet<T extends { id: number }>({
         {row && (
           <>
             <SheetTitle className="px-4 pt-2">{title(row)}</SheetTitle>
-            <SheetDescription className="px-4" />
             <div className="flex flex-col px-2">
               {onView && (
                 <button

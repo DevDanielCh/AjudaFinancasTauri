@@ -22,13 +22,8 @@ export function MonthStatusBadge({
   const label = sobrou ? `Sobrou ${formatMoney(abs)}` : `Faltou ${formatMoney(abs)}`;
   return (
     <Badge
-      className={cn(
-        "text-xs",
-        variant === "positive" && "bg-positive text-positive-foreground",
-        variant === "negative" && "bg-negative text-negative-foreground",
-        variant === "yellow" && "bg-sticker-orange text-white",
-        className,
-      )}
+      variant={variant === "positive" ? "positive" : variant === "negative" ? "negative" : "warning"}
+      className={cn("text-xs", className)}
     >
       {label}
     </Badge>

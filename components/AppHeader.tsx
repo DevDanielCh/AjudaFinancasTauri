@@ -60,7 +60,7 @@ export function AppHeader() {
             href="/configuracoes"
             aria-label="Configurações"
             className={cn(
-              "flex size-8 items-center justify-center rounded-md hover:bg-accent",
+              "flex size-8 items-center justify-center rounded-md outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
               pathname.startsWith("/configuracoes") && "bg-accent"
             )}
           >

@@ -200,12 +200,7 @@ function MetaCard({ pct, income, aportes }: { pct: number; income: number; aport
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between gap-2 text-sm font-medium">
           Meta de investimento
-          <Badge className={cn(
-            "border",
-            atingiu
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400"
-          )}>
+          <Badge variant={atingiu ? "positive" : "negative"}>
             {atingiu ? "Meta batida" : "Não bateu"}
           </Badge>
         </CardTitle>

@@ -5,7 +5,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatMonth } from "@/lib/format";
+import { currentMonthISO, formatMonth } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -13,7 +13,7 @@ const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov
 export function MonthPicker({
   value, onChange, min, compact,
 }: { value: string; onChange: (v: string) => void; min?: string; compact?: boolean }) {
-  const [year, setYear] = useState(() => Number((value || new Date().toISOString().slice(0,7)).slice(0,4)));
+  const [year, setYear] = useState(() => Number((value || currentMonthISO()).slice(0, 4)));
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -48,9 +48,10 @@ export function MonthPicker({
               <button
                 key={m}
                 disabled={disabled}
+                aria-pressed={ym === value}
                 onClick={() => onChange(ym)}
                 className={cn(
-                  "cursor-pointer rounded-md px-2 py-1.5 text-sm hover:bg-accent disabled:cursor-not-allowed disabled:opacity-40",
+                  "cursor-pointer rounded-md px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-40",
                   ym === value && "bg-primary text-primary-foreground"
                 )}
               >

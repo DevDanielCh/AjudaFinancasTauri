@@ -1,6 +1,6 @@
 "use client";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, formatMonth } from "@/lib/format";
 import type { FixedBill } from "../../Models/fixed-bill";
 
 export function ContaFixaViewForm({ row }: { row: FixedBill }) {
@@ -12,7 +12,7 @@ export function ContaFixaViewForm({ row }: { row: FixedBill }) {
       </Field>
       <Field>
         <FieldLabel>Valor</FieldLabel>
-        <div className="text-sm font-mono">{formatMoney(row.amount)}</div>
+        <div className="text-sm font-semibold tabular-nums">{formatMoney(row.amount)}</div>
       </Field>
       <Field>
         <FieldLabel>Dia do vencimento</FieldLabel>
@@ -28,12 +28,12 @@ export function ContaFixaViewForm({ row }: { row: FixedBill }) {
       </Field>
       <Field>
         <FieldLabel>Início</FieldLabel>
-        <div className="text-sm">{row.start_month}</div>
+        <div className="text-sm">{row.start_month ? formatMonth(row.start_month) : "—"}</div>
       </Field>
       {row.end_month && (
         <Field>
           <FieldLabel>Fim</FieldLabel>
-          <div className="text-sm">{row.end_month}</div>
+          <div className="text-sm">{formatMonth(row.end_month)}</div>
         </Field>
       )}
       {row.installments && (

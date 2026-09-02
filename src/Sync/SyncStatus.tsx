@@ -33,7 +33,7 @@ export function SyncStatusBadge({ className }: { className?: string }) {
     offline: {
       icon: CloudOff,
       label: "Conectado (sem dados)",
-      className: "bg-sticker-orange/15 text-sticker-orange",
+      className: "bg-muted text-muted-foreground",
     },
     error: {
       icon: AlertCircle,

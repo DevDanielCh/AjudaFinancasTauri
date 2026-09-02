@@ -12,7 +12,7 @@ export function ReservaViewForm({ row }: { row: ReservaRow }) {
       </Field>
       <Field>
         <FieldLabel>Valor</FieldLabel>
-        <div className="text-sm font-mono">{formatMoney(row.amount)}</div>
+        <div className="text-sm font-semibold tabular-nums">{formatMoney(row.amount)}</div>
       </Field>
       <Field>
         <FieldLabel>Tipo</FieldLabel>

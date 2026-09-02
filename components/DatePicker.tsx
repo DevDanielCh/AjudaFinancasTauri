@@ -5,7 +5,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
-import { formatDate } from "@/lib/format";
+import { formatDate, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const MONTHS = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -21,7 +21,7 @@ export function DatePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(() => {
-    const [y, m] = (value || new Date().toISOString().slice(0, 10)).split("-").map(Number);
+    const [y, m] = (value || todayISO()).split("-").map(Number);
     return { y, m: m - 1 };
   });
 

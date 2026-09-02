@@ -5,6 +5,7 @@ import { CrudPage } from "@/components/crud/CrudPage";
 import { TransacaoAddForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoAddForm";
 import { TransacaoViewForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoViewForm";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
 import { transactionApi } from "@/src/OrganizacaoFinanceira/Repositories/transaction";
@@ -13,14 +14,10 @@ import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payme
 import { transactionKeys } from "@/src/OrganizacaoFinanceira/Services/transaction";
 import { dashboardKeys } from "@/src/shared/services";
 import { transactionSchema } from "@/lib/schemas";
-import { formatDate, formatMoney } from "@/lib/format";
+import { formatDate, formatMoney, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Sort } from "@/src/shared/models";
-import type { TransactionInput } from "@/src/OrganizacaoFinanceira/Models/transaction";
-
-const BADGE_INCOME = "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-400";
-const BADGE_EXPENSE = "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-400";
-const BADGE_RESERVA = "border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-400";
+import type { TransactionInput, TransactionRow } from "@/src/OrganizacaoFinanceira/Models/transaction";
 
 export default function TransactionsPage() {
   return (
@@ -53,10 +50,10 @@ function TransactionsContent() {
               render: (r) => {
                 const isReserva = r.type === 4 || r.type === 5;
                 if (r.is_card_bill) return <Badge>Fatura</Badge>;
-                if (isReserva) return <Badge className={BADGE_RESERVA}>Reserva</Badge>;
+                if (isReserva) return <Badge variant="outline">Reserva</Badge>;
                 return r.type === 1
-                  ? <Badge className={BADGE_INCOME}>Receita</Badge>
-                  : <Badge className={BADGE_EXPENSE}>Despesa</Badge>;
+                  ? <Badge variant="positive">Receita</Badge>
+                  : <Badge variant="negative">Despesa</Badge>;
               },
             },
             { label: "Descrição", name: "description", render: (r) => r.description },
@@ -89,13 +86,14 @@ function TransactionsContent() {
             },
             bottomRight: (r) => formatDate(r.date),
           },
+          summary: (rows) => <TransactionsSummary rows={rows} />,
           keepOpen: true,
           load,
           create: transactionApi.create,
           update: (id, d) => transactionApi.update(id, d),
           remove: transactionApi.remove,
           empty: (): TransactionInput => ({
-            description: "", amount: 0, type: 2, date: new Date().toISOString().slice(0, 10),
+            description: "", amount: 0, type: 2, date: todayISO(),
             category_id: null, payment_method_id: null, card_mode: 0,
           }),
           toInput: (r): TransactionInput => ({
@@ -123,5 +121,31 @@ function TransactionsContent() {
       />
       <TransacaoViewForm id={faturaId} onClose={() => setFaturaId(null)} />
     </>
+  );
+}
+
+function TransactionsSummary({ rows }: { rows: TransactionRow[] }) {
+  const income = rows.filter((r) => r.type === 1).reduce((s, r) => s + r.amount, 0);
+  const expense = rows.filter((r) => r.type === 2).reduce((s, r) => s + r.amount, 0);
+  const saldo = income - expense;
+  return (
+    <div className="grid grid-cols-3 gap-3">
+      <SummaryTile label="Receitas" value={formatMoney(income)} className="text-positive" />
+      <SummaryTile label="Despesas" value={formatMoney(expense)} className="text-negative" />
+      <SummaryTile
+        label="Saldo do mês"
+        value={formatMoney(saldo)}
+        className={saldo >= 0 ? "text-positive" : "text-negative"}
+      />
+    </div>
+  );
+}
+
+function SummaryTile({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <Card className="flex flex-col gap-0.5 px-4 py-3">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={cn("text-lg font-bold tabular-nums", className)}>{value}</span>
+    </Card>
   );
 }

@@ -103,12 +103,15 @@ export function PullToRefresh({
         style={{ transform: `translateY(${pull}px)` }}
       >
         <div
+          role="status"
+          aria-live="polite"
           className={cn(
-            "mt-2 flex size-9 items-center justify-center rounded-full border bg-background shadow-md transition-opacity",
+            "mt-2 flex size-9 items-center justify-center rounded-full border bg-background shadow-xs transition-opacity",
             pull === 0 && "opacity-0"
           )}
         >
           <RefreshCw className={cn("size-4 text-muted-foreground", refreshing && "animate-spin")} />
+          {refreshing && <span className="sr-only">Atualizando dados...</span>}
         </div>
       </div>
       {children}

@@ -6,7 +6,7 @@ import { ContextMenu } from "@base-ui/react/context-menu";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { getVersion } from "@/src/shared/repository";
-import { initials, type AccountInfo } from "./models";
+import { foregroundOn, initials, type AccountInfo } from "./models";
 import { useAccounts } from "./services";
 import {
   AccountCreateDialog,
@@ -43,7 +43,7 @@ export function AccountRail() {
 
   return (
     <aside
-      className="flex h-screen w-[60px] shrink-0 flex-col items-center gap-1.5 bg-rail py-2 sm:w-[72px]"
+      className="flex h-full w-[60px] shrink-0 flex-col items-center gap-1.5 bg-rail py-2 sm:w-[72px]"
       style={{ paddingTop: "max(0.5rem, var(--safe-area-inset-top))" }}
     >
       <RailButton
@@ -164,9 +164,9 @@ function AccountCircle({
               title={`${account.name}`}
               aria-current={isActive ? "true" : undefined}
               onClick={onTap}
-              style={{ backgroundColor: account.color }}
+              style={{ backgroundColor: account.color, color: foregroundOn(account.color) }}
               className={cn(
-                "flex size-9 shrink-0 cursor-context-menu select-none items-center justify-center rounded-full text-sm font-bold text-white shadow-xs transition-all duration-150 sm:size-10",
+                "flex size-9 shrink-0 cursor-context-menu select-none items-center justify-center rounded-full text-sm font-bold shadow-xs transition-all duration-150 sm:size-10",
                 !isActive && "hover:rounded-xl",
                 isActive && "rounded-xl ring-2 ring-primary",
                 disabled && "pointer-events-none opacity-50"

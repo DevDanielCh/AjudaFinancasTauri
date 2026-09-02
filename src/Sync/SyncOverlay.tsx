@@ -9,7 +9,9 @@ export function SyncOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm"
+      role="status"
+      aria-live="polite"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-background/80 backdrop-blur-sm"
       data-slot="sync-overlay"
     >
       <Loader2 className="size-10 animate-spin text-primary" />

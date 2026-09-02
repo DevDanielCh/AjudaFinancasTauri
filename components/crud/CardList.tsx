@@ -1,26 +1,28 @@
 "use client";
 import { useRef } from "react";
-import { Inbox } from "lucide-react";
+import { Inbox, SearchX } from "lucide-react";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import type { MobileCorners } from "./types";
 
 export function CardList<T extends { id: number }>({
-  corners, rows, onTap, onLongPress, rowClass,
+  corners, rows, onTap, onLongPress, rowClass, emptySearch,
 }: {
   corners: MobileCorners<T>;
   rows: T[];
   onTap?: (row: T) => void;
   onLongPress?: (row: T) => void;
   rowClass?: (row: T) => string;
+  /** True quando há busca ativa e não há resultado (distingue de lista vazia). */
+  emptySearch?: boolean;
 }) {
   const suppressClick = useRef(false);
   if (rows.length === 0) {
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon"><Inbox /></EmptyMedia>
-          <EmptyTitle>Nenhum registro</EmptyTitle>
+          <EmptyMedia variant="icon">{emptySearch ? <SearchX /> : <Inbox />}</EmptyMedia>
+          <EmptyTitle>{emptySearch ? "Nenhum resultado para a busca" : "Nenhum registro"}</EmptyTitle>
         </EmptyHeader>
       </Empty>
     );
@@ -32,7 +34,7 @@ export function CardList<T extends { id: number }>({
         <li key={row.id}>
           <button
             type="button"
-            className={cn("w-full cursor-pointer select-none rounded-xl border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent active:bg-accent", rowClass?.(row))}
+            className={cn("w-full cursor-pointer select-none rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent active:bg-accent", rowClass?.(row))}
             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onTap?.(row); }}
             onPointerDown={(e) => {
               suppressClick.current = false;

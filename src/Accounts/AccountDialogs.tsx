@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import { ACCOUNT_COLORS, initials, type AccountInfo, type AccountInput } from "./models";
+import { ACCOUNT_COLORS, foregroundOn, initials, type AccountInfo, type AccountInput } from "./models";
 import { useAccounts, useCreateAccount, useDeleteAccount, useUpdateAccount } from "./services";
 
 function AccountFormBody({
@@ -61,7 +61,7 @@ function AccountFormBody({
                     : ""
                 }`}
               >
-                <span className="text-[10px] font-bold text-white">
+                <span className="text-[10px] font-bold" style={{ color: foregroundOn(color) }}>
                   {initials(value.name || "A")}
                 </span>
               </button>
