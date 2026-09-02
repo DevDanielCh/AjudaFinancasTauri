@@ -227,6 +227,22 @@ Product screenshots are framed in rounded `{rounded.lg}` / `{rounded.xl}` wells,
 - Properties: `backgroundColor`, `rounded`, `padding`, `typography`
 
 
+## Data Visualization
+
+O **gráfico de evolução** usa um conjunto fixo de cores semânticas — nunca mudam, independente de tema ou estado. Cada série tem cor permanente para leitura imediata:
+
+| Série | Cor | Token |
+|---|---|---|
+| **Receita** | Verde | `{colors.chart-income}` — #16a34a |
+| **Despesa** | Vermelho | `{colors.chart-expense}` — #dc2626 |
+| **Saldo** | Azul | `{colors.chart-balance}` — #2563eb |
+| **Reserva** | Dourado | `{colors.chart-reserva}` — #d4a017 |
+
+**Regras:**
+- Aplicar o token correspondente à linha/área da série sempre que a série existir no gráfico; nunca reciclar cores entre séries.
+- Verde e Vermelho espelham os tons `positive`/`negative` da UI para consistência mental; Azul e Dourado são exclusivos do gráfico.
+- Treemap/breakdown de categorias podem usar a paleta divergente do sistema, mas o gráfico de evolução mantém as quatro cores fixas acima.
+
 ## Do's and Don'ts
 
 ### Do

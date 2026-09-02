@@ -15,6 +15,9 @@ use tauri::State;
 pub struct BreakdownRow {
     pub name: String,
     pub total: i64,
+    /// Cor da categoria (None para breakdowns sem cor, ex.: forma de pagamento).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -157,7 +160,7 @@ pub fn income_by_category(
 ) -> Result<Vec<BreakdownRow>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
+            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total, c.color
              FROM transactions t LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
              WHERE t.type IN (1, 5) AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL AND t.account_id = ?3
              GROUP BY c.name ORDER BY total DESC",
@@ -170,6 +173,7 @@ pub fn income_by_category(
                 Ok(BreakdownRow {
                     name: r.get(0)?,
                     total: r.get(1)?,
+                    color: r.get(2)?,
                 })
             },
         )
@@ -188,7 +192,7 @@ pub fn expenses_by_category(
 ) -> Result<Vec<BreakdownRow>, String> {
     let mut stmt = conn
         .prepare(
-            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total
+            "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total, c.color
              FROM transactions t LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
              WHERE t.type IN (2, 4) AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL AND t.account_id = ?3
              GROUP BY c.name ORDER BY total DESC",
@@ -205,6 +209,7 @@ pub fn expenses_by_category(
                 Ok(BreakdownRow {
                     name: r.get(0)?,
                     total: r.get(1)?,
+                    color: r.get(2)?,
                 })
             },
         )
@@ -323,7 +328,7 @@ pub fn expenses_by_pm(
             pm_expenses(conn, id, s, e)?
         };
         if t > 0 {
-            out.push(BreakdownRow { name, total: t });
+            out.push(BreakdownRow { name, total: t, color: None });
         }
     }
     let no_pm = no_pm_expenses(conn, account_id, start, end)?;
@@ -331,6 +336,7 @@ pub fn expenses_by_pm(
         out.push(BreakdownRow {
             name: "Sem forma de pagamento".into(),
             total: no_pm,
+            color: None,
         });
     }
     out.sort_by(|a, b| b.total.cmp(&a.total));

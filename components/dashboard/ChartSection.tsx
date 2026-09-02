@@ -25,17 +25,21 @@ function token(name: string, fallback: string): string {
 
 const TREND_LABEL = { income: "Receitas", expenses: "Despesas", balance: "Saldo", reserva: "Reserva" } as const;
 
+// Cores fixas do gráfico de evolução (DESIGN.md): Receita verde, Despesa vermelho,
+// Saldo azul, Reserva dourado. Independentes de tema — nunca mudam.
+const TREND_COLORS = {
+  income: "#16a34a",
+  expenses: "#dc2626",
+  balance: "#2563eb",
+  reserva: "#d4a017",
+} as const;
+
 function useChartColors() {
   const { resolvedTheme } = useTheme();
   return React.useMemo(() => {
     void resolvedTheme;
     // ler tokens de novo a cada troca de tema
-    const trend = {
-      income: token("--color-positive", "#1aae39"),
-      expenses: token("--color-negative", "#dc2626"),
-      balance: token("--color-primary", "#0075de"),
-      reserva: token("--color-sticker-purple-deep", "#391c57"),
-    };
+    const trend = { ...TREND_COLORS };
     const donut = [
       token("--color-chart-1", "#62aef0"),
       token("--color-chart-2", "#d6b6f6"),
@@ -150,7 +154,7 @@ function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[
       ],
       color: {
         domain: rows.map((r) => r.name),
-        range: rows.map((_, i) => colors.donut[i % colors.donut.length]),
+        range: rows.map((r, i) => r.color ?? colors.donut[i % colors.donut.length]),
       },
       tooltip: {
         use: tooltip,
@@ -178,7 +182,7 @@ function DonutCard({ title, rows, income }: { title: string; rows: BreakdownRow[
                   <span className="flex min-w-0 items-center gap-2">
                     <span
                       className="size-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: colors.donut[i % colors.donut.length] }}
+                      style={{ backgroundColor: r.color ?? colors.donut[i % colors.donut.length] }}
                     />
                     <span className="truncate">{r.name}</span>
                   </span>

@@ -1,6 +1,8 @@
 export interface BreakdownRow {
   name: string;
   total: number;
+  /** Cor da categoria, quando aplicável (breakdown por categoria). */
+  color?: string;
 }
 
 export interface DashboardData {
