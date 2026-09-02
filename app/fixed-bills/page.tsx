@@ -21,7 +21,7 @@ export default function FixedBillsPage() {
         columns: [
           { label: "Descrição", name: "description", render: (r) => r.description },
           { label: "Valor", name: "amount", render: (r) => <span className="tabular-nums">{formatMoney(r.amount)}</span> },
-          { label: "Dia", name: "day", render: (r) => r.day },
+          { label: "Dia", name: "day", filterId: "day", render: (r) => r.day },
           { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
           { label: "Fim", name: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
         ],
@@ -70,6 +70,10 @@ export default function FixedBillsPage() {
         queryKey: fixedBillKeys(false),
         invalidate: [["transactions"], ["dashboard"]],
         schema: fixedBillSchema,
+        filters: [
+          { id: "category", label: "Categoria", field: "select", accessor: (r) => r.category_name },
+          { id: "day", label: "Dia", field: "number", accessor: (r) => r.day },
+        ],
       }}
     />
   );

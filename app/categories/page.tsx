@@ -21,7 +21,7 @@ export default function CategoriesPage() {
             render: (r) => <span className="inline-block h-4 w-4 rounded-full border" style={{ backgroundColor: r.color }} />,
           },
           { label: "Nome", name: "name", render: (r) => r.name },
-          { label: "Tipo", name: "type", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
+          { label: "Tipo", name: "type", filterId: "type", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
         ],
         mobileCorners: {
           topLeft: (r) => (
@@ -43,6 +43,16 @@ export default function CategoriesPage() {
         queryKey: categoryKeys,
         invalidate: [["transactions"], ["dashboard"], ["chart-data"]],
         schema: categorySchema,
+        filters: [
+          {
+            id: "type", label: "Tipo", field: "select",
+            options: [
+              { label: "Receita", value: 1 },
+              { label: "Despesa", value: 2 },
+            ],
+            accessor: (r) => r.type,
+          },
+        ],
       }}
     />
   );

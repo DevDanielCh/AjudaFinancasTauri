@@ -16,7 +16,7 @@ export default function PaymentMethodsPage() {
         editTitle: "Editar Forma de Pagamento",
         columns: [
           { label: "Nome", name: "name", render: (r) => r.name },
-          { label: "Tipo", name: "type", render: (r) => (r.type === 2 ? "Cartão" : "Padrão") },
+          { label: "Tipo", name: "type", filterId: "type", render: (r) => (r.type === 2 ? "Cartão" : "Padrão") },
           {
             label: "Fechamento/Vencimento",
             render: (r) => {
@@ -57,6 +57,16 @@ export default function PaymentMethodsPage() {
         queryKey: paymentMethodKeys,
         invalidate: [["transactions"], ["fixed-bills"], ["dashboard"]],
         schema: paymentMethodSchema,
+        filters: [
+          {
+            id: "type", label: "Tipo", field: "select",
+            options: [
+              { label: "Padrão", value: 1 },
+              { label: "Cartão", value: 2 },
+            ],
+            accessor: (r) => r.type,
+          },
+        ],
       }}
     />
   );

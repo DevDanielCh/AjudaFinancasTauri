@@ -21,7 +21,7 @@ export default function LoansPage() {
           editTitle: "Editar Financiamento/Empréstimo",
           columns: [
             { label: "Descrição", name: "description", render: (r) => r.description },
-            { label: "Tipo", name: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
+            { label: "Tipo", name: "type", filterId: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
             { label: "Valor", name: "principal", render: (r) => <span className="tabular-nums">{formatMoney(r.principal)}</span> },
             { label: "Parcela", name: "installment", render: (r) => <span className="tabular-nums">{formatMoney(r.installment)}</span> },
             { label: "Parcelas", name: "installments", render: (r) => `${r.paid_count}/${r.total_installments}` },
@@ -58,6 +58,17 @@ export default function LoansPage() {
           queryKey: loanKeys,
           invalidate: [["transactions"], ["dashboard"]],
           schema: loanSchema,
+          filters: [
+            {
+              id: "type", label: "Tipo", field: "select",
+              options: [
+                { label: "Empréstimo", value: 1 },
+                { label: "Financiamento", value: 2 },
+              ],
+              accessor: (r) => r.type,
+            },
+            { id: "payment_method", label: "Forma Pgto", field: "select", accessor: (r) => r.payment_method_name },
+          ],
         }}
       />
       <FinanciamentoViewForm id={detailId} onClose={() => setDetailId(null)} />

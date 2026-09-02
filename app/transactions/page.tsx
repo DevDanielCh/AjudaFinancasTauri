@@ -43,10 +43,11 @@ function TransactionsContent() {
           newTitle: "Nova Transação",
           editTitle: "Editar Transação",
           columns: [
-            { label: "Data", name: "date", render: (r) => formatDate(r.date) },
+            { label: "Data", name: "date", filterId: "date", render: (r) => formatDate(r.date) },
             {
               label: "Tipo",
               name: "type",
+              filterId: "type",
               render: (r) => {
                 const isReserva = r.type === 4 || r.type === 5;
                 if (r.is_card_bill) return <Badge>Fatura</Badge>;
@@ -60,6 +61,7 @@ function TransactionsContent() {
             {
               label: "Valor",
               name: "amount",
+              filterId: "amount",
               render: (r) => {
                 const positive = r.type === 1 || r.type === 5;
                 return (
@@ -69,8 +71,8 @@ function TransactionsContent() {
                 );
               },
             },
-            { label: "Forma Pagamento", name: "payment_method", render: (r) => r.payment_method_name ?? "—" },
-            { label: "Categoria", name: "category", render: (r) => r.category_name ?? "—" },
+            { label: "Forma Pagamento", name: "payment_method", filterId: "payment_method", render: (r) => r.payment_method_name ?? "—" },
+            { label: "Categoria", name: "category", filterId: "category", render: (r) => r.category_name ?? "—" },
           ],
           mobileCorners: {
             topLeft: (r) => r.description,
@@ -113,6 +115,23 @@ function TransactionsContent() {
           queryKey: transactionKeys(month),
           invalidate: [dashboardKeys(month), ["card-bill"]],
           schema: transactionSchema,
+          filters: [
+            {
+              id: "type", label: "Tipo", field: "select",
+              options: [
+                { label: "Receita", value: 1 },
+                { label: "Despesa", value: 2 },
+                { label: "Fatura", value: 3 },
+                { label: "Reserva (Adição)", value: 4 },
+                { label: "Reserva (Remoção)", value: 5 },
+              ],
+              accessor: (r) => r.type,
+            },
+            { id: "category", label: "Categoria", field: "select", accessor: (r) => r.category_name },
+            { id: "payment_method", label: "Forma Pgto", field: "select", accessor: (r) => r.payment_method_name },
+            { id: "date", label: "Data", field: "date", accessor: (r) => r.date },
+            { id: "amount", label: "Valor", field: "money", accessor: (r) => r.amount },
+          ],
           onView: (r) => {
             if (r.is_card_bill) setFaturaId(r.id);
             else toast.add({ title: "Visualizar disponível apenas para faturas", type: "error" });

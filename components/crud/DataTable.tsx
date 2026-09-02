@@ -20,7 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import type { Sort } from "@/src/shared/models";
-import type { Column } from "./types";
+import type { ActiveFilter, Column, FilterDef } from "./types";
+import { FilterColumn } from "./FilterColumn";
 
 const FEATURES = tableFeatures({
   rowSortingFeature,
@@ -30,7 +31,7 @@ const FEATURES = tableFeatures({
 export function DataTable<T extends { id: number }>({
   columns, rows, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
   canEditRow, onViewRow, onEditRow, onDuplicateRow, onDeleteRow, headerRight,
-  emptySearch, tableClassName,
+  emptySearch, tableClassName, filterDefs, activeFilters, onSetFilter, derivedOptions,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -47,6 +48,10 @@ export function DataTable<T extends { id: number }>({
   headerRight?: React.ReactNode;
   /** True quando há busca ativa e não há resultado (distingue de lista vazia). */
   emptySearch?: boolean;
+  filterDefs: FilterDef<T>[];
+  activeFilters: Record<string, ActiveFilter>;
+  onSetFilter: (id: string, filter: ActiveFilter | null) => void;
+  derivedOptions: Record<string, { label: string; value: string | number }[]>;
   /** Classe extra aplicada ao container da tabela. */
   tableClassName?: string;
 }) {
@@ -90,6 +95,18 @@ export function DataTable<T extends { id: number }>({
   const visibleRows = table.getRowModel().rows;
   const isMobile = useIsMobile();
 
+  const filterByHeader = React.useMemo(() => {
+    const filterById = new Map(filterDefs.map((f) => [f.id, f]));
+    const map = new Map<string, FilterDef<T>>();
+    for (const c of columns) {
+      if (c.filterId) {
+        const def = filterById.get(c.filterId);
+        if (def) map.set(c.name ?? c.label, def);
+      }
+    }
+    return map;
+  }, [filterDefs, columns]);
+
   if (rows.length === 0) {
     return (
       <Empty>
@@ -120,34 +137,46 @@ export function DataTable<T extends { id: number }>({
                 header.column.getCanSort() && "cursor-pointer select-none"
               )}
             >
-              {header.column.getCanSort() ? (
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1"
-                  onClick={() => {
-                    const cur = sort;
-                    const next = !cur || cur.id !== header.id
-                      ? { id: header.id, desc: false }
-                      : cur.desc
-                        ? null
-                        : { id: header.id, desc: true };
-                    onSort(next);
-                  }}
-                >
-                  <table.FlexRender header={header} />
-                  {sort?.id === header.id ? (
-                    sort.desc ? (
-                      <ArrowDown className="size-3.5" />
-                    ) : (
-                      <ArrowUp className="size-3.5" />
-                    )
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex-1">
+                  {header.column.getCanSort() ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1"
+                      onClick={() => {
+                        const cur = sort;
+                        const next = !cur || cur.id !== header.id
+                          ? { id: header.id, desc: false }
+                          : cur.desc
+                            ? null
+                            : { id: header.id, desc: true };
+                        onSort(next);
+                      }}
+                    >
+                      <table.FlexRender header={header} />
+                      {sort?.id === header.id ? (
+                        sort.desc ? (
+                          <ArrowDown className="size-3.5" />
+                        ) : (
+                          <ArrowUp className="size-3.5" />
+                        )
+                      ) : (
+                        <ArrowUpDown className="size-3.5 opacity-40" />
+                      )}
+                    </button>
                   ) : (
-                    <ArrowUpDown className="size-3.5 opacity-40" />
+                    <table.FlexRender header={header} />
                   )}
-                </button>
-              ) : (
-                <table.FlexRender header={header} />
-              )}
+                </div>
+                {filterByHeader.has(header.id) && (
+                  <FilterColumn
+                    def={filterByHeader.get(header.id)!}
+                    active={activeFilters[filterByHeader.get(header.id)!.id]}
+                    onApply={(f) => onSetFilter(filterByHeader.get(header.id)!.id, f)}
+                    derivedOptions={derivedOptions[filterByHeader.get(header.id)!.id]}
+                  />
+                )}
+              </div>
             </TableHead>
           ))}
         </TableRow>

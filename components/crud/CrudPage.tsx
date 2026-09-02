@@ -1,6 +1,6 @@
 "use client";
 import { useCallback } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FilterX, Plus, RefreshCw, Search } from "lucide-react";
@@ -15,7 +15,11 @@ import { CardOptionsSheet } from "./CardOptionsSheet";
 import { RowActionsMenu } from "./RowActionsMenu";
 import { FormDialog } from "./FormDialog";
 import { ViewDialog } from "./ViewDialog";
-import type { Column, MobileCorners } from "./types";
+import { FilterBar } from "./FilterBar";
+import { FilterMenu } from "./FilterMenu";
+import { matchFilter } from "./match-filter";
+import { useFilterParams } from "./use-filter-params";
+import type { ActiveFilter, Column, FilterDef, MobileCorners } from "./types";
 import type { Sort } from "@/src/shared/models";
 import type { CrudFormApi } from "@/lib/forms";
 import { msg } from "@/src/shared/repository";
@@ -66,6 +70,8 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   invalidate?: readonly (readonly unknown[])[];
   /** Validação zod dos formulários (Standard Schema). */
   schema: ZodType<F>;
+  /** Definições de filtros por campo desta página. */
+  filters?: FilterDef<T>[];
 }
 
 export type DialogState<T, F> =
@@ -74,6 +80,14 @@ export type DialogState<T, F> =
   | { mode: "view"; row: T };
 
 export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }: { config: CrudConfig<T, F, E>; autoCreate?: boolean }) {
+  return (
+    <Suspense>
+      <CrudPageInner config={config} autoCreate={autoCreate} />
+    </Suspense>
+  );
+}
+
+function CrudPageInner<T extends { id: number }, F, E>({ config, autoCreate }: { config: CrudConfig<T, F, E>; autoCreate?: boolean }) {
   const client = useQueryClient();
   const [dialog, setDialog] = useState<DialogState<T, F> | null>(autoCreate ? { mode: "create" } : null);
   const [confirm, setConfirm] = useState<{ message: string; ids: number[] } | null>(null);
@@ -81,6 +95,35 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
   const [optionsRow, setOptionsRow] = useState<T | null>(null);
   const [menu, setMenu] = useState<{ row: T; x: number; y: number } | null>(null);
   const isMobile = useIsMobile();
+
+  const filterDefs = useMemo(() => config.filters ?? [], [config.filters]);
+  const { filters, setFilter, clearFilters: clearUrlFilters, hasActiveFilters } =
+    useFilterParams(filterDefs.map((f) => f.id));
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+
+  const toggleAdded = useCallback((id: string) => {
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSetFilter = useCallback(
+    (id: string, filter: ActiveFilter | null) => {
+      setPendingIds((prev) => {
+        if (prev.has(id)) {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        }
+        return prev;
+      });
+      setFilter(id, filter);
+    },
+    [setFilter],
+  );
 
   const pageSize = config.pageSize ?? 25;
   const [visibleCount, setVisibleCount] = useState(pageSize);
@@ -95,6 +138,23 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
   });
   const rows = useMemo(() => rowsQuery.data ?? [], [rowsQuery.data]);
   const loading = rowsQuery.isFetching;
+
+  const derivedOptionsMap = useMemo(() => {
+    const map: Record<string, { label: string; value: string | number }[]> = {};
+    for (const def of filterDefs) {
+      if (!def.options && def.accessor) {
+        const seen = new Map<string | number, string>();
+        for (const row of rows) {
+          const val = def.accessor(row);
+          if (val != null && val !== "" && !seen.has(val)) {
+            seen.set(val, String(val));
+          }
+        }
+        map[def.id] = Array.from(seen.entries()).map(([value, label]) => ({ label, value }));
+      }
+    }
+    return map;
+  }, [filterDefs, rows]);
 
   const invalidate = useCallback(() => {
     void client.invalidateQueries({ queryKey: effectiveKey, exact: true });
@@ -112,18 +172,25 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
     setQuery("");
     setSort(null);
     setVisibleCount(pageSize);
-  }, [pageSize]);
+    setPendingIds(new Set());
+    clearUrlFilters();
+  }, [pageSize, clearUrlFilters]);
 
   const q = query.trim().toLowerCase();
-  const filtered = useMemo(
-    () =>
-      q
-        ? rows.filter((r) =>
-            config.columns.some((c) => String(c.render(r)).toLowerCase().includes(q))
-          )
-        : rows,
-    [rows, q, config.columns]
-  );
+  const filtered = useMemo(() => {
+    let result = rows;
+    for (const def of filterDefs) {
+      const active = filters[def.id];
+      if (!active) continue;
+      result = result.filter((r) => matchFilter(r, def, active));
+    }
+    if (q) {
+      result = result.filter((r) =>
+        config.columns.some((c) => String(c.render(r)).toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [rows, q, filters, filterDefs, config.columns]);
   const hasMore = visibleCount < filtered.length;
   const pageRows = filtered.slice(0, visibleCount);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -175,7 +242,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {config.summary?.(rows)}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -186,12 +253,22 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
               className="pl-8"
             />
           </div>
-          {(query.trim() || sort) && (
-            <Button variant="outline" onClick={clearFilters}>
-              <FilterX data-icon="inline-start" />
-              Limpar Filtros
-            </Button>
+          {isMobile && (
+            <FilterMenu
+              filters={filterDefs}
+              activeFilters={filters}
+              addedIds={new Set([...pendingIds, ...Object.keys(filters)])}
+              onAdd={toggleAdded}
+            />
           )}
+          <Button
+            variant="outline"
+            disabled={!query.trim() && !sort && !hasActiveFilters}
+            onClick={clearFilters}
+          >
+            <FilterX data-icon="inline-start" />
+            Limpar Filtros
+          </Button>
           {!isMobile && (
             <Button variant="outline" onClick={() => void refresh()} disabled={loading}>
               <RefreshCw data-icon="inline-start" className={cn(loading && "animate-spin")} />
@@ -204,6 +281,16 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
           </Button>
         </div>
 
+        {isMobile && (
+          <FilterBar
+            filters={filterDefs}
+            activeFilters={filters}
+            pendingIds={pendingIds}
+            onSetFilter={handleSetFilter}
+            derivedOptions={derivedOptionsMap}
+          />
+        )}
+
         <div className={cn("flex min-h-0 flex-1 flex-col", isMobile && config.mobileCorners && "h-full overflow-y-auto")}>
           <div className="flex min-h-0 flex-1 flex-col">
             {isMobile && config.mobileCorners ? (
@@ -213,14 +300,18 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
                 onTap={(row) => config.onView?.(row)}
                 onLongPress={(row) => setOptionsRow(row)}
                 rowClass={config.rowClass}
-                emptySearch={!!q && filtered.length === 0}
+                emptySearch={(!!q || hasActiveFilters) && filtered.length === 0}
               />
             ) : (
               <DataTable
                 columns={config.columns}
                 rows={pageRows}
-                emptySearch={!!q && filtered.length === 0}
+                emptySearch={(!!q || hasActiveFilters) && filtered.length === 0}
                 tableClassName={config.tableClassName}
+                filterDefs={filterDefs}
+                activeFilters={filters}
+                onSetFilter={handleSetFilter}
+                derivedOptions={derivedOptionsMap}
                 onRowDoubleClick={
                   config.onRowDoubleClick ??
                   ((row) => {
@@ -236,7 +327,7 @@ export function CrudPage<T extends { id: number }, F, E>({ config, autoCreate }:
                 headerRight={
                   <span className="whitespace-nowrap">
                     {filtered.length} registro{filtered.length === 1 ? "" : "s"}
-                    {q && ` (filtrado de ${rows.length})`}
+                    {(q || hasActiveFilters) && ` (filtrado de ${rows.length})`}
                   </span>
                 }
                 rowClass={config.rowClass}

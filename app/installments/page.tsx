@@ -18,7 +18,7 @@ export default function InstallmentsPage() {
         columns: [
           { label: "Descrição", name: "description", render: (r) => r.description },
           { label: "Valor", name: "amount", render: (r) => <span className="tabular-nums">{formatMoney(r.amount)}</span> },
-          { label: "Dia", name: "day", render: (r) => r.day },
+          { label: "Dia", name: "day", filterId: "day", render: (r) => r.day },
           { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
           { label: "Fim", name: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
           { label: "Parcelas", name: "installments", render: (r) => r.installments ?? "—" },
@@ -68,6 +68,18 @@ export default function InstallmentsPage() {
         queryKey: fixedBillKeys(true),
         invalidate: [["transactions"], ["dashboard"]],
         schema: fixedBillSchema,
+        filters: [
+          { id: "category", label: "Categoria", field: "select", accessor: (r) => r.category_name },
+          { id: "day", label: "Dia", field: "number", accessor: (r) => r.day },
+          {
+            id: "status", label: "Status", field: "select",
+            options: [
+              { label: "Ativo", value: "false" },
+              { label: "Finalizado", value: "true" },
+            ],
+            accessor: (r) => (r.finished ? "true" : "false"),
+          },
+        ],
       }}
     />
   );

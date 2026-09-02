@@ -46,9 +46,10 @@ export default function ReservaPage() {
         newTitle: "Novo Aporte/Resgate",
         editTitle: "Editar Aporte/Resgate",
         columns: [
-          { label: "Data", render: (r) => formatDate(r.date) },
+          { label: "Data", filterId: "date", render: (r) => formatDate(r.date) },
           {
             label: "Tipo",
+            filterId: "type",
             render: (r) =>
               r.type === 5
                 ? <Badge variant="negative">Remoção</Badge>
@@ -100,6 +101,17 @@ export default function ReservaPage() {
           ["card-bill"],
         ],
         schema: reservaSchema,
+        filters: [
+          {
+            id: "type", label: "Tipo", field: "select",
+            options: [
+              { label: "Adição", value: 4 },
+              { label: "Remoção", value: 5 },
+            ],
+            accessor: (r) => r.type,
+          },
+          { id: "date", label: "Data", field: "date", accessor: (r) => r.date },
+        ],
         FormFields: ReservaAddForm,
         ViewFields: ReservaViewForm,
       }}
