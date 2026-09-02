@@ -2,6 +2,7 @@
 import { Input } from "@/components/ui/input";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Switch } from "@/components/ui/switch";
 import { MoneyInput } from "@/components/forms/MoneyInput";
 import { DatePicker } from "@/components/DatePicker";
 import { FieldErrors } from "@/components/forms/FieldErrors";
@@ -68,6 +69,28 @@ export function ReservaAddForm({
             <FieldErrors errors={field.state.meta.errors} />
           </Field>
         )}
+      </form.Field>
+      <form.Field name="in_principal">
+        {(field) => {
+          const checked = field.state.value;
+          return (
+            <Field>
+              <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+                <div className="flex flex-col gap-0.5">
+                  <FieldLabel>Movimentar conta principal</FieldLabel>
+                  <p className="text-xs text-muted-foreground">
+                    Desligue para registrar apenas na reserva (ex.: rendimento), sem gerar despesa/receita na conta principal.
+                  </p>
+                </div>
+                <Switch
+                  checked={checked}
+                  onCheckedChange={(c) => field.handleChange(c)}
+                />
+              </div>
+              <FieldErrors errors={field.state.meta.errors} />
+            </Field>
+          );
+        }}
       </form.Field>
     </FieldGroup>
   );

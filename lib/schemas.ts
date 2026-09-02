@@ -20,6 +20,7 @@ export const reservaSchema = z.object({
   amount: z.number().positive("Informe o valor"),
   type: z.union([z.literal(4), z.literal(5)], { error: "Selecione o tipo" }),
   date: z.string().min(1, "Informe a data"),
+  in_principal: z.boolean().default(true),
 });
 
 export const fixedBillSchema = z

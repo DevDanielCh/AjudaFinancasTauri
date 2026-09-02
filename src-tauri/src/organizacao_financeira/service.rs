@@ -155,8 +155,8 @@ pub fn create(conn: &Connection, account_id: i64, input: &TransactionInput) -> R
         .query_row(
             "SELECT 1 FROM transactions
              WHERE description = ?1 AND amount = ?2 AND type = ?3 AND date = ?4
-               AND category_id IS ?5 AND payment_method_id IS ?6 AND card_mode = ?7
-               AND fixed_bill_id IS NULL AND bill_start IS NULL AND account_id = ?8
+               AND category_id IS ?5 AND payment_method_id IS ?6 AND card_mode = ?7 AND in_principal = ?8
+               AND fixed_bill_id IS NULL AND bill_start IS NULL AND account_id = ?9
              LIMIT 1",
             params![
                 description,
@@ -166,6 +166,7 @@ pub fn create(conn: &Connection, account_id: i64, input: &TransactionInput) -> R
                 input.category_id,
                 input.payment_method_id,
                 input.card_mode,
+                input.in_principal,
                 account_id
             ],
             |_| Ok(()),
@@ -176,8 +177,8 @@ pub fn create(conn: &Connection, account_id: i64, input: &TransactionInput) -> R
         return Err("já existe transação idêntica nessa data".into());
     }
     conn.execute(
-        "INSERT INTO transactions (account_id, description, amount, type, date, category_id, payment_method_id, card_mode)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        "INSERT INTO transactions (account_id, description, amount, type, date, category_id, payment_method_id, card_mode, in_principal)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             account_id,
             description,
@@ -186,7 +187,8 @@ pub fn create(conn: &Connection, account_id: i64, input: &TransactionInput) -> R
             input.date,
             input.category_id,
             input.payment_method_id,
-            input.card_mode
+            input.card_mode,
+            input.in_principal
         ],
     )
     .map_err(db_err)?;
@@ -201,8 +203,8 @@ pub fn update(conn: &Connection, id: i64, input: &TransactionInput) -> Result<()
     let affected = conn
         .execute(
             "UPDATE transactions SET description = ?1, amount = ?2, type = ?3, date = ?4,
-                    category_id = ?5, payment_method_id = ?6, card_mode = ?7
-             WHERE id = ?8",
+                    category_id = ?5, payment_method_id = ?6, card_mode = ?7, in_principal = ?8
+             WHERE id = ?9",
             params![
                 input.description.trim(),
                 input.amount,
@@ -211,6 +213,7 @@ pub fn update(conn: &Connection, id: i64, input: &TransactionInput) -> Result<()
                 input.category_id,
                 input.payment_method_id,
                 input.card_mode,
+                input.in_principal,
                 id
             ],
         )

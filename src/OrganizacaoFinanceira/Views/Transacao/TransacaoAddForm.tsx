@@ -148,7 +148,14 @@ export function TransacaoAddForm({
               <FieldLabel>Categoria</FieldLabel>
               <FormSelect
                 value={field.state.value?.toString() ?? ""}
-                onChange={(v) => field.handleChange(v ? Number(v) : null)}
+                onChange={(v) => {
+                  const catId = v ? Number(v) : null;
+                  field.handleChange(catId);
+                  const cat = resources.categories.find((c) => c.id === catId);
+                  if (cat && !values.description.trim()) {
+                    form.setFieldValue("description", cat.name);
+                  }
+                }}
                 options={[
                   { value: "", label: "Sem categoria" },
                   ...resources.categories.map((c) => ({ value: c.id.toString(), label: c.name })),

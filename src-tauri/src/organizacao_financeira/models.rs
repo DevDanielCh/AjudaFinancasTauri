@@ -17,6 +17,14 @@ pub struct TransactionInput {
     /// e a forma de pagamento é cartão.
     #[serde(default)]
     pub card_mode: i64,
+    /// Movimento também gera despesa/receita na conta principal.
+    /// Desligar só faz sentido para reserva (type 4/5), ex.: rendimento.
+    #[serde(default = "default_true")]
+    pub in_principal: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 impl TransactionInput {
@@ -29,6 +37,9 @@ impl TransactionInput {
         }
         if !matches!(self.type_, 1 | 2 | 4 | 5) {
             return Err("tipo deve ser receita (1), despesa (2), adição à reserva (4) ou remoção (5)".into());
+        }
+        if !self.in_principal && !matches!(self.type_, 4 | 5) {
+            return Err("in_principal só pode ser desligado para movimentos de reserva".into());
         }
         if chrono::NaiveDate::parse_from_str(&self.date, "%Y-%m-%d").is_err() {
             return Err("data inválida".into());
@@ -221,6 +232,8 @@ pub struct TransactionRow {
     pub is_card_bill: bool,
     /// 0 = crédito, 1 = débito.
     pub card_mode: i64,
+    /// Movimento também gera despesa/receita na conta principal.
+    pub in_principal: bool,
     /// "n/total" quando a compra é parcela de conta fixa, senão None.
     pub installment: Option<String>,
 }

@@ -125,8 +125,12 @@ function TransactionsContent() {
 }
 
 function TransactionsSummary({ rows }: { rows: TransactionRow[] }) {
-  const income = rows.filter((r) => r.type === 1).reduce((s, r) => s + r.amount, 0);
-  const expense = rows.filter((r) => r.type === 2).reduce((s, r) => s + r.amount, 0);
+  const income = rows
+    .filter((r) => r.type === 1 || r.type === 5)
+    .reduce((s, r) => s + r.amount, 0);
+  const expense = rows
+    .filter((r) => r.type === 2 || r.type === 3 || r.type === 4)
+    .reduce((s, r) => s + r.amount, 0);
   const saldo = income - expense;
   return (
     <div className="grid grid-cols-3 gap-3">

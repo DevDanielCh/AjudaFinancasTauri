@@ -52,6 +52,7 @@ fn create_transacao_duplicada_rejeita_mas_difere_por_dia() {
         category_id: None,
         payment_method_id: None,
         card_mode: 0,
+        in_principal: true,
     };
     service::create(&conn, 1, &base).unwrap();
     let err = service::create(&conn, 1, &base).unwrap_err();
@@ -97,6 +98,7 @@ fn transacao_gerada_por_conta_fixa_nao_vira_falso_duplicado() {
         category_id: None,
         payment_method_id: None,
         card_mode: 0,
+        in_principal: true,
     };
     service::create(&conn, 1, &input).unwrap();
     assert_eq!(

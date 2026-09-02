@@ -26,11 +26,11 @@ pub(crate) fn list_transactions(
     let mut sql = String::from(
         "SELECT t.id, t.description, t.amount, t.type, t.date,
                 t.category_id, c.name, t.payment_method_id, pm.name,
-                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
+                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode, t.in_principal
          FROM transactions t
          LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
          LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
-         WHERE t.deleted_at IS NULL AND t.account_id = ?1",
+         WHERE t.deleted_at IS NULL AND t.account_id = ?1 AND t.in_principal = 1",
     );
     if start.is_some() {
         sql.push_str(" AND t.date >= ?2 AND t.date < ?3");
@@ -73,6 +73,7 @@ pub(crate) fn list_transactions(
                     loan_id: r.get(10)?,
                     is_card_bill: r.get(11)?,
                     card_mode: r.get(12)?,
+                    in_principal: r.get(13)?,
                     installment: None,
                 })
             },
@@ -103,7 +104,7 @@ pub fn card_bill_purchases(
         .prepare(&format!(
             "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, cat.name, t.payment_method_id, pm.name,
-                    t.fixed_bill_id, t.loan_id, 0, t.card_mode,
+                    t.fixed_bill_id, t.loan_id, 0, t.card_mode, t.in_principal,
                     fb.installments, fb.start_month
              FROM transactions t
              LEFT JOIN categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
@@ -121,8 +122,8 @@ pub fn card_bill_purchases(
     let txs = stmt
         .query_map(params![pm_id, bill_start, bill_end], |r| {
             let date: String = r.get(4)?;
-            let installments: Option<i64> = r.get(13)?;
-            let start_month: Option<String> = r.get(14)?;
+            let installments: Option<i64> = r.get(14)?;
+            let start_month: Option<String> = r.get(15)?;
             let installment = match (installments, start_month) {
                 (Some(total), Some(sm)) if total >= 1 => {
                     Some(format!("{}/{}", crate::organizacao_financeira::service::installment_index(&sm, &date[..7]), total))
@@ -143,6 +144,7 @@ pub fn card_bill_purchases(
                 loan_id: r.get(10)?,
                 is_card_bill: false,
                 card_mode: r.get(12)?,
+                in_principal: r.get(13)?,
                 installment,
             })
         })
@@ -655,5 +657,22 @@ mod tests {
         let rows = list_transactions(&conn, 1, None, Some("amount"), Some("asc")).unwrap();
         let amounts: Vec<i64> = rows.iter().map(|r| r.amount).collect();
         assert_eq!(amounts, vec![100, 200, 300]);
+    }
+
+    #[test]
+    fn list_esconde_reserva_sem_efeito_na_conta() {
+        let conn = test_db();
+        conn.execute_batch(
+            "INSERT INTO transactions (description, amount, type, date, in_principal) VALUES
+             ('rendimento', 15000, 4, '2026-06-10', 0),
+             ('aporte', 20000, 4, '2026-06-12', 1)",
+        )
+        .unwrap();
+        let rows = list_transactions(&conn, 1, Some("2026-06"), None, None).unwrap();
+        assert!(rows.iter().any(|r| r.description == "aporte"), "aporte normal aparece");
+        assert!(
+            rows.iter().all(|r| r.description != "rendimento"),
+            "movimento sem efeito na conta não aparece no extrato"
+        );
     }
 }

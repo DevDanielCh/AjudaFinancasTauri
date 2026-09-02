@@ -15,7 +15,7 @@ pub fn list_reserva_movements_impl(conn: &Connection, account_id: i64) -> Result
         .prepare(
              "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, c.name, t.payment_method_id, pm.name,
-                    t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode
+                    t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode, t.in_principal
              FROM transactions t
              LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
@@ -39,6 +39,7 @@ pub fn list_reserva_movements_impl(conn: &Connection, account_id: i64) -> Result
                 loan_id: r.get(10)?,
                 is_card_bill: r.get(11)?,
                 card_mode: r.get(12)?,
+                in_principal: r.get(13)?,
                 installment: None,
             })
         })
@@ -89,5 +90,21 @@ mod tests {
         assert_eq!(reserva_balance_at(&conn, 1, jul).unwrap(), 70000, "após resgate e sem o 2º aporte");
         let set = NaiveDate::from_ymd_opt(2026, 9, 1).unwrap();
         assert_eq!(reserva_balance_at(&conn, 1, set).unwrap(), 90000, "transação normal ignorada");
+    }
+
+    #[test]
+    fn reserva_balance_conta_rendimento_sem_efeito_na_conta() {
+        let conn = test_db();
+        conn.execute_batch(
+            "INSERT INTO transactions (description, amount, type, date, in_principal) VALUES
+             ('rendimento', 15000, 4, '2026-06-15', 0)",
+        )
+        .unwrap();
+        let jul = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
+        assert_eq!(
+            reserva_balance_at(&conn, 1, jul).unwrap(),
+            15000,
+            "rendimento entra no saldo da reserva mesmo sem efeito na conta"
+        );
     }
 }

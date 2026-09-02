@@ -10,6 +10,7 @@ fn valida_transacao() {
         category_id: None,
         payment_method_id: None,
         card_mode: 0,
+        in_principal: true,
     };
     assert!(t.validate().is_err(), "descrição vazia deve falhar");
 
@@ -19,6 +20,26 @@ fn valida_transacao() {
 
     t2.payment_method_id = Some(1);
     assert!(t2.validate().is_ok());
+}
+
+#[test]
+fn in_principal_so_para_reserva() {
+    let base = TransactionInput {
+        description: "Movimento".into(),
+        amount: 100,
+        type_: 4,
+        date: "2026-01-10".into(),
+        category_id: None,
+        payment_method_id: None,
+        card_mode: 0,
+        in_principal: false,
+    };
+    assert!(base.validate().is_ok(), "reserva pode desligar in_principal");
+
+    let mut despesa = base.clone();
+    despesa.type_ = 2;
+    despesa.payment_method_id = Some(1);
+    assert!(despesa.validate().is_err(), "despesa não pode desligar in_principal");
 }
 
 #[test]

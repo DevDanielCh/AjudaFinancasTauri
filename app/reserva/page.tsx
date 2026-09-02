@@ -88,9 +88,9 @@ export default function ReservaPage() {
           transactionApi.update(id, { ...d, category_id: null, payment_method_id: null, card_mode: 0 }),
         remove: transactionApi.remove,
         empty: (): ReservaInput => ({
-          description: "", amount: 0, type: 4, date: todayISO(),
+          description: "", amount: 0, type: 4, date: todayISO(), in_principal: true,
         }),
-        toInput: (r): ReservaInput => ({ description: r.description, amount: r.amount, type: r.type, date: r.date }),
+        toInput: (r): ReservaInput => ({ description: r.description, amount: r.amount, type: r.type, date: r.date, in_principal: r.in_principal ?? true }),
         summary: balance,
         queryKey: reservaKeys,
         invalidate: [

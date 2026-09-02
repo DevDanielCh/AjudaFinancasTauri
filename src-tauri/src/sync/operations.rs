@@ -40,7 +40,7 @@ pub fn entity_columns(entity: &str) -> &'static str {
             "id, uuid, type, description, principal, installment, total_installments, day, start_month, payment_method_id, monthly_rate, created_at, updated_at, deleted_at"
         }
         "transactions" => {
-            "id, uuid, description, amount, type, date, category_id, payment_method_id, fixed_bill_id, loan_id, bill_start, bill_end, card_mode, created_at, updated_at, deleted_at"
+            "id, uuid, description, amount, type, date, category_id, payment_method_id, fixed_bill_id, loan_id, bill_start, bill_end, card_mode, in_principal, created_at, updated_at, deleted_at"
         }
         "settings" => "key, uuid, value, created_at, updated_at, deleted_at",
         _ => "",
@@ -105,7 +105,7 @@ pub fn read_entity_row(
                     COALESCE(fb.uuid, '') as fb_uuid,
                     COALESCE(l.uuid, '') as loan_uuid,
                     COALESCE(a.uuid, '') as account_uuid,
-                    t.bill_start, t.bill_end, t.card_mode,
+                    t.bill_start, t.bill_end, t.card_mode, t.in_principal,
                     t.created_at, t.updated_at, t.deleted_at
              FROM transactions t
              LEFT JOIN categories c ON c.id = t.category_id

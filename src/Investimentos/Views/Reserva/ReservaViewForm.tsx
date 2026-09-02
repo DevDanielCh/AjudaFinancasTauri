@@ -22,6 +22,10 @@ export function ReservaViewForm({ row }: { row: ReservaRow }) {
         <FieldLabel>Data</FieldLabel>
         <div className="text-sm">{formatDate(row.date)}</div>
       </Field>
+      <Field>
+        <FieldLabel>Movimenta a conta principal</FieldLabel>
+        <div className="text-sm">{row.in_principal === false ? "Não — só a reserva" : "Sim"}</div>
+      </Field>
     </FieldGroup>
   );
 }

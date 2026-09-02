@@ -56,7 +56,7 @@ pub fn month_income(conn: &Connection, account_id: i64, start: NaiveDate, end: N
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (1, 5) AND date >= ?1 AND date < ?2 AND deleted_at IS NULL AND account_id = ?3",
+             WHERE type IN (1, 5) AND in_principal = 1 AND date >= ?1 AND date < ?2 AND deleted_at IS NULL AND account_id = ?3",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string(), account_id],
             |r| r.get(0),
         )
@@ -73,7 +73,7 @@ pub fn pm_expenses(
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (2, 4) AND payment_method_id = ?1 AND date >= ?2 AND date < ?3
+             WHERE type IN (2, 4) AND in_principal = 1 AND payment_method_id = ?1 AND date >= ?2 AND date < ?3
                AND deleted_at IS NULL",
             rusqlite::params![
                 pm_id,
@@ -90,7 +90,7 @@ pub fn no_pm_expenses(conn: &Connection, account_id: i64, start: NaiveDate, end:
     let v: i64 = conn
         .query_row(
             "SELECT COALESCE(SUM(amount), 0) FROM transactions
-             WHERE type IN (2, 4) AND payment_method_id IS NULL AND date >= ?1 AND date < ?2
+             WHERE type IN (2, 4) AND in_principal = 1 AND payment_method_id IS NULL AND date >= ?1 AND date < ?2
                AND deleted_at IS NULL AND account_id = ?3",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string(), account_id],
             |r| r.get(0),
@@ -144,7 +144,7 @@ pub fn month_expenses(conn: &Connection, account_id: i64, ref_month: NaiveDate) 
     let bills: i64 = conn
         .query_row(
              "SELECT COALESCE(SUM(amount), 0) FROM transactions
-              WHERE type = 3 AND date >= ?1 AND date < ?2 AND deleted_at IS NULL AND account_id = ?3",
+              WHERE type = 3 AND in_principal = 1 AND date >= ?1 AND date < ?2 AND deleted_at IS NULL AND account_id = ?3",
             rusqlite::params![start.format("%Y-%m-%d").to_string(), end.format("%Y-%m-%d").to_string(), account_id],
             |r| r.get(0),
         )
@@ -162,7 +162,7 @@ pub fn income_by_category(
         .prepare(
             "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total, c.color
              FROM transactions t LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
-             WHERE t.type IN (1, 5) AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL AND t.account_id = ?3
+             WHERE t.type IN (1, 5) AND t.in_principal = 1 AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL AND t.account_id = ?3
              GROUP BY c.name ORDER BY total DESC",
         )
         .map_err(db_err)?;
@@ -194,7 +194,7 @@ pub fn expenses_by_category(
         .prepare(
             "SELECT COALESCE(c.name, 'Sem categoria') AS name, SUM(t.amount) AS total, c.color
              FROM transactions t LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
-             WHERE t.type IN (2, 4) AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL AND t.account_id = ?3
+             WHERE t.type IN (2, 4) AND t.in_principal = 1 AND t.date >= ?1 AND t.date < ?2 AND t.deleted_at IS NULL AND t.account_id = ?3
              GROUP BY c.name ORDER BY total DESC",
         )
         .map_err(db_err)?;
@@ -592,6 +592,24 @@ mod tests {
         let nxt = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
         assert_eq!(month_income(&conn, 1, jun, nxt).unwrap(), 30000, "remoção conta como receita");
         assert_eq!(month_expenses(&conn, 1, jun).unwrap(), 100000, "adição conta como despesa");
+    }
+
+    #[test]
+    fn reserva_com_in_principal_0_nao_movimenta_conta_principal() {
+        let conn = test_db();
+        conn.execute_batch(
+            "INSERT INTO transactions (description, amount, type, date, in_principal) VALUES
+             ('aporte', 100000, 4, '2026-06-10', 0),
+             ('resgate', 30000, 5, '2026-06-15', 0),
+             ('aporte', 20000, 4, '2026-06-20', 1)",
+        )
+        .unwrap();
+        let jun = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        let nxt = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
+        assert_eq!(month_income(&conn, 1, jun, nxt).unwrap(), 0, "remoção sem efeito na conta não vira receita");
+        assert_eq!(month_expenses(&conn, 1, jun).unwrap(), 20000, "só adição com in_principal vira despesa");
+        let cats = expenses_by_category(&conn, 1, jun, nxt).unwrap();
+        assert_eq!(cats.iter().map(|r| r.total).sum::<i64>(), 20000, "breakdown ignora rendimento");
     }
 
     #[test]
