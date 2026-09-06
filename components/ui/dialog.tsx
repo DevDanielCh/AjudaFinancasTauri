@@ -73,8 +73,12 @@ function DialogHeader({
   className,
   children,
   showCloseButton = true,
+  showSeparator = true,
   ...props
-}: React.ComponentProps<"div"> & { showCloseButton?: boolean }) {
+}: React.ComponentProps<"div"> & {
+  showCloseButton?: boolean
+  showSeparator?: boolean
+}) {
   return (
     <div
       data-slot="dialog-header"
@@ -99,7 +103,7 @@ function DialogHeader({
           </DialogPrimitive.Close>
         )}
       </div>
-      <Separator className="my-2" />
+      {showSeparator && <Separator className="my-2" />}
     </div>
   )
 }

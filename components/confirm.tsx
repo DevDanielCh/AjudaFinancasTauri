@@ -35,7 +35,7 @@ export function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
+<DialogHeader showSeparator={false}>
           <DialogTitle>Confirmar exclusão</DialogTitle>
           <DialogDescription>{message}</DialogDescription>
         </DialogHeader>
