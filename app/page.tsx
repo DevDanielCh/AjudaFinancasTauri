@@ -108,7 +108,7 @@ function DashboardContent({
         <MetaCard pct={data.meta_investimento} income={data.income} aportes={data.aportes} />
       )}
       {chart && <ChartSection data={chart} month={month} />}
-      <RendaCard key={data} income={data.income} />
+      <RendaCard key={data.month} income={data.income} />
     </div>
   );
 }
