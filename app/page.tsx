@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useDashboard, useChartData, useSyncDashboard } from "@/src/shared/services";
 import type { ChartData, DashboardData } from "@/src/shared/models";
 import { ChartSection } from "@/components/dashboard/ChartSection";
+import { RendaCard } from "@/components/dashboard/RendaCard";
 import { PullToRefresh } from "@/components/PullToRefresh";
 
 export default function DashboardPage() {
@@ -107,6 +108,7 @@ function DashboardContent({
         <MetaCard pct={data.meta_investimento} income={data.income} aportes={data.aportes} />
       )}
       {chart && <ChartSection data={chart} month={month} />}
+      <RendaCard key={data} income={data.income} />
     </div>
   );
 }
