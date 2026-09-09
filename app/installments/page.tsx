@@ -1,5 +1,5 @@
 "use client";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { InstallmentsScreen } from "@/components/screens/installments";
 import { ContaFixaAddForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaAddForm";
 import { fixedBillApi } from "@/src/OrganizacaoFinanceira/Repositories/fixed-bill";
 import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
@@ -12,7 +12,7 @@ import type { Sort } from "@/src/shared/models";
 
 export default function InstallmentsPage() {
   return (
-    <CrudPage
+    <InstallmentsScreen
       config={{
         title: "Parcelamentos",
         columns: [

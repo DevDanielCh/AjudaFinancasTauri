@@ -1,5 +1,5 @@
 "use client";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { PaymentMethodsScreen } from "@/components/screens/payment-methods";
 import { FormaPagamentoAddForm } from "@/src/OrganizacaoFinanceira/Views/FormaPagamento/FormaPagamentoAddForm";
 import { FormaPagamentoViewForm } from "@/src/OrganizacaoFinanceira/Views/FormaPagamento/FormaPagamentoViewForm";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
@@ -9,7 +9,7 @@ import type { PaymentMethodInput } from "@/src/OrganizacaoFinanceira/Models/paym
 
 export default function PaymentMethodsPage() {
   return (
-    <CrudPage
+    <PaymentMethodsScreen
       config={{
         title: "Formas de Pagamento",
         newTitle: "Nova Forma de Pagamento",

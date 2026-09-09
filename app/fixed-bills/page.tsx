@@ -1,5 +1,5 @@
 "use client";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { FixedBillsScreen } from "@/components/screens/fixed-bills";
 import { ContaFixaAddForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaAddForm";
 import { ContaFixaViewForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaViewForm";
 import { fixedBillApi } from "@/src/OrganizacaoFinanceira/Repositories/fixed-bill";
@@ -13,7 +13,7 @@ import type { Sort } from "@/src/shared/models";
 
 export default function FixedBillsPage() {
   return (
-    <CrudPage
+    <FixedBillsScreen
       config={{
         title: "Contas Fixas",
         newTitle: "Nova Conta Fixa",
