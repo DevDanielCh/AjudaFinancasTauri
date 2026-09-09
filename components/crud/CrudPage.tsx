@@ -1,12 +1,11 @@
 "use client";
 import { Suspense } from "react";
-import { usePlatform } from "@/lib/platform";
-import type { CrudConfig, DialogState } from "./types";
+import { PlatformView } from "@/components/PlatformView";
 import { CrudPageDesktop } from "./CrudPageDesktop";
 import { CrudPageMobile } from "./CrudPageMobile";
+import type { CrudConfig, DialogState } from "./types";
 
 export type { CrudConfig, DialogState };
-export type { Column } from "./types";
 
 export function CrudPage<T extends { id: number }, F, E>({
   config,
@@ -16,23 +15,11 @@ export function CrudPage<T extends { id: number }, F, E>({
   autoCreate?: boolean;
 }) {
   return (
-    <Suspense>
-      <CrudPageInner config={config} autoCreate={autoCreate} />
+    <Suspense fallback={null}>
+      <PlatformView
+        mobile={<CrudPageMobile config={config} autoCreate={autoCreate} />}
+        desktop={<CrudPageDesktop config={config} autoCreate={autoCreate} />}
+      />
     </Suspense>
-  );
-}
-
-function CrudPageInner<T extends { id: number }, F, E>({
-  config,
-  autoCreate,
-}: {
-  config: CrudConfig<T, F, E>;
-  autoCreate?: boolean;
-}) {
-  const platform = usePlatform();
-  return platform === "mobile" ? (
-    <CrudPageMobile config={config} autoCreate={autoCreate} />
-  ) : (
-    <CrudPageDesktop config={config} autoCreate={autoCreate} />
   );
 }
