@@ -1,10 +1,10 @@
 "use client";
 import { useCallback } from "react";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { ReservaScreen } from "@/components/screens/reserva";
+import { ReservaBalance } from "@/components/screens/reserva/shared/ReservaBalance";
 import { ReservaAddForm } from "@/src/Investimentos/Views/Reserva/ReservaAddForm";
 import { ReservaViewForm } from "@/src/Investimentos/Views/Reserva/ReservaViewForm";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { useMonth } from "@/lib/month-context";
 import { transactionApi } from "@/src/OrganizacaoFinanceira/Repositories/transaction";
 import { reservaApi } from "@/src/Investimentos/Repositories/reserva";
@@ -25,22 +25,12 @@ export default function ReservaPage() {
   const load = useCallback(() => reservaApi.listMovements(), []);
 
   const balance = useCallback(
-    (rows: TransactionRow[]) => {
-      const saldo = seed + rows.reduce((acc, r) => acc + (r.type === 5 ? -r.amount : r.amount), 0);
-      return (
-        <Card className="flex items-center justify-between px-4 py-3">
-          <span className="text-sm text-muted-foreground">Saldo da reserva</span>
-          <span className={cn("text-lg font-semibold tabular-nums", saldo < 0 ? "text-negative" : "text-positive")}>
-            {formatMoney(saldo)}
-          </span>
-        </Card>
-      );
-    },
+    (rows: TransactionRow[]) => <ReservaBalance rows={rows} seed={seed} />,
     [seed]
   );
 
   return (
-    <CrudPage
+    <ReservaScreen
       config={{
         title: "Reservas",
         newTitle: "Novo Aporte/Resgate",

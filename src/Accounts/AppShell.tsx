@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { AccountsProvider, useAccounts } from "./services";
 import { AccountRail } from "./AccountRail";
+import { AccountBottomNav } from "./AccountBottomNav";
 import { AccountEditDialog, AccountDeleteDialog } from "./AccountDialogs";
 import { ChannelsContent } from "./ChannelsContent";
 import { AppHeader } from "@/components/AppHeader";
@@ -23,6 +24,9 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="flex h-full">
       <AccountRail />
 
+      {/* Bottom nav estilo Instagram no mobile */}
+      <AccountBottomNav />
+
       {/* Sidebar fixa no desktop */}
       <aside
         data-slot="channels-sidebar"
@@ -33,7 +37,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pb-20 sm:p-6">
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pb-28 sm:p-6">
           <div className="mx-auto flex h-full w-full max-w-7xl min-h-0 flex-1 overflow-y-auto">{children}</div>
         </main>
       </div>
@@ -45,7 +49,7 @@ function Shell({ children }: { children: React.ReactNode }) {
             <SheetTitle>Navegação</SheetTitle>
             <SheetDescription>Menu principal do aplicativo</SheetDescription>
           </SheetHeader>
-          <ChannelsContent onNavigate={() => setChannelsOpen(false)} showStatus />
+          <ChannelsContent onNavigate={() => setChannelsOpen(false)} />
         </SheetContent>
       </Sheet>
 

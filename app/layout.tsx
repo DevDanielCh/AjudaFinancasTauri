@@ -11,6 +11,7 @@ import { UpdateDialog } from "@/components/UpdateDialog"
 import { SyncOverlay } from "@/src/Sync/SyncOverlay"
 import { cn } from "@/lib/utils"
 import { SafeAreaInit } from "@/components/SafeAreaInit"
+import { PlatformProvider } from "@/lib/platform"
 
 export const viewport: Viewport = {
   viewportFit: "cover",
@@ -43,14 +44,16 @@ export default function RootLayout({
         <SafeAreaInit />
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <Providers>
-            <MonthProvider>
-              <AppShell>
-                <main className="w-full">{children}</main>
-              </AppShell>
-              <Toaster />
-              <SyncOverlay />
-              <UpdateDialog />
-            </MonthProvider>
+            <PlatformProvider>
+              <MonthProvider>
+                <AppShell>
+                  <main className="w-full">{children}</main>
+                </AppShell>
+                <Toaster />
+                <SyncOverlay />
+                <UpdateDialog />
+              </MonthProvider>
+            </PlatformProvider>
           </Providers>
         </ThemeProvider>
       </body>

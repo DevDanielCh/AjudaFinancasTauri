@@ -23,7 +23,7 @@ import { FieldError } from "@/components/ui/field";
 import { toast } from "@/components/ui/toast";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { msg } from "@/src/shared/repository";
-import type { CrudConfig, DialogState } from "./CrudPage";
+import type { CrudConfig, DialogState } from "./types";
 import type { CrudFormApi } from "@/lib/forms";
 
 /** Singular genérico: remove apenas o "s" final (título irregular vem via config). */
@@ -36,13 +36,17 @@ export function FormDialog<T extends { id: number }, F, E>({
   dialog,
   onClose,
   onSaved,
+  variant,
 }: {
   config: CrudConfig<T, F, E>;
   dialog: DialogState<T, F>;
   onClose: () => void;
   onSaved?: () => void;
+  /** Plataforma alvo. Quando omisso, decide pelo breakpoint (legado). */
+  variant?: "sheet" | "dialog";
 }) {
   const isMobile = useIsMobile();
+  const variant_ = variant ?? (isMobile ? "sheet" : "dialog");
 
   const form = useForm({
     defaultValues:
@@ -112,10 +116,10 @@ export function FormDialog<T extends { id: number }, F, E>({
     </>
   );
 
-  if (isMobile) {
+  if (variant_ === "sheet") {
     return (
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent>
+        <SheetContent side="top" className="max-h-[92dvh] overflow-y-auto">
           <form
             onSubmit={(e) => {
               e.preventDefault();

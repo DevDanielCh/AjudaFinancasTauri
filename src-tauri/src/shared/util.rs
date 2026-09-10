@@ -73,6 +73,16 @@ pub fn get_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
+/// Plataforma de runtime: "mobile" no Android, "desktop" nos demais.
+#[tauri::command]
+pub fn get_platform_type() -> String {
+    if cfg!(target_os = "android") {
+        "mobile".to_string()
+    } else {
+        "desktop".to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,5 +111,11 @@ mod tests {
         assert_eq!(order_clause(Some("amount"), None, wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
         assert_eq!(order_clause(Some("unknown"), Some("asc"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
         assert_eq!(order_clause(Some("amount"), Some("bogus"), wl, "ORDER BY t.date DESC", "t.id DESC"), "ORDER BY t.date DESC");
+    }
+
+    #[test]
+    fn platform_type_eh_valido() {
+        let p = get_platform_type();
+        assert!(p == "mobile" || p == "desktop");
     }
 }

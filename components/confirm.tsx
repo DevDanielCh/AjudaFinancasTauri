@@ -9,11 +9,12 @@ import {
 import { Button } from "@/components/ui/button";
 
 export function ConfirmDialog({
-  open, message, onOpenChange, onConfirm,
-}: { open: boolean; message: string; onOpenChange: (o: boolean) => void; onConfirm: () => void }) {
+  open, message, onOpenChange, onConfirm, variant,
+}: { open: boolean; message: string; onOpenChange: (o: boolean) => void; onConfirm: () => void; variant?: "sheet" | "dialog" }) {
   const isMobile = useIsMobile();
+  const variant_ = variant ?? (isMobile ? "sheet" : "dialog");
 
-  if (isMobile) {
+  if (variant_ === "sheet") {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent side="bottom" showCloseButton={false} className="gap-3 pb-6">

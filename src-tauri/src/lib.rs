@@ -112,6 +112,7 @@ pub fn run() {
             accounts::controller::set_active_account,
             shared::util::get_earliest_month,
             shared::util::get_version,
+            shared::util::get_platform_type,
             shared::report::get_dashboard,
             shared::report::sync_dashboard,
             shared::report::revalidate_generated_transactions,

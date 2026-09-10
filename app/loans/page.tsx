@@ -1,8 +1,7 @@
 "use client";
 import { useState } from "react";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { LoansScreen } from "@/components/screens/loans";
 import { FinanciamentoAddForm } from "@/src/OrganizacaoFinanceira/Views/Financiamento/FinanciamentoAddForm";
-import { FinanciamentoViewForm } from "@/src/OrganizacaoFinanceira/Views/Financiamento/FinanciamentoViewForm";
 import { loanApi } from "@/src/OrganizacaoFinanceira/Repositories/loan";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
 import { loanKeys } from "@/src/OrganizacaoFinanceira/Services/loan";
@@ -14,7 +13,7 @@ export default function LoansPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   return (
     <>
-      <CrudPage
+      <LoansScreen
         config={{
           title: "Financiamentos/Empréstimos",
           newTitle: "Novo Financiamento/Empréstimo",
@@ -70,8 +69,9 @@ export default function LoansPage() {
             { id: "payment_method", label: "Forma Pgto", field: "select", accessor: (r) => r.payment_method_name },
           ],
         }}
+        detailId={detailId}
+        onDetailClose={() => setDetailId(null)}
       />
-      <FinanciamentoViewForm id={detailId} onClose={() => setDetailId(null)} />
     </>
   );
 }

@@ -15,7 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/lib/use-is-mobile";
-import type { CrudConfig } from "./CrudPage";
+import type { CrudConfig } from "./types";
 
 /** Singular genérico: remove apenas o "s" final (título irregular vem via config). */
 function singular(title: string): string {
@@ -26,12 +26,16 @@ export function ViewDialog<T extends { id: number }, F, E>({
   config,
   row,
   onClose,
+  variant,
 }: {
   config: CrudConfig<T, F, E>;
   row: T;
   onClose: () => void;
+  /** Plataforma alvo. Quando omisso, decide pelo breakpoint (legado). */
+  variant?: "sheet" | "dialog";
 }) {
   const isMobile = useIsMobile();
+  const variant_ = variant ?? (isMobile ? "sheet" : "dialog");
   const ViewFields = config.ViewFields;
   if (!ViewFields) return null;
 
@@ -41,10 +45,10 @@ export function ViewDialog<T extends { id: number }, F, E>({
     </Button>
   );
 
-  if (isMobile) {
+  if (variant_ === "sheet") {
     return (
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent>
+        <SheetContent side="top" className="max-h-[92dvh] overflow-y-auto">
           <SheetHeader className="mb-4">
             <SheetTitle>Visualizar {singular(config.title)}</SheetTitle>
           </SheetHeader>

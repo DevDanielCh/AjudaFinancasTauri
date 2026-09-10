@@ -1,5 +1,5 @@
 "use client";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { CategoriesScreen } from "@/components/screens/categories";
 import { CategoriaAddForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaAddForm";
 import { CategoriaViewForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaViewForm";
 import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
@@ -9,7 +9,7 @@ import type { CategoryInput } from "@/src/OrganizacaoFinanceira/Models/category"
 
 export default function CategoriesPage() {
   return (
-    <CrudPage
+    <CategoriesScreen
       config={{
         title: "Categorias",
         newTitle: "Nova Categoria",

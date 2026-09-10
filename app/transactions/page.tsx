@@ -1,11 +1,10 @@
 "use client";
 import { Suspense, useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CrudPage } from "@/components/crud/CrudPage";
+import { TransactionsScreen } from "@/components/screens/transactions";
+import { TransactionsSummary } from "@/components/screens/transactions/shared/TransactionsSummary";
 import { TransacaoAddForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoAddForm";
-import { TransacaoViewForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoViewForm";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import { useMonth } from "@/lib/month-context";
 import { transactionApi } from "@/src/OrganizacaoFinanceira/Repositories/transaction";
@@ -17,7 +16,7 @@ import { transactionSchema } from "@/lib/schemas";
 import { formatDate, formatMoney, todayISO } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Sort } from "@/src/shared/models";
-import type { TransactionInput, TransactionRow } from "@/src/OrganizacaoFinanceira/Models/transaction";
+import type { TransactionInput } from "@/src/OrganizacaoFinanceira/Models/transaction";
 
 export default function TransactionsPage() {
   return (
@@ -35,7 +34,7 @@ function TransactionsContent() {
   const load = useCallback((sort: Sort | null) => transactionApi.list(month, sort), [month]);
   return (
     <>
-      <CrudPage
+      <TransactionsScreen
         autoCreate={autoCreate}
         config={{
           title: "Transações",
@@ -137,38 +136,9 @@ function TransactionsContent() {
             else toast.add({ title: "Visualizar disponível apenas para faturas", type: "error" });
           },
         }}
+        faturaId={faturaId}
+        onFaturaClose={() => setFaturaId(null)}
       />
-      <TransacaoViewForm id={faturaId} onClose={() => setFaturaId(null)} />
     </>
-  );
-}
-
-function TransactionsSummary({ rows }: { rows: TransactionRow[] }) {
-  const income = rows
-    .filter((r) => r.type === 1 || r.type === 5)
-    .reduce((s, r) => s + r.amount, 0);
-  const expense = rows
-    .filter((r) => r.type === 2 || r.type === 3 || r.type === 4)
-    .reduce((s, r) => s + r.amount, 0);
-  const saldo = income - expense;
-  return (
-    <div className="grid grid-cols-3 gap-3">
-      <SummaryTile label="Receitas" value={formatMoney(income)} className="text-positive" />
-      <SummaryTile label="Despesas" value={formatMoney(expense)} className="text-negative" />
-      <SummaryTile
-        label="Saldo do mês"
-        value={formatMoney(saldo)}
-        className={saldo >= 0 ? "text-positive" : "text-negative"}
-      />
-    </div>
-  );
-}
-
-function SummaryTile({ label, value, className }: { label: string; value: string; className?: string }) {
-  return (
-    <Card className="flex flex-col gap-0.5 px-4 py-3">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn("text-lg font-bold tabular-nums", className)}>{value}</span>
-    </Card>
   );
 }

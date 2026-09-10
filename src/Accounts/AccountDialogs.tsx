@@ -5,12 +5,14 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
@@ -83,7 +85,7 @@ function SubmitButton({
   children: React.ReactNode;
 }) {
   return (
-    <Button type="submit" disabled={disabled || pending}>
+    <Button type="submit" className="rounded-md" disabled={disabled || pending}>
       {pending && <Loader2 className="size-4 animate-spin" />}
       {children}
     </Button>
@@ -112,37 +114,37 @@ export function AccountCreateDialog({
     createMutation.mutate(value, { onSuccess: reset });
   };
 
-  const body = (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <DialogHeader>
-        <DialogTitle>Nova conta</DialogTitle>
-        <DialogDescription>
-          Cada conta tem dados totalmente independentes.
-        </DialogDescription>
-      </DialogHeader>
+  const fields = (
+    <>
       <AccountFormBody value={value} onChange={setValue} />
       {createMutation.isError && (
         <p className="text-sm text-destructive">{String(createMutation.error)}</p>
       )}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={reset}>
-          Cancelar
-        </Button>
-        <SubmitButton pending={createMutation.isPending} disabled={!value.name?.trim()}>
-          Criar
-        </SubmitButton>
-      </div>
-    </form>
+    </>
+  );
+
+  const actions = (
+    <>
+      <Button type="button" variant="outline" onClick={reset}>
+        Cancelar
+      </Button>
+      <SubmitButton pending={createMutation.isPending} disabled={!value.name?.trim()}>
+        Criar
+      </SubmitButton>
+    </>
   );
 
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={(o) => { if (!o) onOpenChange(false); }}>
-        <SheetContent side="bottom">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Nova conta</SheetTitle>
-          </SheetHeader>
-          {body}
+        <SheetContent side="top" className="max-h-[92dvh] overflow-y-auto">
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <SheetHeader className="mb-4">
+              <SheetTitle>Nova conta</SheetTitle>
+            </SheetHeader>
+            {fields}
+            <SheetFooter className="mt-6">{actions}</SheetFooter>
+          </form>
         </SheetContent>
       </Sheet>
     );
@@ -150,7 +152,18 @@ export function AccountCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onOpenChange(false); }}>
-      <DialogContent className="sm:max-w-sm">{body}</DialogContent>
+      <DialogContent className="sm:max-w-sm">
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Nova conta</DialogTitle>
+            <DialogDescription>
+              Cada conta tem dados totalmente independentes.
+            </DialogDescription>
+          </DialogHeader>
+          {fields}
+          <DialogFooter className="mt-6">{actions}</DialogFooter>
+        </form>
+      </DialogContent>
     </Dialog>
   );
 }
@@ -191,46 +204,49 @@ export function AccountEditDialog({
 
   const canDelete = !!account && accounts.length > 1;
 
-  const body = account && (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <DialogHeader>
-        <DialogTitle>Editar conta</DialogTitle>
-      </DialogHeader>
+  const fields = account && (
+    <>
       <AccountFormBody value={value} onChange={setValue} />
       {updateMutation.isError && (
         <p className="text-sm text-destructive">{String(updateMutation.error)}</p>
       )}
-      <div className="flex items-center justify-between gap-2">
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={!canDelete}
-          title={canDelete ? undefined : "Não é possível excluir a última conta"}
-          className="text-destructive hover:text-destructive"
-          onClick={() => onDelete(account)}
-        >
-          Excluir
-        </Button>
-        <div className="flex gap-2">
-          <Button type="button" variant="ghost" onClick={close}>
-            Cancelar
-          </Button>
-          <SubmitButton pending={updateMutation.isPending} disabled={!value.name?.trim()}>
-            Salvar
-          </SubmitButton>
-        </div>
-      </div>
-    </form>
+    </>
+  );
+
+  const actions = (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        disabled={!canDelete}
+        title={canDelete ? undefined : "Não é possível excluir a última conta"}
+        className="mr-auto text-destructive hover:text-destructive"
+        onClick={() => account && onDelete(account)}
+      >
+        Excluir
+      </Button>
+      <Button type="button" variant="outline" onClick={close}>
+        Cancelar
+      </Button>
+      <SubmitButton pending={updateMutation.isPending} disabled={!value.name?.trim()}>
+        Salvar
+      </SubmitButton>
+    </>
   );
 
   if (isMobile) {
     return (
       <Sheet open={!!account} onOpenChange={(o) => { if (!o) close(); }}>
-        <SheetContent side="bottom">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Editar conta</SheetTitle>
-          </SheetHeader>
-          {body}
+        <SheetContent side="top" className="max-h-[92dvh] overflow-y-auto">
+          {account && (
+            <form onSubmit={submit} className="flex flex-col gap-4">
+              <SheetHeader className="mb-4">
+                <SheetTitle>Editar conta</SheetTitle>
+              </SheetHeader>
+              {fields}
+              <SheetFooter className="mt-6">{actions}</SheetFooter>
+            </form>
+          )}
         </SheetContent>
       </Sheet>
     );
@@ -238,7 +254,17 @@ export function AccountEditDialog({
 
   return (
     <Dialog open={!!account} onOpenChange={(o) => { if (!o) close(); }}>
-      <DialogContent className="sm:max-w-sm">{body}</DialogContent>
+      <DialogContent className="sm:max-w-sm">
+        {account && (
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Editar conta</DialogTitle>
+            </DialogHeader>
+            {fields}
+            <DialogFooter className="mt-6">{actions}</DialogFooter>
+          </form>
+        )}
+      </DialogContent>
     </Dialog>
   );
 }
@@ -258,44 +284,48 @@ export function AccountDeleteDialog({
     deleteMutation.mutate(account.uuid, { onSuccess: onClose });
   };
 
-  const body = account && (
-    <div className="flex flex-col gap-4">
-      <DialogHeader>
-        <DialogTitle>Excluir “{account.name}”?</DialogTitle>
-        <DialogDescription>
-          Todas as transações, categorias, formas de pagamento, contas fixas e
-          empréstimos dessa conta serão apagados permanentemente. Essa ação não
-          pode ser desfeita.
-        </DialogDescription>
-      </DialogHeader>
-      {deleteMutation.isError && (
-        <p className="text-sm text-destructive">{String(deleteMutation.error)}</p>
-      )}
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="ghost" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={deleteMutation.isPending}
-          onClick={confirm}
-        >
-          {deleteMutation.isPending && <Loader2 className="size-4 animate-spin" />}
-          Excluir tudo
-        </Button>
-      </div>
-    </div>
+  const description = account && (
+    <DialogDescription>
+      Todas as transações, categorias, formas de pagamento, contas fixas e
+      empréstimos dessa conta serão apagados permanentemente. Essa ação não
+      pode ser desfeita.
+    </DialogDescription>
+  );
+
+  const actions = (
+    <>
+      <Button type="button" variant="outline" onClick={onClose}>
+        Cancelar
+      </Button>
+      <Button
+        type="button"
+        variant="destructive"
+        className="rounded-md"
+        disabled={deleteMutation.isPending}
+        onClick={confirm}
+      >
+        {deleteMutation.isPending && <Loader2 className="size-4 animate-spin" />}
+        Excluir tudo
+      </Button>
+    </>
   );
 
   if (isMobile) {
     return (
       <Sheet open={!!account} onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="bottom">
-          <SheetHeader className="sr-only">
-            <SheetTitle>Excluir conta</SheetTitle>
-          </SheetHeader>
-          {body}
+        <SheetContent side="top">
+          {account && (
+            <div className="flex flex-col gap-4">
+              <SheetHeader className="mb-4">
+                <SheetTitle>Excluir “{account.name}”?</SheetTitle>
+              </SheetHeader>
+              {description}
+              {deleteMutation.isError && (
+                <p className="text-sm text-destructive">{String(deleteMutation.error)}</p>
+              )}
+              <SheetFooter className="mt-6">{actions}</SheetFooter>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
     );
@@ -303,7 +333,20 @@ export function AccountDeleteDialog({
 
   return (
     <Dialog open={!!account} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="sm:max-w-sm">{body}</DialogContent>
+      <DialogContent className="sm:max-w-sm">
+        {account && (
+          <div className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>Excluir “{account.name}”?</DialogTitle>
+              {description}
+            </DialogHeader>
+            {deleteMutation.isError && (
+              <p className="text-sm text-destructive">{String(deleteMutation.error)}</p>
+            )}
+            <DialogFooter className="mt-6">{actions}</DialogFooter>
+          </div>
+        )}
+      </DialogContent>
     </Dialog>
   );
 }
