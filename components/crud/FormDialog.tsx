@@ -119,7 +119,7 @@ export function FormDialog<T extends { id: number }, F, E>({
   if (variant_ === "sheet") {
     return (
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent>
+        <SheetContent side="bottom" className="max-h-[92dvh] overflow-y-auto">
           <form
             onSubmit={(e) => {
               e.preventDefault();
