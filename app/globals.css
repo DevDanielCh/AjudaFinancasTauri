@@ -315,6 +315,13 @@ body {
   --safe-area-inset-bottom: 0px;
   --safe-area-inset-left: 0px;
   --safe-area-inset-right: 0px;
+  --vkbd-h: 0px;
+}
+
+/* Bottom sheets sobem junto com o teclado virtual (var setada por useKeyboardInset). */
+[data-slot="sheet-content"][data-side="bottom"] {
+  bottom: calc(var(--vkbd-h, 0px) + 0.5rem) !important;
+  max-height: calc(100dvh - var(--vkbd-h, 0px) - 1rem) !important;
 }
 
 /* Uma única camada de offset (body) para o notch/status bar; os componentes
