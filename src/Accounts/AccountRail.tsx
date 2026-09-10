@@ -43,7 +43,7 @@ export function AccountRail() {
 
   return (
     <aside
-      className="flex h-full w-[60px] shrink-0 flex-col items-center gap-1.5 bg-rail py-2 sm:w-[72px]"
+      className="hidden h-full w-[60px] shrink-0 flex-col items-center gap-1.5 bg-rail py-2 sm:flex sm:w-[72px]"
       style={{ paddingTop: "max(0.5rem, var(--safe-area-inset-top))" }}
     >
       <RailButton

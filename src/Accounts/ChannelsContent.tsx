@@ -8,8 +8,6 @@ import {
 import { MonthPicker } from "@/components/MonthPicker";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MonthStatusBadge } from "@/components/MonthStatusBadge";
-import { SyncStatusBadge } from "@/src/Sync/SyncStatus";
 import { useMonth } from "@/lib/month-context";
 import { shiftMonth } from "@/lib/format";
 import { useAccounts } from "./services";
@@ -36,11 +34,9 @@ export const MODULE_GROUPS = [
 
 interface ChannelsProps {
   onNavigate?: () => void;
-  /** Exibe pílulas de status do mês/sync (usado no drawer mobile). */
-  showStatus?: boolean;
 }
 
-export function ChannelsContent({ onNavigate, showStatus }: ChannelsProps) {
+export function ChannelsContent({ onNavigate }: ChannelsProps) {
   const pathname = usePathname();
   const { month, setMonth, min } = useMonth();
   const { active } = useAccounts();
@@ -50,7 +46,7 @@ export function ChannelsContent({ onNavigate, showStatus }: ChannelsProps) {
       {/* Filtro global de mês; altura/borda alinham com o header fixo
           e com o divider da rail (pt 8 + botão 36/40 + mt 4 + 1). */}
       <div
-        className="flex h-[calc(57px_+_var(--safe-area-inset-top))] shrink-0 items-center border-b px-2"
+        className="hidden h-[calc(57px_+_var(--safe-area-inset-top))] shrink-0 items-center border-b px-2 md:flex"
         style={{ paddingTop: "var(--safe-area-inset-top)" }}
       >
         <Button
@@ -77,12 +73,6 @@ export function ChannelsContent({ onNavigate, showStatus }: ChannelsProps) {
       </div>
       {/* Padding vertical alinhado ao layout entre o header e o conteúdo. */}
       <div className="flex min-h-0 flex-1 flex-col pt-[10px]">
-        {showStatus && (
-          <div className="flex flex-col gap-1 px-3">
-            <MonthStatusBadge month={month} className="w-full" />
-            <SyncStatusBadge className="w-full" />
-          </div>
-        )}
         <nav className="flex flex-1 flex-col gap-2 overflow-y-auto px-2">
           <ChannelLink
             href="/"

@@ -71,8 +71,25 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
       <div className="flex min-h-0 flex-1 flex-col gap-4">
         {config.summary?.(rows)}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <FilterMenu
+              filters={filterDefs}
+              activeFilters={filters}
+              addedIds={new Set([...pendingIds, ...Object.keys(filters)])}
+              onAdd={toggleAdded}
+            />
+            <Button
+              variant="outline"
+              className="flex-1"
+              disabled={!query.trim() && !hasActiveFilters}
+              onClick={clearFilters}
+            >
+              <FilterX data-icon="inline-start" />
+              Limpar Filtros
+            </Button>
+          </div>
+          <div className="relative">
             <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
@@ -82,24 +99,6 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
               className="pl-8"
             />
           </div>
-          <FilterMenu
-            filters={filterDefs}
-            activeFilters={filters}
-            addedIds={new Set([...pendingIds, ...Object.keys(filters)])}
-            onAdd={toggleAdded}
-          />
-          <Button
-            variant="outline"
-            disabled={!query.trim() && !hasActiveFilters}
-            onClick={clearFilters}
-          >
-            <FilterX data-icon="inline-start" />
-            Limpar Filtros
-          </Button>
-          <Button className="rounded-md" onClick={() => setDialog({ mode: "create" })}>
-            <Plus data-icon="inline-start" />
-            {config.addLabel ?? "Adicionar"}
-          </Button>
         </div>
 
         <FilterBar
@@ -110,7 +109,7 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
           derivedOptions={derivedOptionsMap}
         />
 
-        <div className={cn("flex min-h-0 flex-1 flex-col", config.mobileCorners && "h-full overflow-y-auto")}>
+        <div className={cn("flex min-h-0 flex-1 flex-col pb-16", config.mobileCorners && "h-full overflow-y-auto")}>
           {config.mobileCorners ? (
             <CardList
               corners={config.mobileCorners}
@@ -206,6 +205,16 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
             });
           }}
         />
+
+        <Button
+          size="icon"
+          aria-label={config.addLabel ?? "Adicionar"}
+          onClick={() => setDialog({ mode: "create" })}
+          className="fixed right-4 z-40 h-14 w-14 rounded-full shadow-lg"
+          style={{ bottom: "calc(7.5rem + var(--safe-area-inset-bottom))" }}
+        >
+          <Plus className="size-6" />
+        </Button>
       </div>
     </PullToRefresh>
   );
