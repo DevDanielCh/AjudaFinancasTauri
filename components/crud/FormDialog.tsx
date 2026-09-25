@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { skipToken } from "@tanstack/react-query";
 import { useForm } from "@tanstack/react-form";
@@ -20,9 +21,12 @@ import {
 } from "@/components/ui/sheet";
 import { Spinner } from "@/components/ui/spinner";
 import { FieldError } from "@/components/ui/field";
+import { FormErrorSummary } from "@/components/forms/FormErrorSummary";
 import { toast } from "@/components/ui/toast";
 import { useIsMobile } from "@/lib/use-is-mobile";
+import { cn } from "@/lib/utils";
 import { msg } from "@/src/shared/repository";
+import { useStore } from "@/lib/forms";
 import type { CrudConfig, DialogState } from "./types";
 import type { CrudFormApi } from "@/lib/forms";
 
@@ -30,6 +34,9 @@ import type { CrudFormApi } from "@/lib/forms";
 function singular(title: string): string {
   return title.endsWith("s") ? title.slice(0, -1) : title;
 }
+
+const hasMessage = (e: unknown) =>
+  typeof e === "string" || (typeof (e as { message?: string })?.message === "string");
 
 export function FormDialog<T extends { id: number }, F, E>({
   config,
@@ -47,6 +54,8 @@ export function FormDialog<T extends { id: number }, F, E>({
 }) {
   const isMobile = useIsMobile();
   const variant_ = variant ?? (isMobile ? "sheet" : "dialog");
+  const [attempted, setAttempted] = useState(false);
+  const [batchCount, setBatchCount] = useState(0);
 
   const form = useForm({
     defaultValues:
@@ -65,7 +74,9 @@ export function FormDialog<T extends { id: number }, F, E>({
     onSuccess: () => {
       toast.add({ title: "Salvo", type: "success" });
       onSaved?.();
+      setAttempted(false);
       if (dialog.mode === "create" && config.keepOpen) {
+        setBatchCount((c) => c + 1);
         form.reset(config.empty());
       } else {
         onClose();
@@ -85,7 +96,42 @@ export function FormDialog<T extends { id: number }, F, E>({
   const resourcesError =
     config.loadResources != null && resourcesQuery.isError ? msg(resourcesQuery.error) : null;
 
+const errorCount = useStore(form.store, (s) =>
+    (
+      Object.values(s.fieldMeta) as Array<{
+        errors?: unknown[];
+        touched?: boolean;
+        blurred?: boolean;
+      }>
+    ).filter((m) => m.errors?.some(hasMessage) && (m.touched || m.blurred)).length
+  );
+  const showSummary = attempted && errorCount > 0;
+
+  useEffect(() => {
+    if (!showSummary) return;
+    const el = document.querySelector<HTMLElement>('[data-slot="field-error"]');
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.focus();
+  }, [showSummary]);
+
+  useEffect(() => {
+    if (resourcesLoading || resourcesError) return;
+    const container = document.querySelector(
+      '[data-slot="sheet-content"], [data-slot="dialog-panel"]'
+    );
+    const input = container?.querySelector<HTMLElement>('[data-slot="input"]');
+    if (input && !input.hasAttribute("disabled")) {
+      input.focus({ preventScroll: true });
+    }
+  }, [resourcesLoading, resourcesError]);
+
   if (dialog.mode === "view") return null;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAttempted(true);
+    void form.handleSubmit();
+  };
 
   const body = resourcesLoading ? (
     <div className="flex justify-center py-4">
@@ -100,6 +146,12 @@ export function FormDialog<T extends { id: number }, F, E>({
       serverError={serverError}
     />
   );
+
+  const title =
+    (dialog.mode === "edit"
+      ? config.editTitle ?? `Editar ${singular(config.title)}`
+      : config.newTitle ?? `Novo ${singular(config.title)}`) +
+    (batchCount > 0 ? ` · ${batchCount + 1}` : "");
 
   const actions = (
     <>
@@ -116,23 +168,31 @@ export function FormDialog<T extends { id: number }, F, E>({
     </>
   );
 
+  const summary = showSummary && (
+    <FormErrorSummary count={errorCount} onReset={() => setAttempted(false)} />
+  );
+
   if (variant_ === "sheet") {
     return (
       <Sheet open onOpenChange={(o) => { if (!o) onClose(); }}>
-        <SheetContent side="top" className="max-h-[92dvh] overflow-y-auto">
+        <SheetContent
+          side="top"
+          className={cn("flex flex-col overflow-hidden", "max-h-[85dvh]")}
+        >
           <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void form.handleSubmit();
-            }}
+            onSubmit={submit}
+            className="flex min-h-0 flex-1 flex-col"
           >
-            <SheetHeader className="mb-4">
-              <SheetTitle>
-                {dialog.mode === "edit" ? config.editTitle ?? `Editar ${singular(config.title)}` : config.newTitle ?? `Novo ${singular(config.title)}`}
-              </SheetTitle>
+            <SheetHeader className="shrink-0 border-b">
+              <SheetTitle>{title}</SheetTitle>
             </SheetHeader>
-            {body}
-            <SheetFooter className="mt-6">{actions}</SheetFooter>
+            <div className="min-h-0 flex-1 overflow-y-auto pt-4 pb-6">
+              {summary}
+              {body}
+            </div>
+            <SheetFooter className="mt-0 shrink-0 border-t bg-popover/95 pt-3 pb-[calc(var(--safe-area-inset-bottom)+0.75rem)] backdrop-blur-sm">
+              {actions}
+            </SheetFooter>
           </form>
         </SheetContent>
       </Sheet>
@@ -142,17 +202,11 @@ export function FormDialog<T extends { id: number }, F, E>({
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void form.handleSubmit();
-          }}
-        >
+        <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>
-              {dialog.mode === "edit" ? config.editTitle ?? `Editar ${singular(config.title)}` : config.newTitle ?? `Novo ${singular(config.title)}`}
-            </DialogTitle>
+            <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
+          {summary}
           {body}
           <DialogFooter className="mt-6">{actions}</DialogFooter>
         </form>

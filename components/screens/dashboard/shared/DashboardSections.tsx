@@ -42,7 +42,7 @@ export function DashboardStatsGrid({ data }: { data: DashboardData }) {
           </>
         )}
       </StatCard>
-      <StatCard label="Saldo do mês" value={formatMoney(data.income - data.expenses)}
+      <StatCard label="Sobra" value={formatMoney(data.income - data.expenses)}
         positive={data.income - data.expenses >= 0} />
       <StatCard label="Saldo acumulado" value={formatMoney(data.balance)} hero />
     </div>

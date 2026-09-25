@@ -17,7 +17,7 @@ export function TransactionsSummary({ rows }: { rows: TransactionRow[] }) {
       <SummaryTile label="Receitas" value={formatMoney(income)} className="text-positive" />
       <SummaryTile label="Despesas" value={formatMoney(expense)} className="text-negative" />
       <SummaryTile
-        label="Saldo do mês"
+        label="Sobra"
         value={formatMoney(saldo)}
         className={saldo >= 0 ? "text-positive" : "text-negative"}
       />
@@ -27,9 +27,9 @@ export function TransactionsSummary({ rows }: { rows: TransactionRow[] }) {
 
 function SummaryTile({ label, value, className }: { label: string; value: string; className?: string }) {
   return (
-    <Card className="flex flex-col gap-0.5 px-4 py-3">
+    <Card className="flex min-w-0 flex-col gap-0.5 px-3 py-2.5 sm:px-4 sm:py-3">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={cn("text-lg font-bold tabular-nums", className)}>{value}</span>
+      <span className={cn("truncate text-sm font-semibold tabular-nums sm:text-lg sm:font-bold", className)}>{value}</span>
     </Card>
   );
 }

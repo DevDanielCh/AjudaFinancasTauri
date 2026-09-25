@@ -8,6 +8,8 @@ export interface TransactionRow {
   date: string;
   category_id: number | null;
   category_name: string | null;
+  category_icon: string | null;
+  category_color: string | null;
   payment_method_id: number | null;
   payment_method_name: string | null;
   fixed_bill_id: number | null;

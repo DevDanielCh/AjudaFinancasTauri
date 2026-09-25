@@ -74,7 +74,7 @@ export function CrudPageDesktop<T extends { id: number }, F, E>({
             onChange={(e) => { setQuery(e.target.value); setVisibleCount(pageSize); }}
             placeholder="Buscar..."
             aria-label={`Buscar em ${config.title}`}
-            className="pl-8"
+            className="pl-9!"
           />
         </div>
         <Button
@@ -105,6 +105,10 @@ export function CrudPageDesktop<T extends { id: number }, F, E>({
           activeFilters={filters}
           onSetFilter={handleSetFilter}
           derivedOptions={derivedOptionsMap}
+          emptyTitle={config.emptyTitle}
+          emptyDescription={config.emptyDescription}
+          emptyActionLabel={config.emptyActionLabel ?? `Adicionar ${config.title.toLowerCase().replace(/s$/, "")}`}
+          onEmptyAction={config.onEmptyAction ?? (() => setDialog({ mode: "create" }))}
           onRowDoubleClick={
             config.onRowDoubleClick ??
             ((row) => {

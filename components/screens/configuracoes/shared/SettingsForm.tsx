@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { MonthPicker } from "@/components/MonthPicker";
@@ -39,28 +39,23 @@ export function SettingsForm({ settings }: { settings: Settings }) {
         <FieldGroup>
           <Field>
             <FieldLabel>Primeiro mês de uso</FieldLabel>
-            <MonthPicker value={primeiroMes} onChange={setPrimeiroMes} />
-            <p className="text-xs text-muted-foreground">
-              Nenhum dado anterior a esse mês entra nos dashboards.
-            </p>
+            <MonthPicker size="lg" value={primeiroMes} onChange={setPrimeiroMes} />
+            <FieldDescription>Nenhum dado anterior a esse mês entra nos dashboards.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel>Saldo inicial da conta (R$)</FieldLabel>
-            <MoneyInput value={conta} onChange={setConta} />
-            <p className="text-xs text-muted-foreground">
-              Quanto existia na conta no primeiro mês de uso.
-            </p>
+            <MoneyInput size="lg" value={conta} onChange={setConta} />
+            <FieldDescription>Quanto existia na conta no primeiro mês de uso.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel>Saldo inicial da reserva (R$)</FieldLabel>
-            <MoneyInput value={reserva} onChange={setReserva} />
-            <p className="text-xs text-muted-foreground">
-              Quanto existia na reserva no primeiro mês de uso.
-            </p>
+            <MoneyInput size="lg" value={reserva} onChange={setReserva} />
+            <FieldDescription>Quanto existia na reserva no primeiro mês de uso.</FieldDescription>
           </Field>
           <Field>
             <FieldLabel>Meta de investimento (% da renda)</FieldLabel>
             <Input
+              size="lg"
               type="number"
               min={0}
               max={100}
@@ -68,11 +63,11 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               value={meta}
               onChange={(e) => setMeta(Number(e.target.value))}
             />
-            <p className="text-xs text-muted-foreground">
+            <FieldDescription>
               Percentual das receitas do mês destinado a investimentos.
-            </p>
+            </FieldDescription>
           </Field>
-          <Button onClick={save} disabled={update.isPending} className="w-full">
+          <Button onClick={save} disabled={update.isPending} size="lg" className="w-full rounded-md">
             {update.isPending ? "Salvando..." : "Salvar"}
           </Button>
         </FieldGroup>

@@ -11,6 +11,10 @@ export interface Column<T> {
   render: (row: T) => ReactNode;
   className?: string;
   sortValue?: (row: T) => string | number;
+  /** Alinhamento horizontal do conteúdo da coluna (header + cells). */
+  align?: "left" | "right" | "center";
+  /** Aplica font-mono + tabular-nums (ideal para valores monetários). */
+  mono?: boolean;
 }
 
 export interface MobileCorners<T> {
@@ -129,6 +133,14 @@ export interface CrudConfig<T extends { id: number }, F, E> {
   schema: ZodType<F>;
   /** Definições de filtros por campo desta página. */
   filters?: FilterDef<T>[];
+  /** Título exibido no estado vazio (quando não há registros). */
+  emptyTitle?: string;
+  /** Descrição exibida no estado vazio. */
+  emptyDescription?: string;
+  /** Rótulo do botão de ação no estado vazio. */
+  emptyActionLabel?: string;
+  /** Callback ao clicar no botão de ação do estado vazio. */
+  onEmptyAction?: () => void;
 }
 
 export type DialogState<T, F> =

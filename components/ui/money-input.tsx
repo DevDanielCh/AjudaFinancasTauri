@@ -22,12 +22,14 @@ export function MoneyInput({
   onChange,
   placeholder,
   className,
+  size,
 }: {
   /** Valor em centavos. */
   value: number;
   onChange: (cents: number) => void;
   placeholder?: string;
   className?: string;
+  size?: "default" | "lg";
 }) {
   // Rascunho em reais enquanto edita; null = não editando.
   const [draft, setDraft] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function MoneyInput({
     <Input
       type="text"
       inputMode="decimal"
+      size={size}
       className={className}
       placeholder={placeholder}
       value={draft !== null ? draft : value === 0 ? "" : formatCents(value)}

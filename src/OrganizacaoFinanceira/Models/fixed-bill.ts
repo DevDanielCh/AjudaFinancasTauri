@@ -5,6 +5,8 @@ export interface FixedBill {
   day: number;
   category_id: number | null;
   category_name: string | null;
+  category_icon: string | null;
+  category_color: string | null;
   payment_method_id: number;
   payment_method_name: string;
   start_month: string;

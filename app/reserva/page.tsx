@@ -40,6 +40,7 @@ export default function ReservaPage() {
           {
             label: "Tipo",
             filterId: "type",
+            align: "center",
             render: (r) =>
               r.type === 5
                 ? <Badge variant="negative">Remoção</Badge>
@@ -48,10 +49,12 @@ export default function ReservaPage() {
           { label: "Descrição", render: (r) => r.description },
           {
             label: "Valor",
+            align: "right",
+            mono: true,
             render: (r) => {
               const positive = r.type === 4;
               return (
-                <span className={cn(positive ? "text-positive" : "text-negative", "tabular-nums")}>
+                <span className={cn(positive ? "text-positive" : "text-negative")}>
                   {positive ? "+" : "−"} {formatMoney(r.amount)}
                 </span>
               );
@@ -102,6 +105,8 @@ export default function ReservaPage() {
           },
           { id: "date", label: "Data", field: "date", accessor: (r) => r.date },
         ],
+        emptyTitle: "Nenhuma movimentação",
+        emptyDescription: "Aportes e resgates da reserva",
         FormFields: ReservaAddForm,
         ViewFields: ReservaViewForm,
       }}

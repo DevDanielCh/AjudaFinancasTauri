@@ -1,12 +1,15 @@
 "use client";
 import { useState } from "react";
+import { HandCoins, Landmark } from "lucide-react";
 import { LoansScreen } from "@/components/screens/loans";
+import { Badge } from "@/components/ui/badge";
 import { FinanciamentoAddForm } from "@/src/OrganizacaoFinanceira/Views/Financiamento/FinanciamentoAddForm";
 import { loanApi } from "@/src/OrganizacaoFinanceira/Repositories/loan";
 import { paymentMethodApi } from "@/src/OrganizacaoFinanceira/Repositories/payment-method";
 import { loanKeys } from "@/src/OrganizacaoFinanceira/Services/loan";
 import { loanSchema } from "@/lib/schemas";
 import { currentMonthISO, formatMonth, formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { Loan, LoanInput } from "@/src/OrganizacaoFinanceira/Models/loan";
 
 export default function LoansPage() {
@@ -19,15 +22,58 @@ export default function LoansPage() {
           newTitle: "Novo Financiamento/Empréstimo",
           editTitle: "Editar Financiamento/Empréstimo",
           columns: [
-            { label: "Descrição", name: "description", render: (r) => r.description },
-            { label: "Tipo", name: "type", filterId: "type", render: (r) => (r.type === 1 ? "Empréstimo" : "Financiamento") },
-            { label: "Valor", name: "principal", render: (r) => <span className="tabular-nums">{formatMoney(r.principal)}</span> },
-            { label: "Parcela", name: "installment", render: (r) => <span className="tabular-nums">{formatMoney(r.installment)}</span> },
-            { label: "Parcelas", name: "installments", render: (r) => `${r.paid_count}/${r.total_installments}` },
-            { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
-            { label: "Fim", render: (r) => formatMonth(r.end_month) },          ],
+            {
+              label: "Descrição",
+              name: "description",
+              render: (r) => (
+                <span className="flex min-w-0 items-center gap-1.5">
+                  {r.type === 1 ? (
+                    <HandCoins className="size-4 shrink-0 text-sticker-teal" />
+                  ) : (
+                    <Landmark className="size-4 shrink-0 text-sticker-purple-deep" />
+                  )}
+                  <span className="truncate">{r.description}</span>
+                </span>
+              ),
+            },
+            {
+              label: "Tipo",
+              name: "type",
+              filterId: "type",
+              align: "center",
+              render: (r) =>
+                r.type === 1 ? (
+                  <Badge variant="info">Empréstimo</Badge>
+                ) : (
+                  <Badge variant="purple">Financiamento</Badge>
+                ),
+            },
+            { label: "Valor", name: "principal", align: "right", mono: true, render: (r) => <span className="tabular-nums">{formatMoney(r.principal)}</span> },
+            { label: "Parcela", name: "installment", align: "right", mono: true, render: (r) => <span className="tabular-nums">{formatMoney(r.installment)}</span> },
+            {
+              label: "Parcelas",
+              name: "installments",
+              align: "center",
+              render: (r) => (
+                <span className={cn("tabular-nums", r.paid_count >= r.total_installments && "text-positive")}>
+                  {r.paid_count}/{r.total_installments}
+                </span>
+              ),
+            },
+            { label: "Início", name: "start", align: "center", render: (r) => formatMonth(r.start_month) },
+            { label: "Fim", align: "center", render: (r) => formatMonth(r.end_month) },
+          ],
           mobileCorners: {
-            topLeft: (r) => r.description,
+            topLeft: (r) => (
+              <span className="flex min-w-0 items-center gap-1.5">
+                {r.type === 1 ? (
+                  <HandCoins className="size-4 shrink-0 text-sticker-teal" />
+                ) : (
+                  <Landmark className="size-4 shrink-0 text-sticker-purple-deep" />
+                )}
+                <span className="truncate">{r.description}</span>
+              </span>
+            ),
             bottomLeft: (r) => `${r.type === 1 ? "Empréstimo" : "Financiamento"} · ${r.paid_count}/${r.total_installments}`,
             topRight: (r) => (
               <span className="tabular-nums">{formatMoney(r.installment)}</span>
@@ -68,6 +114,8 @@ export default function LoansPage() {
             },
             { id: "payment_method", label: "Forma Pgto", field: "select", accessor: (r) => r.payment_method_name },
           ],
+          emptyTitle: "Nenhum financiamento",
+          emptyDescription: "Acompanhe empréstimos e financiamentos",
         }}
         detailId={detailId}
         onDetailClose={() => setDetailId(null)}

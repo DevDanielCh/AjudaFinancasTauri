@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   Dialog,
@@ -29,14 +29,26 @@ function AccountFormBody({
   value: AccountInput;
   onChange: (v: AccountInput) => void;
 }) {
+  const color = value.color ?? ACCOUNT_COLORS[0];
+  const label = value.name?.trim() || "Nova conta";
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-3" aria-hidden>
+        <span
+          className="grid size-12 shrink-0 place-items-center rounded-xl text-sm font-bold"
+          style={{ backgroundColor: color, color: foregroundOn(color) }}
+        >
+          {initials(label)}
+        </span>
+        <span className="min-w-0 truncate text-base font-semibold">{label}</span>
+      </div>
       <div className="flex flex-col gap-1.5">
         <label htmlFor="account-name" className="text-sm font-medium">
           Nome
         </label>
         <Input
           id="account-name"
+          size="lg"
           value={value.name ?? ""}
           placeholder="ex.: Pessoal, Empresa…"
           autoFocus
@@ -47,24 +59,24 @@ function AccountFormBody({
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Cor</span>
         <div className="flex flex-wrap items-center gap-2">
-          {ACCOUNT_COLORS.map((color) => {
-            const selected = (value.color ?? ACCOUNT_COLORS[0]) === color;
+          {ACCOUNT_COLORS.map((c) => {
+            const selected = color === c;
             return (
               <button
-                key={color}
+                key={c}
                 type="button"
-                aria-label={`Cor ${color}`}
+                aria-label={`Cor ${c}`}
                 aria-pressed={selected}
-                onClick={() => onChange({ ...value, color })}
-                style={{ backgroundColor: color }}
+                onClick={() => onChange({ ...value, color: c })}
+                style={{ backgroundColor: c }}
                 className={`size-8 rounded-full transition-all ${
                   selected
                     ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
                     : ""
                 }`}
               >
-                <span className="text-[10px] font-bold" style={{ color: foregroundOn(color) }}>
-                  {initials(value.name || "A")}
+                <span className="text-[10px] font-bold" style={{ color: foregroundOn(c) }}>
+                  {initials(label)}
                 </span>
               </button>
             );
@@ -180,13 +192,14 @@ export function AccountEditDialog({
   const isMobile = useIsMobile();
   const updateMutation = useUpdateAccount();
   const { accounts } = useAccounts();
-  const [value, setValue] = useState<AccountInput>({});
-
-  useEffect(() => {
-    if (!account) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setValue({ name: account.name, color: account.color });
-  }, [account]);
+  const [value, setValue] = useState<AccountInput>(() =>
+    account ? { name: account.name, color: account.color } : {}
+  );
+  const [prevAccount, setPrevAccount] = useState(account);
+  if (prevAccount !== account) {
+    setPrevAccount(account);
+    setValue(account ? { name: account.name, color: account.color } : {});
+  }
 
   const close = () => {
     updateMutation.reset();

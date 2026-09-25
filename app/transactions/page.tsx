@@ -3,6 +3,7 @@ import { Suspense, useCallback, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { TransactionsScreen } from "@/components/screens/transactions";
 import { TransactionsSummary } from "@/components/screens/transactions/shared/TransactionsSummary";
+import { CategoryChip } from "@/components/crud/CategoryChip";
 import { TransacaoAddForm } from "@/src/OrganizacaoFinanceira/Views/Transacao/TransacaoAddForm";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
@@ -47,6 +48,7 @@ function TransactionsContent() {
               label: "Tipo",
               name: "type",
               filterId: "type",
+              align: "center",
               render: (r) => {
                 const isReserva = r.type === 4 || r.type === 5;
                 if (r.is_card_bill) return <Badge>Fatura</Badge>;
@@ -61,22 +63,46 @@ function TransactionsContent() {
               label: "Valor",
               name: "amount",
               filterId: "amount",
+              align: "right",
+              mono: true,
               render: (r) => {
                 const positive = r.type === 1 || r.type === 5;
                 return (
-                  <span className={cn(positive ? "text-positive" : "text-negative", "tabular-nums")}>
+                  <span className={cn(positive ? "text-positive" : "text-negative")}>
                     {positive ? "+" : "−"} {formatMoney(r.amount)}
                   </span>
                 );
               },
             },
             { label: "Forma Pagamento", name: "payment_method", filterId: "payment_method", render: (r) => r.payment_method_name ?? "—" },
-            { label: "Categoria", name: "category", filterId: "category", render: (r) => r.category_name ?? "—" },
+            {
+              label: "Categoria",
+              name: "category",
+              filterId: "category",
+              render: (r) =>
+                r.category_name ? (
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <CategoryChip color={r.category_color} icon={r.category_icon} size="sm" />
+                    <span className="truncate">{r.category_name}</span>
+                  </span>
+                ) : (
+                  "—"
+                ),
+            },
           ],
           mobileCorners: {
             topLeft: (r) => r.description,
             bottomLeft: (r) =>
-              r.type === 4 || r.type === 5 ? "Reserva" : r.category_name ?? "—",
+              r.type === 4 || r.type === 5 ? (
+                "Reserva"
+              ) : r.category_name ? (
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <CategoryChip color={r.category_color} icon={r.category_icon} size="sm" />
+                  <span className="truncate">{r.category_name}</span>
+                </span>
+              ) : (
+                "—"
+              ),
             topRight: (r) => {
               const positive = r.type === 1 || r.type === 5;
               return (
@@ -131,6 +157,8 @@ function TransactionsContent() {
             { id: "date", label: "Data", field: "date", accessor: (r) => r.date },
             { id: "amount", label: "Valor", field: "money", accessor: (r) => r.amount },
           ],
+          emptyTitle: "Nenhuma transação este mês",
+          emptyDescription: "Registre receitas e despesas do período",
           onView: (r) => {
             if (r.is_card_bill) setFaturaId(r.id);
             else toast.add({ title: "Visualizar disponível apenas para faturas", type: "error" });

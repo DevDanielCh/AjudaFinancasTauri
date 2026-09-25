@@ -26,7 +26,8 @@ pub(crate) fn list_transactions(
     let mut sql = String::from(
         "SELECT t.id, t.description, t.amount, t.type, t.date,
                 t.category_id, c.name, t.payment_method_id, pm.name,
-                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode, t.in_principal
+                t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode, t.in_principal,
+                c.icon, c.color
          FROM transactions t
          LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
          LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
@@ -67,6 +68,8 @@ pub(crate) fn list_transactions(
                     date: r.get(4)?,
                     category_id: r.get(5)?,
                     category_name: r.get(6)?,
+                    category_icon: r.get(14)?,
+                    category_color: r.get(15)?,
                     payment_method_id: r.get(7)?,
                     payment_method_name: r.get(8)?,
                     fixed_bill_id: r.get(9)?,
@@ -105,7 +108,8 @@ pub fn card_bill_purchases(
             "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, cat.name, t.payment_method_id, pm.name,
                     t.fixed_bill_id, t.loan_id, 0, t.card_mode, t.in_principal,
-                    fb.installments, fb.start_month
+                    fb.installments, fb.start_month,
+                    cat.icon, cat.color
              FROM transactions t
              LEFT JOIN categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
@@ -137,12 +141,14 @@ pub fn card_bill_purchases(
                 type_: r.get(3)?,
                 date,
                 category_id: r.get(5)?,
-                category_name: r.get(6)?,
+category_name: r.get(6)?,
+                category_icon: r.get(16)?,
+                category_color: r.get(17)?,
                 payment_method_id: r.get(7)?,
                 payment_method_name: r.get(8)?,
                 fixed_bill_id: r.get(9)?,
                 loan_id: r.get(10)?,
-                is_card_bill: false,
+                is_card_bill: r.get(11)?,
                 card_mode: r.get(12)?,
                 in_principal: r.get(13)?,
                 installment,
@@ -183,7 +189,8 @@ pub(crate) fn list_card_bill_transactions(
             "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, cat.name, t.payment_method_id, pm.name,
                     t.fixed_bill_id, t.loan_id, 0, t.card_mode, t.in_principal,
-                    fb.installments, fb.start_month
+                    fb.installments, fb.start_month,
+                    cat.icon, cat.color
              FROM transactions t
              LEFT JOIN categories cat ON cat.id = t.category_id AND cat.deleted_at IS NULL
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
@@ -219,12 +226,14 @@ pub(crate) fn list_card_bill_transactions(
                 type_: r.get(3)?,
                 date,
                 category_id: r.get(5)?,
-                category_name: r.get(6)?,
+category_name: r.get(6)?,
+                category_icon: r.get(16)?,
+                category_color: r.get(17)?,
                 payment_method_id: r.get(7)?,
                 payment_method_name: r.get(8)?,
                 fixed_bill_id: r.get(9)?,
                 loan_id: r.get(10)?,
-                is_card_bill: false,
+                is_card_bill: r.get(11)?,
                 card_mode: r.get(12)?,
                 in_principal: r.get(13)?,
                 installment,
@@ -358,7 +367,8 @@ pub(crate) fn list_fixed_bills(
     );
     let sql = format!(
         "SELECT b.id, b.description, b.amount, b.day, b.category_id, c.name,
-                b.payment_method_id, pm.name, b.start_month, b.end_month, b.installments, b.purchase_date
+                b.payment_method_id, pm.name, b.start_month, b.end_month, b.installments, b.purchase_date,
+                c.icon, c.color
          FROM fixed_bills b
          LEFT JOIN categories c ON c.id = b.category_id AND c.deleted_at IS NULL
          JOIN payment_methods pm ON pm.id = b.payment_method_id AND pm.deleted_at IS NULL
@@ -375,6 +385,8 @@ pub(crate) fn list_fixed_bills(
                 day: r.get(3)?,
                 category_id: r.get(4)?,
                 category_name: r.get(5)?,
+                category_icon: r.get(12)?,
+                category_color: r.get(13)?,
                 payment_method_id: r.get(6)?,
                 payment_method_name: r.get(7)?,
                 start_month: r.get(8)?,

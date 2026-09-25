@@ -96,7 +96,7 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
               onChange={(e) => { setQuery(e.target.value); setVisibleCount(pageSize); }}
               placeholder="Buscar..."
               aria-label={`Buscar em ${config.title}`}
-              className="pl-8"
+              className="pl-9!"
             />
           </div>
         </div>
@@ -117,6 +117,7 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
               onTap={(row) => config.onView?.(row)}
               onLongPress={(row) => setOptionsRow(row)}
               rowClass={config.rowClass}
+              protectedRow={config.protected}
               emptySearch={(!!query.trim() || hasActiveFilters) && filtered.length === 0}
             />
           ) : (
@@ -129,6 +130,10 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
               activeFilters={filters}
               onSetFilter={handleSetFilter}
               derivedOptions={derivedOptionsMap}
+              emptyTitle={config.emptyTitle}
+              emptyDescription={config.emptyDescription}
+              emptyActionLabel={config.emptyActionLabel ?? `Adicionar ${config.title.toLowerCase().replace(/s$/, "")}`}
+              onEmptyAction={config.onEmptyAction ?? (() => setDialog({ mode: "create" }))}
               onRowDoubleClick={
                 config.onRowDoubleClick ??
                 ((row) => {
@@ -210,7 +215,7 @@ export function CrudPageMobile<T extends { id: number }, F, E>({
           size="icon"
           aria-label={config.addLabel ?? "Adicionar"}
           onClick={() => setDialog({ mode: "create" })}
-          className="fixed right-4 z-40 h-14 w-14 rounded-full shadow-lg"
+          className="fixed right-4 z-40 h-14 w-14 rounded-full shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300"
           style={{ bottom: "calc(7.5rem + var(--safe-area-inset-bottom))" }}
         >
           <Plus className="size-6" />

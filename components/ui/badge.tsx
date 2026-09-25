@@ -21,6 +21,10 @@ const badgeVariants = cva(
           "border-border bg-negative/10 text-negative dark:bg-negative/15 [a]:hover:bg-negative/20",
         warning:
           "border-border bg-sticker-orange/10 text-sticker-orange dark:bg-sticker-orange/15 [a]:hover:bg-sticker-orange/20",
+        info:
+          "border-border bg-sticker-sky/10 text-sticker-sky dark:bg-sticker-sky/15 [a]:hover:bg-sticker-sky/20",
+        purple:
+          "border-border bg-sticker-purple/15 text-sticker-purple-deep dark:bg-sticker-purple/25 dark:text-sticker-purple [a]:hover:bg-sticker-purple/25",
         outline:
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:

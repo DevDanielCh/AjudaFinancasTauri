@@ -37,9 +37,9 @@ export function FilterChip<T>({ def, active, onApply, derivedOptions }: FilterCh
         render={
           <Button
             variant="outline"
-            size="sm"
+            size="xs"
             className={cn(
-              "gap-1.5 font-normal",
+              "gap-1 font-normal",
               active && "border-primary bg-primary text-primary-foreground hover:bg-primary",
             )}
           >

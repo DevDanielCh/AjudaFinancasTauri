@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -13,12 +14,14 @@ import { AccountBottomNav } from "./AccountBottomNav";
 import { AccountEditDialog, AccountDeleteDialog } from "./AccountDialogs";
 import { ChannelsContent } from "./ChannelsContent";
 import { AppHeader } from "@/components/AppHeader";
+import { cn } from "@/lib/utils";
 import type { AccountInfo } from "./models";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { channelsOpen, setChannelsOpen } = useAccounts();
   const [editing, setEditing] = useState<AccountInfo | null>(null);
   const [deleting, setDeleting] = useState<AccountInfo | null>(null);
+  const isDashboard = usePathname() === "/";
 
   return (
     <div className="flex h-full">
@@ -37,8 +40,23 @@ function Shell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <AppHeader />
-        <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pb-28 sm:p-6">
-          <div className="mx-auto flex h-full w-full max-w-7xl min-h-0 flex-1 overflow-y-auto">{children}</div>
+        {/* Dashboard: scroll no próprio <main>; demais telas: painel interno rolável. */}
+        <main
+          className={cn(
+            "flex flex-col p-3 pb-28 sm:p-6",
+            isDashboard
+              ? "min-h-0 flex-1 overflow-y-auto"
+              : "min-h-0 flex-1 overflow-hidden"
+          )}
+        >
+          <div
+            className={cn(
+              "mx-auto flex w-full max-w-7xl flex-1",
+              !isDashboard && "h-full min-h-0 overflow-y-auto"
+            )}
+          >
+            {children}
+          </div>
         </main>
       </div>
 

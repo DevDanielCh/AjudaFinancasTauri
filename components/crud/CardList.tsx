@@ -1,12 +1,12 @@
 "use client";
 import { useRef } from "react";
-import { Inbox, SearchX } from "lucide-react";
+import { Inbox, Lock, SearchX } from "lucide-react";
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { cn } from "@/lib/utils";
 import type { MobileCorners } from "./types";
 
 export function CardList<T extends { id: number }>({
-  corners, rows, onTap, onLongPress, rowClass, emptySearch,
+  corners, rows, onTap, onLongPress, rowClass, emptySearch, protectedRow,
 }: {
   corners: MobileCorners<T>;
   rows: T[];
@@ -15,6 +15,8 @@ export function CardList<T extends { id: number }>({
   rowClass?: (row: T) => string;
   /** True quando há busca ativa e não há resultado (distingue de lista vazia). */
   emptySearch?: boolean;
+  /** Marca rows protegidas exibindo o ícone de bloqueio (faturas, reserva). */
+  protectedRow?: (row: T) => boolean;
 }) {
   const suppressClick = useRef(false);
   if (rows.length === 0) {
@@ -34,7 +36,7 @@ export function CardList<T extends { id: number }>({
         <li key={row.id}>
           <button
             type="button"
-            className={cn("w-full cursor-pointer select-none rounded-xl border bg-card p-3 text-left transition-colors hover:bg-accent active:bg-accent", rowClass?.(row))}
+            className={cn("w-full cursor-pointer select-none rounded-xl border border-border/50 bg-card p-2.5 text-left transition-colors active:bg-accent", rowClass?.(row))}
             onClick={() => { if (suppressClick.current) { suppressClick.current = false; return; } onTap?.(row); }}
             onPointerDown={(e) => {
               suppressClick.current = false;
@@ -60,7 +62,12 @@ export function CardList<T extends { id: number }>({
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{corners.topLeft(row)}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="min-w-0 truncate text-sm font-medium">{corners.topLeft(row)}</span>
+                  {protectedRow?.(row) && (
+                    <Lock className="size-3 shrink-0 text-muted-foreground/60" aria-label="Registro protegido" />
+                  )}
+                </div>
                 {corners.bottomLeft && (
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">
                     {corners.bottomLeft(row)}
@@ -69,7 +76,7 @@ export function CardList<T extends { id: number }>({
               </div>
               <div className="shrink-0 text-right">
                 {corners.topRight && (
-                  <div className="truncate text-sm font-bold tabular-nums">
+                  <div className="truncate text-sm font-semibold tabular-nums">
                     {corners.topRight(row)}
                   </div>
                 )}

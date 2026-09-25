@@ -15,7 +15,8 @@ pub fn list_reserva_movements_impl(conn: &Connection, account_id: i64) -> Result
         .prepare(
              "SELECT t.id, t.description, t.amount, t.type, t.date,
                     t.category_id, c.name, t.payment_method_id, pm.name,
-                    t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode, t.in_principal
+                    t.fixed_bill_id, t.loan_id, (t.bill_start IS NOT NULL), t.card_mode, t.in_principal,
+                    c.icon, c.color
              FROM transactions t
              LEFT JOIN categories c ON c.id = t.category_id AND c.deleted_at IS NULL
              LEFT JOIN payment_methods pm ON pm.id = t.payment_method_id AND pm.deleted_at IS NULL
@@ -33,6 +34,8 @@ pub fn list_reserva_movements_impl(conn: &Connection, account_id: i64) -> Result
                 date: r.get(4)?,
                 category_id: r.get(5)?,
                 category_name: r.get(6)?,
+                category_icon: r.get(14)?,
+                category_color: r.get(15)?,
                 payment_method_id: r.get(7)?,
                 payment_method_name: r.get(8)?,
                 fixed_bill_id: r.get(9)?,

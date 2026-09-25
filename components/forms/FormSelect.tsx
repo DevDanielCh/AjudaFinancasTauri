@@ -19,12 +19,14 @@ export function FormSelect({
   options,
   placeholder,
   className,
+  size = "default",
 }: {
   value: string;
   onChange: (v: string) => void;
   options: FormSelectOption[];
   placeholder?: string;
   className?: string;
+  size?: "default" | "lg";
 }) {
   return (
     <Select
@@ -32,7 +34,7 @@ export function FormSelect({
       value={value}
       onValueChange={(v) => onChange(String(v))}
     >
-      <SelectTrigger className={cn("w-full", className)}>
+      <SelectTrigger size={size} className={cn("w-full", className)}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

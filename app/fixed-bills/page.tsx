@@ -1,5 +1,6 @@
 "use client";
 import { FixedBillsScreen } from "@/components/screens/fixed-bills";
+import { CategoryChip } from "@/components/crud/CategoryChip";
 import { ContaFixaAddForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaAddForm";
 import { ContaFixaViewForm } from "@/src/OrganizacaoFinanceira/Views/ContaFixa/ContaFixaViewForm";
 import { fixedBillApi } from "@/src/OrganizacaoFinanceira/Repositories/fixed-bill";
@@ -19,14 +20,28 @@ export default function FixedBillsPage() {
         newTitle: "Nova Conta Fixa",
         editTitle: "Editar Conta Fixa",
         columns: [
-          { label: "Descrição", name: "description", render: (r) => r.description },
-          { label: "Valor", name: "amount", render: (r) => <span className="tabular-nums">{formatMoney(r.amount)}</span> },
-          { label: "Dia", name: "day", filterId: "day", render: (r) => r.day },
-          { label: "Início", name: "start", render: (r) => formatMonth(r.start_month) },
-          { label: "Fim", name: "end", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
+          {
+            label: "Descrição",
+            name: "description",
+            render: (r) => (
+              <span className="flex min-w-0 items-center gap-1.5">
+                {r.category_id && <CategoryChip color={r.category_color} icon={r.category_icon} size="sm" />}
+                <span className="truncate">{r.description}</span>
+              </span>
+            ),
+          },
+          { label: "Valor", name: "amount", align: "right", mono: true, render: (r) => <span className="tabular-nums">{formatMoney(r.amount)}</span> },
+          { label: "Dia", name: "day", filterId: "day", align: "center", render: (r) => r.day },
+          { label: "Início", name: "start", align: "center", render: (r) => formatMonth(r.start_month) },
+          { label: "Fim", name: "end", align: "center", render: (r) => (r.end_month ? formatMonth(r.end_month) : "—") },
         ],
         mobileCorners: {
-          topLeft: (r) => r.description,
+          topLeft: (r) => (
+            <span className="flex min-w-0 items-center gap-1.5">
+              {r.category_id && <CategoryChip color={r.category_color} icon={r.category_icon} size="sm" />}
+              <span className="truncate">{r.description}</span>
+            </span>
+          ),
           bottomLeft: (r) => r.category_name ? `${r.category_name} · dia ${r.day}` : `dia ${r.day}`,
           topRight: (r) => (
             <span className="tabular-nums">{formatMoney(r.amount)}</span>
@@ -70,6 +85,8 @@ export default function FixedBillsPage() {
         queryKey: fixedBillKeys(false),
         invalidate: [["transactions"], ["dashboard"]],
         schema: fixedBillSchema,
+        emptyTitle: "Nenhuma conta fixa",
+        emptyDescription: "Contas recorrentes aparecem automaticamente",
         filters: [
           { id: "category", label: "Categoria", field: "select", accessor: (r) => r.category_name },
           { id: "day", label: "Dia", field: "number", accessor: (r) => r.day },

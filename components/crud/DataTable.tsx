@@ -32,6 +32,7 @@ export function DataTable<T extends { id: number }>({
   columns, rows, onRowDoubleClick, rowClass, sort, onSort, onRowContextMenu,
   canEditRow, onViewRow, onEditRow, onDuplicateRow, onDeleteRow, headerRight,
   emptySearch, tableClassName, filterDefs, activeFilters, onSetFilter, derivedOptions,
+  emptyTitle, emptyDescription, emptyActionLabel, onEmptyAction,
 }: {
   columns: Column<T>[];
   rows: T[];
@@ -54,7 +55,17 @@ export function DataTable<T extends { id: number }>({
   derivedOptions: Record<string, { label: string; value: string | number }[]>;
   /** Classe extra aplicada ao container da tabela. */
   tableClassName?: string;
+  /** Título exibido no estado vazio. */
+  emptyTitle?: string;
+  /** Descrição exibida no estado vazio. */
+  emptyDescription?: string;
+  /** Rótulo do botão de ação no estado vazio. */
+  emptyActionLabel?: string;
+  /** Callback ao clicar no botão de ação do estado vazio. */
+  onEmptyAction?: () => void;
 }) {
+  const isMobile = useIsMobile();
+
   const columnDefs = React.useMemo<ColumnDef<typeof FEATURES, T, unknown>[]>(() => {
     const defs: ColumnDef<typeof FEATURES, T, unknown>[] = [];
     for (const c of columns) {
@@ -64,7 +75,7 @@ export function DataTable<T extends { id: number }>({
         enableSorting: !!c.name,
         accessorFn: (row) => (c.sortValue ? c.sortValue(row) : c.render(row)),
         cell: ({ row }) => c.render(row.original),
-        meta: { className: c.className },
+        meta: { className: c.className, align: c.align, mono: c.mono },
       });
     }
     defs.push({
@@ -93,7 +104,6 @@ export function DataTable<T extends { id: number }>({
 
   const table = useTable({ features: FEATURES, data: rows, columns: columnDefs });
   const visibleRows = table.getRowModel().rows;
-  const isMobile = useIsMobile();
 
   const filterByHeader = React.useMemo(() => {
     const filterById = new Map(filterDefs.map((f) => [f.id, f]));
@@ -108,11 +118,26 @@ export function DataTable<T extends { id: number }>({
   }, [filterDefs, columns]);
 
   if (rows.length === 0) {
+    const isSearch = emptySearch;
+    const title = isSearch ? "Nenhum resultado para a busca" : (emptyTitle ?? "Nenhum registro");
+    const description = isSearch ? undefined : emptyDescription;
     return (
       <Empty>
         <EmptyHeader>
-          <EmptyMedia variant="icon">{emptySearch ? <SearchX /> : <Inbox />}</EmptyMedia>
-          <EmptyTitle>{emptySearch ? "Nenhum resultado para a busca" : "Nenhum registro"}</EmptyTitle>
+          <EmptyMedia variant="icon">{isSearch ? <SearchX /> : <Inbox />}</EmptyMedia>
+          <EmptyTitle>{title}</EmptyTitle>
+          {description && (
+            <p className="text-sm text-muted-foreground">{description}</p>
+          )}
+          {emptyActionLabel && onEmptyAction && (
+            <button
+              type="button"
+              onClick={onEmptyAction}
+              className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              {emptyActionLabel}
+            </button>
+          )}
         </EmptyHeader>
       </Empty>
     );
@@ -134,7 +159,8 @@ export function DataTable<T extends { id: number }>({
               key={header.id}
               scrollable
               className={cn(
-                header.column.getCanSort() && "cursor-pointer select-none"
+                header.column.getCanSort() && "cursor-pointer select-none",
+                alignClass((header.column.columnDef.meta as { align?: string } | undefined)?.align)
               )}
             >
               <div className="flex items-center justify-between gap-1">
@@ -142,7 +168,10 @@ export function DataTable<T extends { id: number }>({
                   {header.column.getCanSort() ? (
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1"
+                      className={cn(
+                        "inline-flex items-center gap-1",
+                        alignFlex((header.column.columnDef.meta as { align?: string } | undefined)?.align)
+                      )}
                       onClick={() => {
                         const cur = sort;
                         const next = !cur || cur.id !== header.id
@@ -193,17 +222,21 @@ export function DataTable<T extends { id: number }>({
               onRowContextMenu(row.original, e);
             }}
           >
-            {row.getAllCells().map((cell) => (
-              <TableCell
-                key={cell.id}
-                className={cn(
-                  "tabular-nums",
-                  (cell.column.columnDef.meta as { className?: string } | undefined)?.className
-                )}
-              >
-                <table.FlexRender cell={cell} />
-              </TableCell>
-            ))}
+            {row.getAllCells().map((cell) => {
+              const meta = cell.column.columnDef.meta as { className?: string; align?: string; mono?: boolean } | undefined;
+              return (
+                <TableCell
+                  key={cell.id}
+                  className={cn(
+                    meta?.mono && "font-mono tabular-nums",
+                    alignClass(meta?.align),
+                    meta?.className
+                  )}
+                >
+                  <table.FlexRender cell={cell} />
+                </TableCell>
+              );
+            })}
           </TableRow>
         ))}
       </TableBody>
@@ -265,4 +298,16 @@ function RowActions<T extends { id: number }>({
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function alignClass(align?: string): string {
+  if (align === "right") return "text-right";
+  if (align === "center") return "text-center";
+  return "";
+}
+
+function alignFlex(align?: string): string {
+  if (align === "right") return "justify-end";
+  if (align === "center") return "justify-center";
+  return "";
 }

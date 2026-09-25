@@ -73,7 +73,7 @@ function DialogHeader({
   className,
   children,
   showCloseButton = true,
-  showSeparator = true,
+  showSeparator = false,
   ...props
 }: React.ComponentProps<"div"> & {
   showCloseButton?: boolean
@@ -82,7 +82,7 @@ function DialogHeader({
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col", className)}
+      className={cn("flex flex-col", showSeparator ? "" : "pb-4", className)}
       {...props}
     >
       <div className="flex items-center justify-between gap-3">

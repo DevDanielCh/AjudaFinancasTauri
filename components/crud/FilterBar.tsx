@@ -27,7 +27,7 @@ export function FilterBar<T extends { id: number }>({
   if (addedDefs.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1">
       {addedDefs.map((def) => (
         <FilterChip
           key={def.id}

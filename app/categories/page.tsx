@@ -1,5 +1,7 @@
 "use client";
 import { CategoriesScreen } from "@/components/screens/categories";
+import { CategoryChip } from "@/components/crud/CategoryChip";
+import { Badge } from "@/components/ui/badge";
 import { CategoriaAddForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaAddForm";
 import { CategoriaViewForm } from "@/src/OrganizacaoFinanceira/Views/Categoria/CategoriaViewForm";
 import { categoryApi } from "@/src/OrganizacaoFinanceira/Repositories/category";
@@ -18,16 +20,28 @@ export default function CategoriesPage() {
           {
             label: "Cor",
             name: "color",
-            render: (r) => <span className="inline-block h-4 w-4 rounded-full border" style={{ backgroundColor: r.color }} />,
+            align: "center",
+            render: (r) => <CategoryChip color={r.color} icon={r.icon} />,
           },
           { label: "Nome", name: "name", render: (r) => r.name },
-          { label: "Tipo", name: "type", filterId: "type", render: (r) => (r.type === 1 ? "Receita" : "Despesa") },
+          {
+            label: "Tipo",
+            name: "type",
+            filterId: "type",
+            align: "center",
+            render: (r) =>
+              r.type === 1 ? (
+                <Badge variant="positive">Receita</Badge>
+              ) : (
+                <Badge variant="negative">Despesa</Badge>
+              ),
+          },
         ],
         mobileCorners: {
           topLeft: (r) => (
-            <span className="flex items-center gap-2">
-              <span className="inline-block h-3.5 w-3.5 shrink-0 rounded-full border" style={{ backgroundColor: r.color }} />
-              {r.name}
+            <span className="flex min-w-0 items-center gap-2">
+              <CategoryChip color={r.color} icon={r.icon} size="sm" />
+              <span className="truncate">{r.name}</span>
             </span>
           ),
           topRight: (r) => (r.type === 1 ? "Receita" : "Despesa"),
@@ -43,6 +57,8 @@ export default function CategoriesPage() {
         queryKey: categoryKeys,
         invalidate: [["transactions"], ["dashboard"], ["chart-data"]],
         schema: categorySchema,
+        emptyTitle: "Nenhuma categoria",
+        emptyDescription: "Categorias ajudam a organizar suas transações",
         filters: [
           {
             id: "type", label: "Tipo", field: "select",
